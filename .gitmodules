@@ -1,0 +1,13 @@
+[submodule "bluespec/Toooba"]
+	path = bluespec/Toooba
+	url = https://github.com/CTSRD-CHERI/Toooba.git
+	branch = wip-aj443-WindCoreInterface
+[submodule "bluespec/DE10Pro-bsv-shell"]
+	path = bluespec/DE10Pro-bsv-shell
+	url = https://github.com/POETSII/DE10Pro-bsv-shell.git
+[submodule "vipbundle"]
+	path = vipbundle
+	url = https://github.com/CTSRD-CHERI/vipbundle.git
+[submodule "bluespec/Recipe"]
+	path = bluespec/Recipe
+	url = https://github.com/CTSRD-CHERI/Recipe.git
