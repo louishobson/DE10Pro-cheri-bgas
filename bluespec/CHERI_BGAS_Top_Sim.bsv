@@ -51,6 +51,9 @@ import Recipe :: *;
 `define DRAM_ARUSER   0
 `define DRAM_RUSER    0
 
+// AXI4Lite control port driver
+////////////////////////////////////////////////////////////////////////////////
+
 module mkDriveAXILite (AXI4Lite_Master #( `H2F_LW_ADDR
                                         , `H2F_LW_DATA
                                         , `H2F_LW_AWUSER
@@ -59,6 +62,9 @@ module mkDriveAXILite (AXI4Lite_Master #( `H2F_LW_ADDR
                                         , `H2F_LW_ARUSER
                                         , `H2F_LW_RUSER ));
 
+  // general helpers
+  //////////////////////////////////////////////////////////////////////////////
+
   let delayReg <- mkRegU;
   function recipeDelay (delay) = rSeq ( rBlock (
     action delayReg <= delay; endaction
@@ -66,116 +72,156 @@ module mkDriveAXILite (AXI4Lite_Master #( `H2F_LW_ADDR
   ));
 
   let shim <- mkAXI4LiteShim;
-  let debugBaseAddr = 32'hf9000000;
-  let resReg <- mkRegU; // reg used by debug module reads and writes for return
-                        // values. Must be explicitly handled by the caller
 
-  function readDebugReg (verbosity, idx) = rSeq ( rBlock (
-      rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Starting readDebugReg, idx = "
-                             , $time
-                             , fshow (idx))))
-    , shim.slave.ar.put (AXI4Lite_ARFlit {
-        araddr: debugBaseAddr + zeroExtend ({idx, 2'b00})
-      , arprot: 0
-      , aruser: 0
-      })
-    , action
-        let val <- get (shim.slave.r);
-        //resFF.enq (val.rdata);
-        resReg <= val.rdata;
-      endaction
-    , rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Ended readDebugReg, value returned = "
-                             , $time
-                             , fshow (resReg))))
-    ) );
-  function writeDebugReg (verbosity, idx, data) = rSeq ( rBlock (
-      rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Starting writeDebugReg, idx = "
-                             , $time
-                             , fshow (idx)
-                             , ", data = "
-                             , fshow (data))))
-    , action
-        shim.slave.aw.put (AXI4Lite_AWFlit {
-          awaddr: debugBaseAddr + zeroExtend ({idx, 2'b00})
-        , awprot: 0
-        , awuser: 0
-        });
-        shim.slave.w.put (AXI4Lite_WFlit {
-          wdata: data
-        , wstrb: ~0
-        , wuser: 0
-        });
-      endaction
-    , shim.slave.b.drop
-    , rWhen ( verbosity > 0
-            , rAct ($display ("%0t - Ended writeDebugReg", $time)))
-    ) );
+  let readRegRes <- mkRegU; // reg used by reads and writes for return values.
+                            // Must be explicitly handled by the caller
 
-  function Recipe debugTooobaReset (Integer verbosity, Bool running) =
-    rSeq ( rBlock (
+  function readReg (verbosity, addr) = rSeq ( rBlock (
       rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Starting debugTooobaReset, running = "
-                             , $time
-                             , fshow (running))))
-    , writeDebugReg (verbosity - 1, 7'h10, running ? 'h00000003 : 'h80000003)
-    , recipeDelay (5)
-    , writeDebugReg (verbosity - 1, 7'h10, running ? 'h00000001 : 'h80000001)
-    , recipeDelay (500)
-    , readDebugReg (verbosity - 1, 7'h11)
-    , rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Ended debugTooobaReset, value returned = "
-                             , $time
-                             , fshow (resReg))))
-    ) );
-
-  function Recipe debugTooobaMemRead (Integer verbosity, Bit #(64) addr) =
-    rSeq ( rBlock (
-      rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Starting debugTooobaMemRead, addr = "
+            , rAct ($display ( "%0t - Starting readReg, addr = "
                              , $time
                              , fshow (addr))))
-    , writeDebugReg (verbosity - 1, 7'h17, 'h003207b0)
-    , writeDebugReg (verbosity - 1, 7'h38, 'h00150000)
-    , writeDebugReg (verbosity - 1, 7'h3a, truncateLSB (addr))
-    , writeDebugReg (verbosity - 1, 7'h39, truncate (addr))
-    , readDebugReg (verbosity - 1, 7'h3c)
+    , shim.slave.ar.put (AXI4Lite_ARFlit { araddr: addr
+                                         , arprot: 0
+                                         , aruser: 0 })
+    , action
+        let val <- get (shim.slave.r);
+        readRegRes <= val.rdata;
+      endaction
     , rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Ended debugTooobaMemRead, value returned = "
+            , rAct ($display ( "%0t - Ended readReg, value returned = "
                              , $time
-                             , fshow (resReg))))
+                             , fshow (readRegRes))))
     ) );
-
-  function Recipe debugTooobaMemWrite ( Integer verbosity
-                                      , Bit #(64) addr
-                                      , Bit #(32) data) =
-    rSeq ( rBlock (
+  function writeReg (verbosity, addr, data) = rSeq ( rBlock (
       rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Starting debugTooobaMemWrite, addr = "
+            , rAct ($display ( "%0t - Starting writeReg, addr = "
                              , $time
                              , fshow (addr)
                              , ", data = "
                              , fshow (data))))
-    , writeDebugReg (verbosity - 1, 7'h17, 'h003207b0)
-    , writeDebugReg (verbosity - 1, 7'h38, 'h00050000)
-    , writeDebugReg (verbosity - 1, 7'h3a, truncateLSB (addr))
-    , writeDebugReg (verbosity - 1, 7'h39, truncate (addr))
-    , writeDebugReg (verbosity - 1, 7'h3c, data)
-    , readDebugReg (verbosity - 1, 7'h38)
+    , action
+        shim.slave.aw.put (AXI4Lite_AWFlit { awaddr: addr
+                                           , awprot: 0
+                                           , awuser: 0 });
+        shim.slave.w.put (AXI4Lite_WFlit { wdata: data
+                                         , wstrb: ~0
+                                         , wuser: 0 });
+      endaction
+    , shim.slave.b.drop
     , rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Ended debugTooobaMemWrite, value returned = "
-                             , $time
-                             , fshow (resReg))))
+            , rAct ($display ("%0t - Ended writeReg", $time)))
     ) );
+
+  // Debug unit helpers
+  //////////////////////////////////////////////////////////////////////////////
+
+  let debugBaseAddr = 32'hf9000000;
+  function debugUnitReadReg (verbosity, idx) =
+    readReg (verbosity, debugBaseAddr + zeroExtend ({idx, 2'b00}));
+  function debugUnitWriteReg (verbosity, idx, data) =
+    writeReg (verbosity, debugBaseAddr + zeroExtend ({idx, 2'b00}), data);
+
+  function Recipe debugUnitSendReset (Integer verbosity, Bool running) =
+    rSeq ( rBlock (
+      rWhen ( verbosity > 0
+            , rAct ($display ( "%0t - Starting debugUnitSendReset, running = "
+                             , $time
+                             , fshow (running))))
+    , debugUnitWriteReg (verbosity - 1, 7'h10, running ? 'h00000003 : 'h80000003)
+    , recipeDelay (5)
+    , debugUnitWriteReg (verbosity - 1, 7'h10, running ? 'h00000001 : 'h80000001)
+    , recipeDelay (500)
+    , debugUnitReadReg (verbosity - 1, 7'h11)
+    , rWhen ( verbosity > 0
+            , rAct ($display ( "%0t - Ended debugUnitSendReset, value returned = "
+                             , $time
+                             , fshow (readRegRes))))
+    ) );
+
+  function Recipe debugUnitSendMemRead (Integer verbosity, Bit #(64) addr) =
+    rSeq ( rBlock (
+      rWhen ( verbosity > 0
+            , rAct ($display ( "%0t - Starting debugUnitSendMemRead, addr = "
+                             , $time
+                             , fshow (addr))))
+    , debugUnitWriteReg (verbosity - 1, 7'h17, 'h003207b0)
+    , debugUnitWriteReg (verbosity - 1, 7'h38, 'h00150000)
+    , debugUnitWriteReg (verbosity - 1, 7'h3a, truncateLSB (addr))
+    , debugUnitWriteReg (verbosity - 1, 7'h39, truncate (addr))
+    , debugUnitReadReg (verbosity - 1, 7'h3c)
+    , rWhen ( verbosity > 0
+            , rAct ($display ( "%0t - Ended debugUnitSendMemRead, value returned = "
+                             , $time
+                             , fshow (readRegRes))))
+    ) );
+
+  function Recipe debugUnitSendMemWrite ( Integer verbosity
+                                      , Bit #(64) addr
+                                      , Bit #(32) data) =
+    rSeq ( rBlock (
+      rWhen ( verbosity > 0
+            , rAct ($display ( "%0t - Starting debugUnitSendMemWrite, addr = "
+                             , $time
+                             , fshow (addr)
+                             , ", data = "
+                             , fshow (data))))
+    , debugUnitWriteReg (verbosity - 1, 7'h17, 'h003207b0)
+    , debugUnitWriteReg (verbosity - 1, 7'h38, 'h00050000)
+    , debugUnitWriteReg (verbosity - 1, 7'h3a, truncateLSB (addr))
+    , debugUnitWriteReg (verbosity - 1, 7'h39, truncate (addr))
+    , debugUnitWriteReg (verbosity - 1, 7'h3c, data)
+    , debugUnitReadReg (verbosity - 1, 7'h38)
+    , rWhen ( verbosity > 0
+            , rAct ($display ( "%0t - Ended debugUnitSendMemWrite, value returned = "
+                             , $time
+                             , fshow (readRegRes))))
+    ) );
+
+  // fake 16550 helpers
+  //////////////////////////////////////////////////////////////////////////////
+
+  let fake16550BaseAddr = 32'hf9030000;
+  function fake16550ReadReg (verbosity, idx) =
+    readReg (verbosity, fake16550BaseAddr + zeroExtend (idx));
+  function fake16550WriteReg (verbosity, idx, data) =
+    writeReg (verbosity, fake16550BaseAddr + zeroExtend (idx), data);
+  function fake16550ReceiveData (verbosity) =
+    readReg (verbosity, fake16550BaseAddr + zeroExtend (4'h0));
+  function fake16550TransmitData (verbosity, data) =
+    writeReg (verbosity, fake16550BaseAddr + zeroExtend (4'h0), data);
+
+  // Instantiate top recipe
+  //////////////////////////////////////////////////////////////////////////////
 
   Integer verbosity = 2;
   PulseWire done <- mkPulseWire;
+  //Recipe r = rSeq ( rBlock (
+  //    debugUnitSendReset (verbosity, False)
+  //  //, debugUnitSendMemWrite (verbosity, 'h80008000, 'hdeadbeef)
+  //  //, debugUnitSendMemRead (verbosity, 'h80008000)
+  //  , done.send
+  //  ));
+  //Recipe r = rSeq ( rBlock (
+  //    debugUnitSendReset (verbosity, False)
+  //  , debugUnitWriteReg (verbosity, 7'h10, 'h3)
+  //  , debugUnitWriteReg (verbosity, 7'h10, 'h80000001)
+  //  , debugUnitWriteReg (verbosity, 7'h17, 'h003207b0)
+  //  , debugUnitReadReg (verbosity, 7'h16)
+  //  , debugUnitReadReg (verbosity, 7'h4)
+  //  , debugUnitWriteReg (verbosity, 7'h4, 'h4000b0d3)
+  //  , debugUnitWriteReg (verbosity, 7'h5, 'h0)
+  //  , debugUnitWriteReg (verbosity, 7'h17, 'h003307b0)
+  //  , debugUnitReadReg (verbosity, 7'h16)
+  //  , done.send
+  //  ));
+  let core_uart_addr = 'h_6230_0000;
   Recipe r = rSeq ( rBlock (
-      debugTooobaReset (verbosity, False)
-    //, debugTooobaMemWrite (verbosity, 'h80008000, 'hdeadbeef)
-    //, debugTooobaMemRead (verbosity, 'h80008000)
+      debugUnitSendReset (verbosity, False)
+    , fake16550TransmitData (verbosity, 'hdeadbeef)
+    , debugUnitSendMemRead (verbosity, core_uart_addr)
+    , debugUnitSendMemWrite (verbosity, core_uart_addr, 'hb00bf00d)
+    , fake16550ReceiveData (verbosity)
     , done.send
     ));
   RecipeFSM m <- mkRecipeFSM (r);
@@ -195,6 +241,9 @@ module mkDriveAXILite (AXI4Lite_Master #( `H2F_LW_ADDR
   return debugAXI4Lite_Master ( truncateAddrFieldsMasterLite (shim.master)
                               , $format ("axilite driver"));
 endmodule
+
+// AXI4 fake DDR
+////////////////////////////////////////////////////////////////////////////////
 
 module mkFakeDDR (AXI4_Slave #( `DRAM_ID
                               , `DRAM_ADDR
@@ -262,6 +311,9 @@ module mkFakeDDR (AXI4_Slave #( `DRAM_ID
   endinterface
 
 endmodule
+
+// Simulation toplevel module
+////////////////////////////////////////////////////////////////////////////////
 
 module mkCHERI_BGAS_Top_Sim (Empty);
   DE10ProIfc cheri_bgas_top <- mkCHERI_BGAS_Top;

@@ -9,6 +9,7 @@ import Fabric_Defs :: *;
 import CoreW :: *;
 import AXI4 :: *;
 import AXI4Lite :: *;
+import AXI4_AXI4Lite_Bridges :: *;
 import Vector :: *;
 import Connectable :: *;
 
@@ -149,7 +150,9 @@ typedef DE10Pro_bsv_shell_Synth #( `H2F_LW_ADDR
                                  , `DRAM_RUSER ) DE10ProIfcSynth;
 
 module mkCHERI_BGAS_Top (DE10ProIfc);
-  // declare extra AXI4 lite subordinates
+  // declare extra AXI4 lite ctrl subordinates
+  //////////////////////////////////////////////////////////////////////////////
+
   // fake 16550
   Tuple2 #(
     Tuple2 #( AXI4Lite_Slave #( `H2F_LW_ADDR, `H2F_LW_DATA
@@ -161,30 +164,65 @@ module mkCHERI_BGAS_Top (DE10ProIfc);
                               , `H2F_LW_ARUSER, `H2F_LW_RUSER)
             , ReadOnly #(Bool) )) ifcs <- mkAXI4_Fake_16550_Pair;
   match {{.s0, .irq0}, {.s1, .irq1}} = ifcs;
+
+  // prepare AXI4 managers
+  //////////////////////////////////////////////////////////////////////////////
+
   // declare cpu core with WindCoreMid interface
+  // convert to WindCoreHi interface and map additional AXI4 Lite subordinates
   CoreW_IFC#(N_External_Interrupt_Sources) midCore <- mkCoreW;
-  // convert to WindCoreHi interface and mapp additional AXI4 Lite subordinates
-  let core <- windCoreMid2Hi_WithSubordinates (
+  let core <- windCoreMid2Hi_WithCtrlSubordinates (
                 midCore
               , tuple2 ( cons (s0, nil)
                        , cons ( Range { base: 'h0003_0000, size: 'h0000_1000 }
                               , nil )));
-  // apply transformations to ddrb channel
-  AXI4_Shim #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0) deBurst <-
-    mkBurstToNoBurst;
-  let ddrb_mngr <-
-    fmap (truncateAddrFieldsMaster, toWider_AXI4_Master (deBurst.master));
-  // merge cached / uncached ddrb traffic
+
+  // gather all managers
   Vector #(2, AXI4_Master #(TAdd#(Wd_MId, 1), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0))
-    ddrb_ms;
-  ddrb_ms[0] = core.manager_0;
-  ddrb_ms[1] = core.manager_1;
-  Vector #(1, AXI4_Slave #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0))
-    ddrb_ss;
-  ddrb_ss[0] = deBurst.slave;
-  Vector #(1, Bool) dfltRoute;
-  dfltRoute[0] = True;
-  mkAXI4Bus (constFn (dfltRoute), ddrb_ms, ddrb_ss);
+    ms;
+  ms[0] = core.manager_0;
+  ms[1] = core.manager_1;
+
+  // prepare AXI4 subordinates
+  //////////////////////////////////////////////////////////////////////////////
+
+  // prepare fake 16550
+  AXI4_Shim #(TAdd#(Wd_MId, 2), `H2F_LW_ADDR, `H2F_LW_DATA
+                              , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
+                              , `H2F_LW_ARUSER, `H2F_LW_RUSER)
+    fake16550DeBurst <- mkBurstToNoBurst;
+  mkConnection (fake16550DeBurst.master, s1);
+  AXI4_Slave #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
+    fake16550_s <- fmap ( truncateAddrFields
+                        , toWider_AXI4_Slave (fake16550DeBurst.slave));
+
+  // prepare ddrb channel
+  AXI4_Shim #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
+    ddrbDeBurst <- mkBurstToNoBurst;
+  let ddrb_mngr <-
+    fmap (truncateAddrFieldsMaster, toWider_AXI4_Master (ddrbDeBurst.master));
+
+  // gather all subordinates
+  Vector #(2, AXI4_Slave #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0))
+    ss;
+  ss[0] = ddrbDeBurst.slave;
+  ss[1] = fake16550_s;
+
+  // build route
+  SoC_Map_IFC soc_map <- mkSoC_Map;
+  function Vector #(2, Bool) route (Bit #(Wd_Addr) addr);
+    Vector #(2, Bool) x = unpack (2'b00);
+    if (inRange (soc_map.m_uart16550_0_addr_range, addr))
+      x[1] = True;
+    else if (   inRange (soc_map.m_ddr4_0_uncached_addr_range, addr)
+             || inRange (soc_map.m_ddr4_0_cached_addr_range, addr) )
+      x[0] = True;
+    return x;
+  endfunction
+
+  // wire it all up
+  mkAXI4Bus (route, ms, ss);
+
   // interface
   interface axls_h2f_lw = core.control_subordinate;
   interface axs_h2f = culDeSac; //core.subordinate_0;
