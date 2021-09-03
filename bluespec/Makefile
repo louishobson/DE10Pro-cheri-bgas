@@ -81,7 +81,8 @@ TAGS_ALIGN = 32
 BUILDDIR ?= $(CURDIR)/build
 BDIR ?= $(BUILDDIR)/bdir
 SIMDIR ?= $(BUILDDIR)/simdir
-VDIR ?= $(CURDIR)/vdir
+VDIR ?= $(CURDIR)/verilogdir
+VERILATORDIR ?= $(CURDIR)/verilatordir
 
 BSCFLAGS += -bdir $(BDIR)
 BSCFLAGS += +RTS -K128M -RTS
@@ -98,13 +99,33 @@ BSCVERILOGFLAGS += -opt-undetermined-vals
 
 rtl: $(VDIR)/mkCHERI_BGAS_Top_Synth.v
 
-sim: $(SIMDIR)/sim_CHERI_BGAS
+bluesim: $(SIMDIR)/sim_CHERI_BGAS
 
 $(SIMDIR)/sim_CHERI_BGAS: CHERI_BGAS_Top_Sim.bsv $(SRCS) TagTableStructure.bsv
 	mkdir -p $(BDIR)
 	mkdir -p $(SIMDIR)
 	$(BSC) $(BSCFLAGS) $(BSCSIMFLAGS) -sim -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
 	$(BSC) $(BSCFLAGS) $(BSCSIMFLAGS) -sim -e mkCHERI_BGAS_Top_Sim -u -o $@
+
+verilatorsim: $(VDIR)/mkCHERI_BGAS_Top_Sim.v CHERI_BGAS_Top_verilator_sim.cpp
+	verilator -cc $(VDIR)/mkCHERI_BGAS_Top_Sim.v \
+              -exe CHERI_BGAS_Top_verilator_sim.cpp \
+              -Mdir $(VERILATORDIR) \
+              -o mkCHERI_BGAS_Top_Sim \
+              -y $(VDIR) -y $(BLUESPECDIR)/Verilog \
+              -Wno-WIDTH \
+              -Wno-CASEINCOMPLETE \
+              -Wno-STMTDLY \
+              -Wno-INITIALDLY \
+              -Wno-UNSIGNED \
+              -Wno-CMPCONST \
+              #-Wno-fatal
+	make -C $(VERILATORDIR) -j -f VmkCHERI_BGAS_Top_Sim.mk mkCHERI_BGAS_Top_Sim
+
+$(VDIR)/mkCHERI_BGAS_Top_Sim.v: $(VDIR)/mkCHERI_BGAS_Top_Synth.v
+	mkdir -p $(BDIR)
+	mkdir -p $(VDIR)
+	$(BSC) $(BSCFLAGS) $(BSCVERILOGFLAGS) -verilog -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
 
 $(VDIR)/mkCHERI_BGAS_Top_Synth.v: $(SRCS) TagTableStructure.bsv
 	mkdir -p $(BDIR)
@@ -125,3 +146,4 @@ clean:
 
 mrproper: clean
 	rm -f -r $(VDIR)
+	rm -f -r $(VERILATORDIR)
