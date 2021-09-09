@@ -1628,31 +1628,3 @@ set_global_assignment -name IP_FILE ip/toplevel/ddrb_mm_clock_crossing_bridge.ip
 #set_global_assignment -name ENABLE_SIGNALTAP ON
 #set_global_assignment -name USE_SIGNALTAP_FILE ddrb_channel.stp
 #set_global_assignment -name SIGNALTAP_FILE ddrb_channel.stp
-set_instance_assignment -name PARTITION_COLOUR 4289462248 -to DE10Pro_cheri_bgas -entity DE10Pro_cheri_bgas
-set_instance_assignment -name PARTITION_COLOUR 4286775264 -to auto_fab_0 -entity DE10Pro_cheri_bgas
-set_instance_assignment -name PARTITION mkDebug_Module -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_debug_module -entity DE10Pro_cheri_bgas
-set_instance_assignment -name PARTITION_COLOUR 4288539391 -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_debug_module -entity DE10Pro_cheri_bgas
-set_instance_assignment -name PARTITION mkPLIC_16_CoreNumX2_7 -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_plic -entity DE10Pro_cheri_bgas
-set_instance_assignment -name PARTITION_COLOUR 4289321471 -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_plic -entity DE10Pro_cheri_bgas
-set_instance_assignment -name PARTITION mkCore -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_proc|core_0 -entity DE10Pro_cheri_bgas
-set_instance_assignment -name PARTITION_COLOUR 4294930776 -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_proc|core_0 -entity DE10Pro_cheri_bgas
-set_instance_assignment -name PARTITION mkLLCache -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_proc|llc -entity DE10Pro_cheri_bgas
-set_instance_assignment -name PARTITION_COLOUR 4283301718 -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_proc|llc -entity DE10Pro_cheri_bgas
-set_instance_assignment -name PARTITION mkTagController -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_tagController_tmp_tagCon -entity DE10Pro_cheri_bgas
-set_instance_assignment -name PARTITION_COLOUR 4287467007 -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_tagController_tmp_tagCon -entity DE10Pro_cheri_bgas
-set_instance_assignment -name PLACE_REGION "X241 Y311 X265 Y341" -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_plic
-set_instance_assignment -name RESERVE_PLACE_REGION OFF -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_plic
-set_instance_assignment -name CORE_ONLY_PLACE_REGION ON -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_plic
-set_instance_assignment -name REGION_NAME mkPLIC_16_CoreNumX2_7 -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_plic
-set_instance_assignment -name PLACE_REGION "X14 Y126 X227 Y432" -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_proc|core_0
-set_instance_assignment -name RESERVE_PLACE_REGION OFF -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_proc|core_0
-set_instance_assignment -name CORE_ONLY_PLACE_REGION ON -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_proc|core_0
-set_instance_assignment -name REGION_NAME mkCore -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_proc|core_0
-set_instance_assignment -name PLACE_REGION "X62 Y72 X182 Y125" -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_proc|llc
-set_instance_assignment -name RESERVE_PLACE_REGION OFF -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_proc|llc
-set_instance_assignment -name CORE_ONLY_PLACE_REGION ON -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_proc|llc
-set_instance_assignment -name REGION_NAME mkLLCache -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_proc|llc
-set_instance_assignment -name PLACE_REGION "X235 Y119 X267 Y162" -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_tagController_tmp_tagCon
-set_instance_assignment -name RESERVE_PLACE_REGION OFF -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_tagController_tmp_tagCon
-set_instance_assignment -name CORE_ONLY_PLACE_REGION ON -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_tagController_tmp_tagCon
-set_instance_assignment -name REGION_NAME mkTagController -to soc|cheri_bgas_top|cheri_bgas_top|noSynthIfc_midCore_tagController_tmp_tagCon

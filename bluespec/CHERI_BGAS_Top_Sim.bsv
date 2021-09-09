@@ -217,7 +217,8 @@ module mkDriveAXILite (AXI4Lite_Master #( `H2F_LW_ADDR
   //  ));
   let core_uart_addr = 'h_6230_0000;
   Recipe r = rSeq ( rBlock (
-      debugUnitSendReset (verbosity, False)
+      recipeDelay (2000)
+    , debugUnitSendReset (verbosity, False)
     , fake16550TransmitData (verbosity, 'hdeadbeef)
     , debugUnitSendMemRead (verbosity, core_uart_addr)
     , debugUnitSendMemWrite (verbosity, core_uart_addr, 'hb00bf00d)

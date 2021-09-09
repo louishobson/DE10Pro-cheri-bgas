@@ -11,6 +11,7 @@ import AXI4 :: *;
 import AXI4Lite :: *;
 import AXI4_AXI4Lite_Bridges :: *;
 import Vector :: *;
+import Clocks :: *;
 import Connectable :: *;
 
 // Concrete parameters definitions
@@ -150,6 +151,20 @@ typedef DE10Pro_bsv_shell_Synth #( `H2F_LW_ADDR
                                  , `DRAM_RUSER ) DE10ProIfcSynth;
 
 module mkCHERI_BGAS_Top (DE10ProIfc);
+
+  // declare cpu core with WindCoreMid interface
+  //////////////////////////////////////////////////////////////////////////////
+  Clock clk <- exposeCurrentClock;
+  Reset rst <- exposeCurrentReset;
+  let newRst <- mkReset (0, True, clk, reset_by rst);
+  Tuple2 #( PulseWire
+          , CoreW_IFC#(N_External_Interrupt_Sources)) both
+    <- mkCoreW_reset (rst, reset_by newRst.new_rst);
+  match {.otherRst, .midCore} = both;
+  rule rl_forward_debug_reset (otherRst);
+    newRst.assertReset;
+  endrule
+
   // declare extra AXI4 lite ctrl subordinates
   //////////////////////////////////////////////////////////////////////////////
 
@@ -162,20 +177,20 @@ module mkCHERI_BGAS_Top (DE10ProIfc);
   , Tuple2 #( AXI4Lite_Slave #( `H2F_LW_ADDR, `H2F_LW_DATA
                               , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
                               , `H2F_LW_ARUSER, `H2F_LW_RUSER)
-            , ReadOnly #(Bool) )) ifcs <- mkAXI4_Fake_16550_Pair;
+            , ReadOnly #(Bool) )) ifcs
+    <- mkAXI4_Fake_16550_Pair (reset_by newRst.new_rst);
   match {{.s0, .irq0}, {.s1, .irq1}} = ifcs;
 
   // prepare AXI4 managers
   //////////////////////////////////////////////////////////////////////////////
 
-  // declare cpu core with WindCoreMid interface
   // convert to WindCoreHi interface and map additional AXI4 Lite subordinates
-  CoreW_IFC#(N_External_Interrupt_Sources) midCore <- mkCoreW;
   let core <- windCoreMid2Hi_WithCtrlSubordinates (
                 midCore
               , tuple2 ( cons (s0, nil)
                        , cons ( Range { base: 'h0003_0000, size: 'h0000_1000 }
-                              , nil )));
+                              , nil ))
+              , reset_by newRst.new_rst);
 
   // gather all managers
   Vector #(2, AXI4_Master #(TAdd#(Wd_MId, 1), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0))
@@ -190,17 +205,19 @@ module mkCHERI_BGAS_Top (DE10ProIfc);
   AXI4_Shim #(TAdd#(Wd_MId, 2), `H2F_LW_ADDR, `H2F_LW_DATA
                               , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
                               , `H2F_LW_ARUSER, `H2F_LW_RUSER)
-    fake16550DeBurst <- mkBurstToNoBurst;
+    fake16550DeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
   mkConnection (fake16550DeBurst.master, s1);
   AXI4_Slave #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
     fake16550_s <- fmap ( truncateAddrFields
-                        , toWider_AXI4_Slave (fake16550DeBurst.slave));
+                        , toWider_AXI4_Slave ( fake16550DeBurst.slave
+                                             , reset_by newRst.new_rst));
 
   // prepare ddrb channel
   AXI4_Shim #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
-    ddrbDeBurst <- mkBurstToNoBurst;
-  let ddrb_mngr <-
-    fmap (truncateAddrFieldsMaster, toWider_AXI4_Master (ddrbDeBurst.master));
+    ddrbDeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
+  let ddrb_mngr <- fmap ( truncateAddrFieldsMaster
+                        , toWider_AXI4_Master ( ddrbDeBurst.master
+                                              , reset_by newRst.new_rst));
 
   // gather all subordinates
   Vector #(2, AXI4_Slave #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0))
@@ -209,7 +226,7 @@ module mkCHERI_BGAS_Top (DE10ProIfc);
   ss[1] = fake16550_s;
 
   // build route
-  SoC_Map_IFC soc_map <- mkSoC_Map;
+  SoC_Map_IFC soc_map <- mkSoC_Map (reset_by newRst.new_rst);
   function Vector #(2, Bool) route (Bit #(Wd_Addr) addr);
     Vector #(2, Bool) x = unpack (2'b00);
     if (inRange (soc_map.m_uart16550_0_addr_range, addr))
@@ -221,7 +238,7 @@ module mkCHERI_BGAS_Top (DE10ProIfc);
   endfunction
 
   // wire it all up
-  mkAXI4Bus (route, ms, ss);
+  mkAXI4Bus (route, ms, ss, reset_by newRst.new_rst);
 
   // interface
   interface axls_h2f_lw = core.control_subordinate;

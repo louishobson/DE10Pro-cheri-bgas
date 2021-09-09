@@ -36,7 +36,10 @@ gen-ip: gen-bluespec-quartus-ip
 	quartus_ipgenerate $(QPF)
 
 gen-bluespec-quartus-ip: $(VIPBUNDLE) gen-bluespec-rtl
-	$(VIPBUNDLEDIR)/vipbundle -f quartus_ip_tcl -o $(CURDIR)/mkCHERI_BGAS_Top_Synth_hw.tcl $(VDIR)/mkCHERI_BGAS_Top_Synth.v
+	$(VIPBUNDLEDIR)/vipbundle \
+      -f quartus_ip_tcl \
+      -o $(CURDIR)/mkCHERI_BGAS_Top_Synth_hw.tcl \
+	  $(VDIR)/mkCHERI_BGAS_Top_Synth.v
 
 $(VIPBUNDLE):
 	$(MAKE) -C $(VIPBUNDLEDIR) vipbundle
