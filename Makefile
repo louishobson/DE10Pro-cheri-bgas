@@ -38,8 +38,8 @@ gen-ip: gen-bluespec-quartus-ip
 gen-bluespec-quartus-ip: $(VIPBUNDLE) gen-bluespec-rtl
 	$(VIPBUNDLEDIR)/vipbundle \
       -f quartus_ip_tcl \
-      -o $(CURDIR)/mkCHERI_BGAS_Top_Synth_hw.tcl \
-	  $(VDIR)/mkCHERI_BGAS_Top_Synth.v
+      -o $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl \
+	  $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 
 $(VIPBUNDLE):
 	$(MAKE) -C $(VIPBUNDLEDIR) vipbundle
@@ -56,7 +56,7 @@ clean-vipbundle:
 	$(MAKE) -C $(VIPBUNDLEDIR) clean
 
 clean-bluespec-quartus-ip:
-	rm -f $(CURDIR)/mkCHERI_BGAS_Top_Synth_hw.tcl
+	rm -f $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl
 
 clean-ip-gen:
 	rm -rf $(CURDIR)/ip/reset_release/

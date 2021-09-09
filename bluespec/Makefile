@@ -97,7 +97,7 @@ BSCVERILOGFLAGS = -vdir $(VDIR)
 BSCVERILOGFLAGS += -unspecified-to X
 BSCVERILOGFLAGS += -opt-undetermined-vals
 
-rtl: $(VDIR)/mkCHERI_BGAS_Top_Synth.v
+rtl: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 
 bluesim: $(SIMDIR)/sim_CHERI_BGAS
 
@@ -122,15 +122,15 @@ verilatorsim: $(VDIR)/mkCHERI_BGAS_Top_Sim.v CHERI_BGAS_Top_verilator_sim.cpp
               #-Wno-fatal
 	make -C $(VERILATORDIR) -j -f VmkCHERI_BGAS_Top_Sim.mk mkCHERI_BGAS_Top_Sim
 
-$(VDIR)/mkCHERI_BGAS_Top_Sim.v: $(VDIR)/mkCHERI_BGAS_Top_Synth.v
+$(VDIR)/mkCHERI_BGAS_Top_Sim.v: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 	mkdir -p $(BDIR)
 	mkdir -p $(VDIR)
 	$(BSC) $(BSCFLAGS) $(BSCVERILOGFLAGS) -verilog -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
 
-$(VDIR)/mkCHERI_BGAS_Top_Synth.v: $(SRCS) TagTableStructure.bsv
+$(VDIR)/mkCHERI_BGAS_Top_Sig.v: $(SRCS) TagTableStructure.bsv
 	mkdir -p $(BDIR)
 	mkdir -p $(VDIR)
-	$(BSC) $(BSCFLAGS) $(BSCVERILOGFLAGS) -verilog -g mkCHERI_BGAS_Top_Synth -u CHERI_BGAS_Top.bsv
+	$(BSC) $(BSCFLAGS) $(BSCVERILOGFLAGS) -verilog -g mkCHERI_BGAS_Top_Sig -u CHERI_BGAS_Top.bsv
 
 #.PHONY: TagTableStructure.bsv
 TagTableStructure.bsv: $(TAGCONTROLLERDIR)/tagsparams.py

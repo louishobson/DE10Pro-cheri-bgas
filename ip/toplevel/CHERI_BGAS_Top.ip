@@ -2232,7 +2232,7 @@
     <ipxact:instantiations>
       <ipxact:componentInstantiation>
         <ipxact:name>QUARTUS_SYNTH</ipxact:name>
-        <ipxact:moduleName>mkCHERI_BGAS_Top_Synth</ipxact:moduleName>
+        <ipxact:moduleName>mkCHERI_BGAS_Top_Sig</ipxact:moduleName>
         <ipxact:fileSetRef>
           <ipxact:localName>QUARTUS_SYNTH</ipxact:localName>
         </ipxact:fileSetRef>
@@ -5724,7 +5724,7 @@
     <altera:entity_info>
       <ipxact:vendor>Altera Corporation</ipxact:vendor>
       <ipxact:library>CHERI_BGAS_Top</ipxact:library>
-      <ipxact:name>mkCHERI_BGAS_Top_Synth</ipxact:name>
+      <ipxact:name>mkCHERI_BGAS_Top_Sig</ipxact:name>
       <ipxact:version>1.0</ipxact:version>
     </altera:entity_info>
     <altera:altera_module_parameters>
