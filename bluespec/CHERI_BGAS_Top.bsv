@@ -206,11 +206,19 @@ module mkCHERI_BGAS_Top (DE10ProIfc);
                               , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
                               , `H2F_LW_ARUSER, `H2F_LW_RUSER)
     fake16550DeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
-  mkConnection (fake16550DeBurst.master, s1);
+  mkConnection (fake16550DeBurst.master, s1, reset_by newRst.new_rst);
   AXI4_Slave #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
     fake16550_s <- fmap ( truncateAddrFields
                         , toWider_AXI4_Slave ( fake16550DeBurst.slave
                                              , reset_by newRst.new_rst));
+
+  // prepare bootrom
+  AXI4_Shim #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
+    fakeBootRomDeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
+  AXI4_Slave #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
+    fakeBootRom <- mkPerpetualZeroAXI4Slave (reset_by newRst.new_rst);
+  mkConnection ( fakeBootRomDeBurst.master, fakeBootRom
+               , reset_by newRst.new_rst);
 
   // prepare ddrb channel
   AXI4_Shim #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
@@ -220,16 +228,19 @@ module mkCHERI_BGAS_Top (DE10ProIfc);
                                               , reset_by newRst.new_rst));
 
   // gather all subordinates
-  Vector #(2, AXI4_Slave #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0))
+  Vector #(3, AXI4_Slave #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0))
     ss;
   ss[0] = ddrbDeBurst.slave;
   ss[1] = fake16550_s;
+  ss[2] = debugAXI4_Slave (fakeBootRomDeBurst.slave, $format ("fake bootRom"));
 
   // build route
   SoC_Map_IFC soc_map <- mkSoC_Map (reset_by newRst.new_rst);
-  function Vector #(2, Bool) route (Bit #(Wd_Addr) addr);
-    Vector #(2, Bool) x = unpack (2'b00);
-    if (inRange (soc_map.m_uart16550_0_addr_range, addr))
+  function Vector #(3, Bool) route (Bit #(Wd_Addr) addr);
+    Vector #(3, Bool) x = unpack (3'b000);
+    if (inRange (soc_map.m_boot_rom_addr_range, addr))
+      x[2] = True;
+    else if (inRange (soc_map.m_uart16550_0_addr_range, addr))
       x[1] = True;
     else if (   inRange (soc_map.m_ddr4_0_uncached_addr_range, addr)
              || inRange (soc_map.m_ddr4_0_cached_addr_range, addr) )

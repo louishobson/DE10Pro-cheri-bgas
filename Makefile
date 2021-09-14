@@ -27,9 +27,19 @@ VIPBUNDLE = $(VIPBUNDLEDIR)/vipbundle
 QPF = $(CURDIR)/DE10Pro-cheri-bgas.qpf
 export VDIR = $(CURDIR)/cheri-bgas-rtl
 
+BOOTLOADER = ../DE10Pro-hps-ubuntu-sdcard/u-boot-socfpga/spl/u-boot-spl-dtb.ihex
+
 all: synthesize
 
-synthesize: gen-ip
+gen-rbf:
+ifneq ("$(wildcard $(BOOTLOADER))","")
+	quartus_cpf --bootloader=$(BOOTLOADER) output_files/DE10Pro-cheri-bgas.sof output_files/socfpga.sof
+	quartus_cpf -c --hps -o bitstream_compression=on output_files/socfpga.sof output_files/socfpga.rbf
+else
+	@echo "Cannot gen-rbf: $(BOOTLOADER) does not exist"
+endif
+
+synthesize output_files/DE10Pro-cheri-bgas.sof &: gen-ip
 	time quartus_sh --flow compile $(QPF)
 
 gen-ip: gen-bluespec-quartus-ip
