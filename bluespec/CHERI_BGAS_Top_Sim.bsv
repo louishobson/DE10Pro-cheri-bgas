@@ -122,12 +122,43 @@ module mkDriveAXILite (AXI4Lite_Master #( `H2F_LW_ADDR
   function debugUnitWriteReg (verbosity, idx, data) =
     writeReg (verbosity, debugBaseAddr + zeroExtend ({idx, 2'b00}), data);
 
+  function Recipe debugUnitSendHalt (Integer verbosity) =
+    rSeq ( rBlock (
+      rWhen ( verbosity > 0
+            , rAct ($display ( "%0t - Starting debugUnitSendHalt"
+                             , $time )))
+    , debugUnitWriteReg (verbosity - 1, 7'h10, 'h80000001)
+    , debugUnitReadReg (verbosity - 1, 7'h11)
+    , rWhile ( readRegRes[8] == 1'b0
+             , debugUnitReadReg (verbosity - 1, 7'h11) )
+    , rWhen ( verbosity > 0
+            , rAct ($display ( "%0t - Ended debugUnitSendHalt, value returned = "
+                             , $time
+                             , fshow (readRegRes))))
+    ) );
+
+  function Recipe debugUnitSendResume (Integer verbosity) =
+    rSeq ( rBlock (
+      rWhen ( verbosity > 0
+            , rAct ($display ( "%0t - Starting debugUnitSendResume"
+                             , $time )))
+    , debugUnitWriteReg (verbosity - 1, 7'h10, 'h40000001)
+    , debugUnitReadReg (verbosity - 1, 7'h11)
+    , rWhile ( readRegRes[10] == 1'b0
+             , debugUnitReadReg (verbosity - 1, 7'h11) )
+    , rWhen ( verbosity > 0
+            , rAct ($display ( "%0t - Ended debugUnitSendResume, value returned = "
+                             , $time
+                             , fshow (readRegRes))))
+    ) );
+
   function Recipe debugUnitSendReset (Integer verbosity, Bool running) =
     rSeq ( rBlock (
       rWhen ( verbosity > 0
             , rAct ($display ( "%0t - Starting debugUnitSendReset, running = "
                              , $time
                              , fshow (running))))
+    , debugUnitSendHalt (verbosity - 1)
     , debugUnitWriteReg (verbosity - 1, 7'h10, running ? 'h00000003 : 'h80000003)
     , recipeDelay (5)
     , debugUnitWriteReg (verbosity - 1, 7'h10, running ? 'h00000001 : 'h80000001)
@@ -215,14 +246,34 @@ module mkDriveAXILite (AXI4Lite_Master #( `H2F_LW_ADDR
   //  , debugUnitReadReg (verbosity, 7'h16)
   //  , done.send
   //  ));
-  let core_uart_addr = 'h_6230_0000;
+  //let core_uart_addr = 'h_6230_0000;
+  //Recipe r = rSeq ( rBlock (
+  //    recipeDelay (2000)
+  //  , debugUnitSendReset (verbosity, False)
+  //  , fake16550TransmitData (verbosity, 'hdeadbeef)
+  //  , debugUnitSendMemRead (verbosity, core_uart_addr)
+  //  , debugUnitSendMemWrite (verbosity, core_uart_addr, 'hb00bf00d)
+  //  , fake16550ReceiveData (verbosity)
+  //  , done.send
+  //  ));
   Recipe r = rSeq ( rBlock (
       recipeDelay (2000)
+    , debugUnitSendHalt (verbosity)
+    , debugUnitSendResume (verbosity)
+    , debugUnitSendHalt (verbosity)
+    , debugUnitSendResume (verbosity)
     , debugUnitSendReset (verbosity, False)
-    , fake16550TransmitData (verbosity, 'hdeadbeef)
-    , debugUnitSendMemRead (verbosity, core_uart_addr)
-    , debugUnitSendMemWrite (verbosity, core_uart_addr, 'hb00bf00d)
-    , fake16550ReceiveData (verbosity)
+    , debugUnitSendHalt (verbosity)
+    , debugUnitSendResume (verbosity)
+    , debugUnitSendReset (verbosity, False)
+    , debugUnitSendResume (verbosity)
+    , debugUnitSendHalt (verbosity)
+    , debugUnitSendReset (verbosity, True)
+    , debugUnitSendResume (verbosity)
+    , debugUnitSendHalt (verbosity)
+    , debugUnitSendReset (verbosity, True)
+    , debugUnitSendHalt (verbosity)
+    , debugUnitSendResume (verbosity)
     , done.send
     ));
   RecipeFSM m <- mkRecipeFSM (r);

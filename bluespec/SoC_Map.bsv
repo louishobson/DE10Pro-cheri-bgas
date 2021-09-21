@@ -251,6 +251,7 @@ module mkSoC_Map (SoC_Map_IFC);
    //endfunction
    function Bool fn_is_IO_addr (Fabric_Addr addr, Bool imem_not_dmem);
       return (   inRange(ddr4_0_uncached_addr_range, addr)
+          ||     inRange(boot_rom_addr_range, addr)
 	      || (   (! imem_not_dmem)
 		  && (   inRange(plic_addr_range, addr)
 		      || inRange(near_mem_io_addr_range, addr)
