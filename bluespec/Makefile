@@ -37,13 +37,14 @@ COREW_DIRS = $(COREDIR)/src_Core/Core:$(COREDIR)/src_Core/CPU:$(COREDIR)/src_Cor
 WINDCOREIFCDIR ?= $(COREDIR)/libs/WindCoreInterface
 CHERICAPLIBDIR ?= $(COREDIR)/libs/cheri-cap-lib
 TAGCONTROLLERDIR ?= $(COREDIR)/libs/TagController
+RISCVHPMEVENTSDIR ?= $(COREDIR)/libs/RISCV_HPM_Events
 TAGCONTROLLER_DIRS = $(TAGCONTROLLERDIR)/TagController:$(TAGCONTROLLERDIR)/TagController/CacheCore
 BLUESTUFFDIR ?= $(COREDIR)/libs/BlueStuff
 BLUESTUFF_DIRS = $(BLUESTUFFDIR):$(BLUESTUFFDIR)/BlueBasics:$(BLUESTUFFDIR)/BlueUtils:$(BLUESTUFFDIR)/AXI
 RECIPEDIR = $(CURDIR)/Recipe
 
 # search path for bsc imports
-BSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(WINDCOREIFCDIR):$(CHERICAPLIBDIR):$(TAGCONTROLLER_DIRS):$(COREW_DIRS):$(BLUESTUFF_DIRS)
+BSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(WINDCOREIFCDIR):$(RISCVHPMEVENTSDIR):$(CHERICAPLIBDIR):$(TAGCONTROLLER_DIRS):$(COREW_DIRS):$(BLUESTUFF_DIRS)
 BSCFLAGS = -p $(BSVPATH)
 
 # design configuration variables
@@ -127,7 +128,7 @@ $(VDIR)/mkCHERI_BGAS_Top_Sim.v: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 	mkdir -p $(VDIR)
 	$(BSC) $(BSCFLAGS) $(BSCVERILOGFLAGS) -verilog -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
 
-$(VDIR)/mkCHERI_BGAS_Top_Sig.v: $(SRCS) TagTableStructure.bsv
+$(VDIR)/mkCHERI_BGAS_Top_Sig.v: $(SRCS) TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
 	mkdir -p $(BDIR)
 	mkdir -p $(VDIR)
 	$(BSC) $(BSCFLAGS) $(BSCVERILOGFLAGS) -verilog -g mkCHERI_BGAS_Top_Sig -u CHERI_BGAS_Top.bsv
@@ -138,10 +139,24 @@ TagTableStructure.bsv: $(TAGCONTROLLERDIR)/tagsparams.py
 	$^ -v -c $(CAPSIZE) -s $(TAGS_STRUCT:"%"=%) -a $(TAGS_ALIGN) --data-store-base-addr 0xc0000000 -b $@ 0xbfff8000 0x17ffff000
 	@echo "INFO: Re-generated CHERI tag controller parameters"
 
+#.PHONY: GenerateHPMVector.bsv
+GenerateHPMVector.bsv: $(RISCVHPMEVENTSDIR)/parse_counters.py
+	@echo "INFO: Re-generating GenerateHPMVector bluespec file"
+	$^ $(RISCVHPMEVENTSDIR)/counters.yaml -m ProcTypes -b $@
+	@echo "INFO: Re-generated GenerateHPMVector bluespec file"
+
+#.PHONY: StatCounters.bsv
+StatCounters.bsv: $(RISCVHPMEVENTSDIR)/parse_counters.py
+	@echo "INFO: Re-generating HPM events struct bluepsec file"
+	$^ $(RISCVHPMEVENTSDIR)/counters.yaml -m ProcTypes -s $@
+	@echo "INFO: Re-generated HPM events struct bluespec file"
+
 .PHONY: clean mrproper
 
 clean:
 	rm -f TagTableStructure.bsv
+	rm -f GenerateHPMVector.bsv
+	rm -f StatCounters.bsv
 	rm -f -r $(BUILDDIR)
 
 mrproper: clean
