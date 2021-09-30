@@ -154,6 +154,7 @@ module mkCHERI_BGAS_Top (DE10ProIfc);
 
   // declare cpu core with WindCoreMid interface
   //////////////////////////////////////////////////////////////////////////////
+
   Clock clk <- exposeCurrentClock;
   Reset rst <- exposeCurrentReset;
   let newRst <- mkReset (0, True, clk, reset_by rst);
@@ -251,6 +252,15 @@ module mkCHERI_BGAS_Top (DE10ProIfc);
   // wire it all up
   mkAXI4Bus (route, ms, ss, reset_by newRst.new_rst);
 
+  // prepare irq vector
+  //////////////////////////////////////////////////////////////////////////////
+
+  Vector #(32, ReadOnly #(Bool)) irqs = replicate (interface ReadOnly;
+                                                     method _read = False;
+                                                   endinterface);
+  // the fake 16550 irq
+  irqs[0] = irq1;
+
   // interface
   interface axls_h2f_lw = core.control_subordinate;
   interface axs_h2f = culDeSac; //core.subordinate_0;
@@ -258,6 +268,7 @@ module mkCHERI_BGAS_Top (DE10ProIfc);
   interface axm_ddrb = ddrb_mngr;
   interface axm_ddrc = culDeSac;
   interface axm_ddrd = culDeSac;
+  interface irq_sender = irqs;
 endmodule
 
 (* synthesize *)
