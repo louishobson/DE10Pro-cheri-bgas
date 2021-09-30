@@ -268,7 +268,7 @@ module mkCHERI_BGAS_Top (DE10ProIfc);
   interface axm_ddrb = ddrb_mngr;
   interface axm_ddrc = culDeSac;
   interface axm_ddrd = culDeSac;
-  interface irq_sender = irqs;
+  interface ins_irq0 = irqs;
 endmodule
 
 (* synthesize *)
