@@ -277,7 +277,8 @@ module mkDriveAXILite (AXI4Lite_Master #( `H2F_LW_ADDR
   //  , done.send
   //  ));
   Recipe r = rSeq ( rBlock (
-      recipeDelay (450000)
+      //recipeDelay (450000)
+      recipeDelay (1000)
     , debugUnitWriteReg (verbosity, 7'h10, 'h80000001)
     , debugUnitReadReg (verbosity, 7'h11) // expected value: 382
     , debugUnitWriteReg (verbosity, 7'h17, 'h3207b0)
