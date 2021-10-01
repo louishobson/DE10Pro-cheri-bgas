@@ -27,6 +27,7 @@
 #
 
 BSC = bsc
+BLUESPECDIR ?= $(shell which $(BSC) | xargs dirname | xargs dirname)/lib
 
 SRCS  = CHERI_BGAS_Top.bsv
 
