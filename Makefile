@@ -27,7 +27,7 @@ VIPBUNDLE = $(VIPBUNDLEDIR)/vipbundle
 QPF = $(CURDIR)/DE10Pro-cheri-bgas.qpf
 export VDIR = $(CURDIR)/cheri-bgas-rtl
 
-BOOTLOADER = ../DE10Pro-hps-ubuntu-sdcard/u-boot-socfpga/spl/u-boot-spl-dtb.ihex
+BOOTLOADER ?= ../../DE10Pro-hps-ubuntu-sdcard/u-boot-socfpga/spl/u-boot-spl-dtb.ihex
 
 all: synthesize
 
