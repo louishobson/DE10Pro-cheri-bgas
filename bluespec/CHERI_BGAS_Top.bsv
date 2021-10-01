@@ -186,11 +186,12 @@ module mkCHERI_BGAS_Top (DE10ProIfc);
   //////////////////////////////////////////////////////////////////////////////
 
   // convert to WindCoreHi interface and map additional AXI4 Lite subordinates
-  let core <- windCoreMid2Hi_WithCtrlSubordinates (
+  let core <- windCoreMid2Hi_Core (
                 midCore
-              , tuple2 ( cons (s0, nil)
-                       , cons ( Range { base: 'h0003_0000, size: 'h0000_1000 }
-                              , nil ))
+              , cons ( tuple2 ( s0
+                              , Range { base: 'h0003_0000, size: 'h0000_1000 } )
+                     , nil )
+              , cons (irq0, nil)
               , reset_by newRst.new_rst);
 
   // gather all managers
