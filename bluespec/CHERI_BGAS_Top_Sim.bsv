@@ -42,7 +42,7 @@ import Recipe :: *;
 
 // DDR AXI ports parameters
 
-`define DRAM_ID       7
+`define DRAM_ID       8
 `define DRAM_ADDR    32
 `define DRAM_DATA   128
 `define DRAM_AWUSER   0

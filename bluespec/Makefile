@@ -71,7 +71,7 @@ BSCFLAGS += -no-warn-action-shadowing
 BSCFLAGS += -suppress-warnings G0020
 # CHERI / Tag Controller conf and flags
 BSCFLAGS += -D CheriMasterIDWidth=1
-BSCFLAGS += -D CheriTransactionIDWidth=5
+BSCFLAGS += -D CheriTransactionIDWidth=6
 BSCFLAGS += -D USECAP
 BSCFLAGS += -D RISCV
 BSCFLAGS += -D CAP128

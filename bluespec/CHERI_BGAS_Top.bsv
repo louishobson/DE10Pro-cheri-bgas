@@ -45,7 +45,7 @@ import Connectable :: *;
 
 // DDR AXI ports parameters
 
-`define DRAM_ID       7
+`define DRAM_ID       8
 `define DRAM_ADDR    32
 `define DRAM_DATA   128
 `define DRAM_AWUSER   0
@@ -150,7 +150,10 @@ typedef DE10Pro_bsv_shell_Sig #( `H2F_LW_ADDR
                                , `DRAM_ARUSER
                                , `DRAM_RUSER ) DE10ProIfcSig;
 
-module mkCHERI_BGAS_Top (DE10ProIfc);
+module mkCHERI_BGAS_Top (DE10ProIfc)
+  provisos ( NumAlias #(bus_mid, TAdd #(Wd_MId, 1)) // id width out of the core
+           , NumAlias #(bus_sid, TAdd #(Wd_MId, 2)) // cope with 2 masters only
+           );
 
   // declare cpu core with WindCoreMid interface
   //////////////////////////////////////////////////////////////////////////////
@@ -195,7 +198,7 @@ module mkCHERI_BGAS_Top (DE10ProIfc);
               , reset_by newRst.new_rst);
 
   // gather all managers
-  Vector #(2, AXI4_Master #(TAdd#(Wd_MId, 1), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0))
+  Vector #(2, AXI4_Master #(bus_mid, Wd_Addr, Wd_Data, 0, 0, 0, 0, 0))
     ms;
   ms[0] = core.manager_0;
   ms[1] = core.manager_1;
@@ -204,33 +207,33 @@ module mkCHERI_BGAS_Top (DE10ProIfc);
   //////////////////////////////////////////////////////////////////////////////
 
   // prepare fake 16550
-  AXI4_Shim #(TAdd#(Wd_MId, 2), `H2F_LW_ADDR, `H2F_LW_DATA
-                              , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
-                              , `H2F_LW_ARUSER, `H2F_LW_RUSER)
+  AXI4_Shim #(bus_sid, `H2F_LW_ADDR, `H2F_LW_DATA
+                     , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
+                     , `H2F_LW_ARUSER, `H2F_LW_RUSER)
     fake16550DeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
   mkConnection (fake16550DeBurst.master, s1, reset_by newRst.new_rst);
-  AXI4_Slave #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
-    fake16550_s <- fmap ( truncateAddrFields
+  AXI4_Slave #(bus_sid, Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
+    fake16550_s <- fmap ( truncate_AXI4_Slave_addr
                         , toWider_AXI4_Slave ( fake16550DeBurst.slave
                                              , reset_by newRst.new_rst));
 
   // prepare bootrom
-  AXI4_Shim #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
+  AXI4_Shim #(bus_sid, Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
     fakeBootRomDeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
-  AXI4_Slave #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
+  AXI4_Slave #(bus_sid, Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
     fakeBootRom <- mkPerpetualZeroAXI4Slave (reset_by newRst.new_rst);
   mkConnection ( fakeBootRomDeBurst.master, fakeBootRom
                , reset_by newRst.new_rst);
 
   // prepare ddrb channel
-  AXI4_Shim #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
+  AXI4_Shim #(bus_sid, Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
     ddrbDeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
-  let ddrb_mngr <- fmap ( truncateAddrFieldsMaster
+  let ddrb_mngr <- fmap ( truncate_AXI4_Master_addr
                         , toWider_AXI4_Master ( ddrbDeBurst.master
                                               , reset_by newRst.new_rst));
 
   // gather all subordinates
-  Vector #(3, AXI4_Slave #(TAdd#(Wd_MId, 2), Wd_Addr, Wd_Data, 0, 0, 0, 0, 0))
+  Vector #(3, AXI4_Slave #(bus_sid, Wd_Addr, Wd_Data, 0, 0, 0, 0, 0))
     ss;
   ss[0] = ddrbDeBurst.slave;
   ss[1] = fake16550_s;
@@ -264,7 +267,7 @@ module mkCHERI_BGAS_Top (DE10ProIfc);
 
   // interface
   interface axls_h2f_lw = core.control_subordinate;
-  interface axs_h2f = culDeSac; //core.subordinate_0;
+  interface axs_h2f = core.subordinate_0;
   interface axm_f2h = culDeSac;
   interface axm_ddrb = ddrb_mngr;
   interface axm_ddrc = culDeSac;
