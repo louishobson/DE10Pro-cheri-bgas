@@ -4,6 +4,7 @@ import DE10Pro_bsv_shell :: *;
 import WindCoreInterface :: *;
 import AXI4_Fake_16550 :: *;
 import Routable :: *;
+import SourceSink :: *;
 import SoC_Map :: *;
 import Fabric_Defs :: *;
 import CoreW :: *;
@@ -150,6 +151,41 @@ typedef DE10Pro_bsv_shell_Sig #( `H2F_LW_ADDR
                                , `DRAM_ARUSER
                                , `DRAM_RUSER ) DE10ProIfcSig;
 
+// A straight forward axi lite subordinate to provide a banking mechanism for
+// the h2f window into the core's memory map
+module mkH2FAddrCtrl #(Bit #(`H2F_LW_DATA) dfltUpperBits)
+  (Tuple2 #( AXI4Lite_Slave #( `H2F_LW_ADDR, `H2F_LW_DATA
+                             , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
+                             , `H2F_LW_ARUSER, `H2F_LW_RUSER)
+           , ReadOnly #(Bit #(`H2F_LW_DATA)) ));
+
+  // internal state and signals
+  let addrUpperBits <- mkReg (dfltUpperBits);
+  let axiShim <- mkAXI4LiteShimFF;
+
+  // read requests handling (always answer with upper bits)
+  rule read_req;
+    axiShim.master.ar.drop;
+    axiShim.master.r.put (AXI4Lite_RFlit { rdata: addrUpperBits
+                                         , rresp: OKAY
+                                         , ruser: ? });
+  endrule
+
+  // write requests handling (always update addrUpperBits)
+  rule write_req;
+    axiShim.master.aw.drop;
+    let w <- get (axiShim.master.w);
+    addrUpperBits <= w.wdata;
+    axiShim.master.b.put (AXI4Lite_BFlit { bresp: OKAY
+                                         , buser: ? });
+  endrule
+
+  // return the subordinate port and a ReadOnly interface to addrUpperBits
+  return tuple2 (axiShim.slave, regToReadOnly (addrUpperBits));
+
+endmodule
+
+// The toplevel wrapper around the core
 module mkCHERI_BGAS_Top (DE10ProIfc)
   provisos ( NumAlias #(bus_mid, TAdd #(Wd_MId, 1)) // id width out of the core
            , NumAlias #(bus_sid, TAdd #(Wd_MId, 2)) // cope with 2 masters only
@@ -181,9 +217,25 @@ module mkCHERI_BGAS_Top (DE10ProIfc)
   , Tuple2 #( AXI4Lite_Slave #( `H2F_LW_ADDR, `H2F_LW_DATA
                               , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
                               , `H2F_LW_ARUSER, `H2F_LW_RUSER)
-            , ReadOnly #(Bool) )) ifcs
+            , ReadOnly #(Bool) )) fake16550ifcs
     <- mkAXI4_Fake_16550_Pair (reset_by newRst.new_rst);
-  match {{.s0, .irq0}, {.s1, .irq1}} = ifcs;
+  match { {.fake16550s0, .fake16550irq0}
+        , {.fake16550s1, .fake16550irq1} } = fake16550ifcs;
+  // ctrl sub entry
+  let ctrSubFake16550 =
+        tuple2 (fake16550s0, Range { base: 'h0003_0000, size: 'h0000_1000 });
+
+  // h2f address upper 32-bits banking register
+  // (h2f port only has 32-bit addresses, this mechanism is intended to enable
+  // control over a full 64-bit address)
+  Tuple2 #( AXI4Lite_Slave #( `H2F_LW_ADDR, `H2F_LW_DATA
+                            , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
+                            , `H2F_LW_ARUSER, `H2F_LW_RUSER)
+          , ReadOnly #(Bit #(`H2F_LW_DATA)) ) h2fCtrlIfcs <- mkH2FAddrCtrl (0);
+  match {.h2fAddrCtrlSub, .h2fAddrCtrlRO} = h2fCtrlIfcs;
+  // ctrl sub entry
+  let ctrSubH2FAddrCtrl =
+        tuple2 (h2fAddrCtrlSub, Range { base: 'h0004_0000, size: 'h0000_1000 });
 
   // prepare AXI4 managers
   //////////////////////////////////////////////////////////////////////////////
@@ -191,10 +243,8 @@ module mkCHERI_BGAS_Top (DE10ProIfc)
   // convert to WindCoreHi interface and map additional AXI4 Lite subordinates
   let core <- windCoreMid2Hi_Core (
                 midCore
-              , cons ( tuple2 ( s0
-                              , Range { base: 'h0003_0000, size: 'h0000_1000 } )
-                     , nil )
-              , cons (irq0, nil)
+              , cons (ctrSubFake16550, cons (ctrSubH2FAddrCtrl, nil))
+              , cons (fake16550irq0, nil)
               , reset_by newRst.new_rst);
 
   // gather all managers
@@ -211,7 +261,7 @@ module mkCHERI_BGAS_Top (DE10ProIfc)
                      , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
                      , `H2F_LW_ARUSER, `H2F_LW_RUSER)
     fake16550DeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
-  mkConnection (fake16550DeBurst.master, s1, reset_by newRst.new_rst);
+  mkConnection (fake16550DeBurst.master, fake16550s1, reset_by newRst.new_rst);
   AXI4_Slave #(bus_sid, Wd_Addr, Wd_Data, 0, 0, 0, 0, 0)
     fake16550_s <- fmap ( truncate_AXI4_Slave_addr
                         , toWider_AXI4_Slave ( fake16550DeBurst.slave
@@ -263,11 +313,17 @@ module mkCHERI_BGAS_Top (DE10ProIfc)
                                                      method _read = False;
                                                    endinterface);
   // the fake 16550 irq
-  irqs[0] = irq1;
+  irqs[0] = fake16550irq1;
+
+  // prepare h2f subordinate interface
+  let h2fSub <- toWider_AXI4_Slave (
+                  zero_AXI4_Slave_user (
+                    prepend_AXI4_Slave_addr ( h2fAddrCtrlRO
+                                            , core.subordinate_0 )));
 
   // interface
   interface axls_h2f_lw = core.control_subordinate;
-  interface axs_h2f = core.subordinate_0;
+  interface axs_h2f = h2fSub;
   interface axm_f2h = culDeSac;
   interface axm_ddrb = ddrb_mngr;
   interface axm_ddrc = culDeSac;
