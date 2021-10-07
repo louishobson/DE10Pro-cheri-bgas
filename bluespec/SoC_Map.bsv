@@ -94,6 +94,7 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Range#(Wd_Addr)  m_uart16550_0_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_gpio_0_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_boot_rom_addr_range;
+   (* always_ready *)   method  Range#(Wd_Addr)  m_f2h_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_mem0_controller_addr_range;
@@ -174,6 +175,14 @@ module mkSoC_Map (SoC_Map_IFC);
    };
 
    // ----------------------------------------------------------------
+   // F2H interface
+
+   let f2h_addr_range = Range {
+      base: 'h_0000_0100_0000_0000, // just some 1TB aligned base region not already taken
+      size: 'h_0000_0100_0000_0000    // 1TB
+   };
+
+   // ----------------------------------------------------------------
    // Boot ROM
 
    let boot_rom_addr_range = Range {
@@ -215,10 +224,8 @@ module mkSoC_Map (SoC_Map_IFC);
    // Identifies memory addresses in the Fabric.
    // (Caches needs this information to cache these addresses.)
 
-   function Bool fn_is_mem_addr (Fabric_Addr addr);
-      return (   inRange(ddr4_0_cached_addr_range, addr)
-	      );
-   endfunction
+   function Bool fn_is_mem_addr (Fabric_Addr addr) =
+      inRange (ddr4_0_cached_addr_range, addr);
 
    // ----------------------------------------------------------------
    // I/O address predicate
@@ -249,17 +256,14 @@ module mkSoC_Map (SoC_Map_IFC);
    // 	  )
    //       );
    //endfunction
-   function Bool fn_is_IO_addr (Fabric_Addr addr, Bool imem_not_dmem);
-      return (   inRange(ddr4_0_uncached_addr_range, addr)
-          ||     inRange(boot_rom_addr_range, addr)
-	      || (   (! imem_not_dmem)
-		  && (   inRange(plic_addr_range, addr)
-		      || inRange(near_mem_io_addr_range, addr)
-		      || inRange(uart16550_0_addr_range, addr)
-		      )
-		  )
-	      );
-   endfunction
+   function Bool fn_is_IO_addr (Fabric_Addr addr, Bool imem_not_dmem) =
+         inRange(ddr4_0_uncached_addr_range, addr)
+      || inRange(boot_rom_addr_range, addr)
+      || (   (! imem_not_dmem)
+          && (   inRange(plic_addr_range, addr)
+              || inRange(near_mem_io_addr_range, addr)
+              || inRange(f2h_addr_range, addr)
+              || inRange(uart16550_0_addr_range, addr)));
 
    // ----------------------------------------------------------------
    // PC, MTVEC and NMIVEC reset values
@@ -279,6 +283,7 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Range#(Wd_Addr)  m_uart16550_0_addr_range = uart16550_0_addr_range;
    method  Range#(Wd_Addr)  m_gpio_0_addr_range = gpio_0_addr_range;
    method  Range#(Wd_Addr)  m_boot_rom_addr_range = boot_rom_addr_range;
+   method  Range#(Wd_Addr)  m_f2h_addr_range = f2h_addr_range;
    method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range = ddr4_0_uncached_addr_range;
    method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range = ddr4_0_cached_addr_range;
    method  Range#(Wd_Addr)  m_mem0_controller_addr_range = ddr4_0_cached_addr_range;

@@ -2387,7 +2387,7 @@
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>6</ipxact:right>
+              <ipxact:right>7</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -2601,7 +2601,7 @@
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>6</ipxact:right>
+              <ipxact:right>7</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -2650,7 +2650,7 @@
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>6</ipxact:right>
+              <ipxact:right>7</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -2939,7 +2939,7 @@
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>6</ipxact:right>
+              <ipxact:right>7</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -3019,7 +3019,7 @@
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>6</ipxact:right>
+              <ipxact:right>7</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -3233,7 +3233,7 @@
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>6</ipxact:right>
+              <ipxact:right>7</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -3282,7 +3282,7 @@
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>6</ipxact:right>
+              <ipxact:right>7</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -3571,7 +3571,7 @@
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>6</ipxact:right>
+              <ipxact:right>7</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -3651,7 +3651,7 @@
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>6</ipxact:right>
+              <ipxact:right>7</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -3865,7 +3865,7 @@
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>6</ipxact:right>
+              <ipxact:right>7</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -3914,7 +3914,7 @@
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>6</ipxact:right>
+              <ipxact:right>7</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -4203,7 +4203,7 @@
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>6</ipxact:right>
+              <ipxact:right>7</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -4479,7 +4479,7 @@
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>31</ipxact:right>
+              <ipxact:right>39</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -4817,7 +4817,7 @@
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>31</ipxact:right>
+              <ipxact:right>39</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -5955,7 +5955,7 @@
                     &lt;name&gt;axm_ddrb_rid&lt;/name&gt;
                     &lt;role&gt;rid&lt;/role&gt;
                     &lt;direction&gt;Input&lt;/direction&gt;
-                    &lt;width&gt;7&lt;/width&gt;
+                    &lt;width&gt;8&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                 &lt;/port&gt;
@@ -6059,7 +6059,7 @@
                     &lt;name&gt;axm_ddrb_arid&lt;/name&gt;
                     &lt;role&gt;arid&lt;/role&gt;
                     &lt;direction&gt;Output&lt;/direction&gt;
-                    &lt;width&gt;7&lt;/width&gt;
+                    &lt;width&gt;8&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                 &lt;/port&gt;
@@ -6083,7 +6083,7 @@
                     &lt;name&gt;axm_ddrb_bid&lt;/name&gt;
                     &lt;role&gt;bid&lt;/role&gt;
                     &lt;direction&gt;Input&lt;/direction&gt;
-                    &lt;width&gt;7&lt;/width&gt;
+                    &lt;width&gt;8&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                 &lt;/port&gt;
@@ -6227,7 +6227,7 @@
                     &lt;name&gt;axm_ddrb_awid&lt;/name&gt;
                     &lt;role&gt;awid&lt;/role&gt;
                     &lt;direction&gt;Output&lt;/direction&gt;
-                    &lt;width&gt;7&lt;/width&gt;
+                    &lt;width&gt;8&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                 &lt;/port&gt;
@@ -6329,7 +6329,7 @@
                     &lt;name&gt;axm_ddrc_rid&lt;/name&gt;
                     &lt;role&gt;rid&lt;/role&gt;
                     &lt;direction&gt;Input&lt;/direction&gt;
-                    &lt;width&gt;7&lt;/width&gt;
+                    &lt;width&gt;8&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                 &lt;/port&gt;
@@ -6433,7 +6433,7 @@
                     &lt;name&gt;axm_ddrc_arid&lt;/name&gt;
                     &lt;role&gt;arid&lt;/role&gt;
                     &lt;direction&gt;Output&lt;/direction&gt;
-                    &lt;width&gt;7&lt;/width&gt;
+                    &lt;width&gt;8&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                 &lt;/port&gt;
@@ -6457,7 +6457,7 @@
                     &lt;name&gt;axm_ddrc_bid&lt;/name&gt;
                     &lt;role&gt;bid&lt;/role&gt;
                     &lt;direction&gt;Input&lt;/direction&gt;
-                    &lt;width&gt;7&lt;/width&gt;
+                    &lt;width&gt;8&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                 &lt;/port&gt;
@@ -6601,7 +6601,7 @@
                     &lt;name&gt;axm_ddrc_awid&lt;/name&gt;
                     &lt;role&gt;awid&lt;/role&gt;
                     &lt;direction&gt;Output&lt;/direction&gt;
-                    &lt;width&gt;7&lt;/width&gt;
+                    &lt;width&gt;8&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                 &lt;/port&gt;
@@ -6703,7 +6703,7 @@
                     &lt;name&gt;axm_ddrd_rid&lt;/name&gt;
                     &lt;role&gt;rid&lt;/role&gt;
                     &lt;direction&gt;Input&lt;/direction&gt;
-                    &lt;width&gt;7&lt;/width&gt;
+                    &lt;width&gt;8&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                 &lt;/port&gt;
@@ -6807,7 +6807,7 @@
                     &lt;name&gt;axm_ddrd_arid&lt;/name&gt;
                     &lt;role&gt;arid&lt;/role&gt;
                     &lt;direction&gt;Output&lt;/direction&gt;
-                    &lt;width&gt;7&lt;/width&gt;
+                    &lt;width&gt;8&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                 &lt;/port&gt;
@@ -6831,7 +6831,7 @@
                     &lt;name&gt;axm_ddrd_bid&lt;/name&gt;
                     &lt;role&gt;bid&lt;/role&gt;
                     &lt;direction&gt;Input&lt;/direction&gt;
-                    &lt;width&gt;7&lt;/width&gt;
+                    &lt;width&gt;8&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                 &lt;/port&gt;
@@ -6975,7 +6975,7 @@
                     &lt;name&gt;axm_ddrd_awid&lt;/name&gt;
                     &lt;role&gt;awid&lt;/role&gt;
                     &lt;direction&gt;Output&lt;/direction&gt;
-                    &lt;width&gt;7&lt;/width&gt;
+                    &lt;width&gt;8&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                 &lt;/port&gt;
@@ -7173,7 +7173,7 @@
                     &lt;name&gt;axm_f2h_araddr&lt;/name&gt;
                     &lt;role&gt;araddr&lt;/role&gt;
                     &lt;direction&gt;Output&lt;/direction&gt;
-                    &lt;width&gt;32&lt;/width&gt;
+                    &lt;width&gt;40&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                 &lt;/port&gt;
@@ -7341,7 +7341,7 @@
                     &lt;name&gt;axm_f2h_awaddr&lt;/name&gt;
                     &lt;role&gt;awaddr&lt;/role&gt;
                     &lt;direction&gt;Output&lt;/direction&gt;
-                    &lt;width&gt;32&lt;/width&gt;
+                    &lt;width&gt;40&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                 &lt;/port&gt;
