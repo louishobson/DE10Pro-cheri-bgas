@@ -1,0 +1,20 @@
+Recipe r = rSeq ( rBlock (
+    recipeDelay (2000)
+  , debugUnitSendHalt (verbosity)
+  , debugUnitSendResume (verbosity)
+  , debugUnitSendHalt (verbosity)
+  , debugUnitSendResume (verbosity)
+  , debugUnitSendReset (verbosity, False)
+  , debugUnitSendHalt (verbosity)
+  , debugUnitSendResume (verbosity)
+  , debugUnitSendReset (verbosity, False)
+  , debugUnitSendResume (verbosity)
+  , debugUnitSendHalt (verbosity)
+  , debugUnitSendReset (verbosity, True)
+  , debugUnitSendResume (verbosity)
+  , debugUnitSendHalt (verbosity)
+  , debugUnitSendReset (verbosity, True)
+  , debugUnitSendHalt (verbosity)
+  , debugUnitSendResume (verbosity)
+  , done.send
+  ));
