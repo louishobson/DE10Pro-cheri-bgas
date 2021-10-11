@@ -21,9 +21,9 @@ import Vector ::*;
 import Randomizable ::*;
 import Divide ::*;
 
-export mkNonPipelinedDividerBlah;
+export mkNonPipelinedDivider;
 export mkNonPipelinedSignedDivider;
-export mkNonPipelinedSquareRooterBlah;
+export mkNonPipelinedSquareRooter;
 
 typedef struct {
    Int#(TAdd#(1,n)) d;
@@ -33,7 +33,7 @@ typedef struct {
 
 // non-restoring divider
 // n+3 cycle latency
-module mkNonPipelinedDividerBlah#(Integer s)(Server#(Tuple2#(UInt#(TAdd#(n,n)),UInt#(n)),Tuple2#(UInt#(n),UInt#(n))))
+module mkNonPipelinedDivider#(Integer s)(Server#(Tuple2#(UInt#(TAdd#(n,n)),UInt#(n)),Tuple2#(UInt#(n),UInt#(n))))
    provisos(Alias#(UInt#(TAdd#(TLog#(n),1)), countT));
 
    Reg#(DivState#(n)) fReg <- mkRegU;
@@ -96,7 +96,7 @@ endmodule
 
 module mkNonPipelinedSignedDivider#(Integer s)(Server#(Tuple2#(Int#(TAdd#(n,n)),Int#(n)),Tuple2#(Int#(n),Int#(n))));
 
-   Server#(Tuple2#(UInt#(TAdd#(n,n)),UInt#(n)),Tuple2#(UInt#(n),UInt#(n))) div <- mkNonPipelinedDividerBlah(s);
+   Server#(Tuple2#(UInt#(TAdd#(n,n)),UInt#(n)),Tuple2#(UInt#(n),UInt#(n))) div <- mkNonPipelinedDivider(s);
    FIFO#(Tuple2#(Bool,Bool)) fSign <- mkFIFO;
 
    interface Put request;
@@ -128,7 +128,7 @@ module mkNonPipelinedSignedDivider#(Integer s)(Server#(Tuple2#(Int#(TAdd#(n,n)),
    endinterface
 endmodule
 
-module mkNonPipelinedSquareRooterBlah#(Integer n)(Server#(UInt#(m),Tuple2#(UInt#(m),Bool)))
+module mkNonPipelinedSquareRooter#(Integer n)(Server#(UInt#(m),Tuple2#(UInt#(m),Bool)))
    provisos(
       // per request of bsc
       Add#(a__, 2, m),
@@ -216,7 +216,7 @@ typedef 4 NBits;
 
 (*synthesize*)
 module mkTb(Empty);
-   Server#(Tuple2#(UInt#(TAdd#(NBits,NBits)),UInt#(NBits)),Tuple2#(UInt#(NBits),UInt#(NBits))) div_dut <- mkNonPipelinedDividerBlah(3);
+   Server#(Tuple2#(UInt#(TAdd#(NBits,NBits)),UInt#(NBits)),Tuple2#(UInt#(NBits),UInt#(NBits))) div_dut <- mkNonPipelinedDivider(3);
    Server#(Tuple2#(UInt#(TAdd#(NBits,NBits)),UInt#(NBits)),Tuple2#(UInt#(NBits),UInt#(NBits))) div_mod <- mkDivider(1);
    FIFO#(Tuple2#(UInt#(TAdd#(NBits,NBits)),UInt#(NBits))) divs <- mkSizedFIFO(16);
 
