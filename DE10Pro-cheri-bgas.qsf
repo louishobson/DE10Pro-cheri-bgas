@@ -1625,9 +1625,10 @@ set_global_assignment -name IP_FILE ip/toplevel/emif_hps_ddra.ip
 set_global_assignment -name IP_FILE ip/toplevel/emif_ddrb.ip
 set_global_assignment -name IP_FILE ip/toplevel/CHERI_BGAS_Top.ip
 set_global_assignment -name IP_FILE ip/toplevel/ddrb_mm_clock_crossing_bridge.ip
-#set_global_assignment -name ENABLE_SIGNALTAP ON
+set_global_assignment -name ENABLE_SIGNALTAP ON
 #set_global_assignment -name USE_SIGNALTAP_FILE ddrb_channel.stp
 #set_global_assignment -name SIGNALTAP_FILE ddrb_channel.stp
-set_global_assignment -name ENABLE_SIGNALTAP ON
-set_global_assignment -name USE_SIGNALTAP_FILE h2f_lw.stp
-set_global_assignment -name SIGNALTAP_FILE h2f_lw.stp
+#set_global_assignment -name USE_SIGNALTAP_FILE h2f_lw.stp
+#set_global_assignment -name SIGNALTAP_FILE h2f_lw.stp
+set_global_assignment -name USE_SIGNALTAP_FILE cheri_bgas_top_axi.stp
+set_global_assignment -name SIGNALTAP_FILE cheri_bgas_top_axi.stp
