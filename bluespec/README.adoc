@@ -1,0 +1,82 @@
+:toc: macro
+:toclevels: 4
+:toc-title:
+:toc-placement!:
+:source-highlighter:
+
+This folder contains the following submodules
+
+- https://github.com/POETSII/DE10Pro-bsv-shell[DE10Pro-bsv-shell]
+- https://github.com/CTSRD-CHERI/Toooba[Toooba]
+- https://github.com/CTSRD-CHERI/Recipe[Recipe]
+
+as well as some "toplevel glue" for the CHERI BGAS system.
+
+[discrete]
+== Contents
+
+toc::[]
+
+:sectnums:
+
+== Toplevel structure
+
+The
+https://github.com/CTSRD-CHERI/DE10Pro-cheri-bgas/blob/main/bluespec/CHERI_BGAS_Top_Sim.bsv[CHERI_BGAS_Top_Sim.bsv]
+file is the toplevel file for the CHERI-BGAS system. It defines a
+`mkCHERI_BGAS_Top` bluespec module which provides an interface  defined by the
+general https://github.com/POETSII/DE10Pro-bsv-shell[DE10Pro-bsv-shell] project.
+It basically consists in:
+
+- a "h2f_lw" AXI4Lite subordinate port for "control" traffic from the HPS system
+- a "h2f" AXI4 subordinate port for general traffic from the HPS system
+- a "f2h" AXI4 manager port for general traffic to the HPS system
+- three "ddr{b, c, d}" AXI4 manager ports for DDR memory traffic
+- a vector of 32 interrupt sources
+
+Within `mkCHERI_BGAS_Top`, a Toooba core is instantiated and its two manager
+ports are connected to 4 subordinates at the moment:
+
+- the DDRB channel
+- a https://github.com/CTSRD-CHERI/BlueStuff/blob/master/AXI4_Fake_16550.bsv[fake 16550]
+- a place holder "bootrom" (currently always returning `0`)
+- the "f2h" channel
+
+The memory map is defined in
+https://github.com/CTSRD-CHERI/DE10Pro-cheri-bgas/blob/main/bluespec/SoC_Map.bsv[SoC_Map.bsv].
+
+The "h2f_lw" port exposes the core's AXI4Lite port providing access to a debug
+unit. It adds a fake 16550 interface facing the HPS system as the other end of
+the one previously mentioned already exposed to the RISC-V core. It also exposes
+a mechanism to trigger interrupts on the RISC-V core, and a mechanism to set the
+upper 32-bits of the memory requests performed via the "h2f" port.
+
+== Simulation
+
+The
+https://github.com/CTSRD-CHERI/DE10Pro-cheri-bgas/blob/main/bluespec/CHERI_BGAS_Top_Sim.bsv[CHERI_BGAS_Top_Sim.bsv]
+file instantiates `mkCHERI_BGAS_Top` and, at the moment, leaves most of its
+ports unconnected, except for "h2f_lw" and "ddrb".
+
+- "h2f_lw" is connected to a driver controlled by a state machine
+- "ddrb" is connected to a fake DDR module with a single word of memory
+
+=== Build a simulator
+
+With a working bluespec compiler, running
+
+[source, shell]
+----
+$ make bluesim
+----
+
+will generate a bluesim simulator.
+
+With a working installation of `verilator` as well, one can run
+
+[source, shell]
+----
+$ make verilatorsim
+----
+
+to get a verilator-based simulator.

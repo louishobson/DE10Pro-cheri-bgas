@@ -1,0 +1,99 @@
+:toc: macro
+:toclevels: 4
+:toc-title:
+:toc-placement!:
+:source-highlighter:
+
+The https://github.com/CTSRD-CHERI/DE10Pro-cheri-bgas[DE10Pro-cheri-bgas]
+repository aims to provide FPGA bitfiles for the CHERI BGAS project.
+
+It includes the Stratix 10 Quartus project, IP configuration, toplevel entity
+verilog, and signal tap configuration files, necessary for synthesis of a
+configuration image for the Terasic DE10Pro SX board. At the moment, the
+project uses Quartus 19.2pro.
+
+This repository also includes RTL sources under the
+https://github.com/CTSRD-CHERI/DE10Pro-cheri-bgas/tree/main/bluespec[bluespec/]
+folder, where various git submodules are used and suplemented with a few `.bsv`
+files providing some "toplevel glue" as awell as a minimal simulation
+framework.
+
+[discrete]
+== Contents
+
+toc::[]
+
+:sectnums:
+
+== Quick start
+
+=== Get submodules
+
+To begin with, clone all required git submodules recursively:
+
+[source, shell]
+----
+$ git submodule update --init --recursive
+----
+
+Currently, the submodules in use are:
+
+- the https://github.com/CTSRD-CHERI/vipbundle[Verilog IP bundle] tool
+  (to wrap the verilog description of the CHERI-BGAS system into a component
+   usable within Quartus)
+- the https://github.com/POETSII/DE10Pro-bsv-shell[DE10Pro-bsv-shell] bluespec
+  interface library
+- the https://github.com/CTSRD-CHERI/Toooba[Toooba] bluespec CHERI-enabled
+  RISC-V core
+- the https://github.com/CTSRD-CHERI/Recipe[Recipe] state machine description
+  bluespec library (for the simulation framework)
+
+=== Build a Stratix 10 bitfile
+
+Building the `vipbundle` tool requires a working installation of the `ghc`
+haskell compiler with the `regex-tdfa` haskell library. It will be built
+automatically as part of the overall build process for the FPGA image.
+
+Additionally, you will need a working installation of
+https://www.intel.com/content/www/us/en/programmable/downloads/download-center.html[Quartus 19.2pro]
+and a https://github.com/B-Lang-org/bsc[bluespec compiler].
+
+You can then run:
+
+[source, shell]
+----
+$ make synthesize
+----
+
+to generate a `output_files/DE10Pro-cheri-bgas.sof` Stratix 10 FPGA bitfile.
+
+==== Embed a bootloader in the generated bitfile
+
+You can run
+
+[source, shell]
+----
+$ BOOTLOADER=some/bootloader/ihex make gen-rbf
+----
+
+once an FPGA bitfile has been successfully generated to embed a bootloader and
+generate two `rbf` slices out of the `sof`, one for the base `hps` system
+configuration, and one  `core` configuration.
+If `BOOTLOADER` is not specified, it currently defaults to
+`../../DE10Pro-hps-ubuntu-sdcard/u-boot-socfpga/spl/u-boot-spl-dtb.ihex`. This
+means it is expected for a clone of
+https://github.com/POETSII/DE10Pro-hps-ubuntu-sdcard[DE10Pro-hps-ubuntu-sdcard]
+to exist in `../../` (two levels rather than simply `../` as the assumed git
+workflow for this repository is to `git clone --bare ...` and explicitly create
+a worktree).
+One can follow
+https://github.com/POETSII/DE10Pro-getting-started#building-the-ubuntu-sd-card-image[this]
+for information on building an sdcard image which contains a U-boot bootloader.
+
+== Simulation framework
+
+A minimal simulation framework is provided under the
+https://github.com/CTSRD-CHERI/DE10Pro-cheri-bgas/tree/main/bluespec[bluespec/]
+directory. See
+https://github.com/CTSRD-CHERI/DE10Pro-cheri-bgas/tree/main/bluespec#2-simulation[here]
+for further information.
