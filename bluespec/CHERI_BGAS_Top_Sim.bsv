@@ -55,12 +55,12 @@ import Recipe :: *;
 ////////////////////////////////////////////////////////////////////////////////
 
 module mkAXILiteDriver (AXI4Lite_Master #( `H2F_LW_ADDR
-                                        , `H2F_LW_DATA
-                                        , `H2F_LW_AWUSER
-                                        , `H2F_LW_WUSER
-                                        , `H2F_LW_BUSER
-                                        , `H2F_LW_ARUSER
-                                        , `H2F_LW_RUSER ));
+                                         , `H2F_LW_DATA
+                                         , `H2F_LW_AWUSER
+                                         , `H2F_LW_WUSER
+                                         , `H2F_LW_BUSER
+                                         , `H2F_LW_ARUSER
+                                         , `H2F_LW_RUSER ));
 
   // general helpers
   //////////////////////////////////////////////////////////////////////////////
@@ -248,103 +248,44 @@ module mkAXILiteDriver (AXI4Lite_Master #( `H2F_LW_ADDR
                               , $format ("axilite driver"));
 endmodule
 
-// AXI4 fake DDR
-////////////////////////////////////////////////////////////////////////////////
-
-module mkFakeDDR (AXI4_Slave #( `DRAM_ID
-                              , `DRAM_ADDR
-                              , `DRAM_DATA
-                              , `DRAM_AWUSER
-                              , `DRAM_WUSER
-                              , `DRAM_BUSER
-                              , `DRAM_ARUSER
-                              , `DRAM_RUSER ));
-
-  Integer verbosity = 2;
-  //let memLite <- mkAXI4LiteMem ('hffffffff, Invalid);
-  //return debugAXI4_Slave (fromAXI4LiteToAXI4_Slave (memLite), $format ("fake ddr"));
-  let rFF <- mkUGFIFOF;
-  let rFlits <- mkReg (0);
-  let awFF <- mkUGFIFOF;
-  let wFF <- mkUGFIFOF;
-  let wFlits <- mkReg (0);
-  let allTheMemoryInTheWorld <- mkRegU;
-  interface Sink ar;
-    method canPut = rFF.notFull;
-    method put = rFF.enq;
-  endinterface
-  interface Source r;
-    method canPeek = rFF.notEmpty;
-    method peek = AXI4_RFlit { rid: rFF.first.arid
-                             , rresp: OKAY
-                             , rdata: allTheMemoryInTheWorld
-                             , rlast: (rFF.first.arlen == rFlits)
-                             , ruser: 0 };
-    method drop = action
-      $display ("%0t - mkFakeDDR answers ", $time, fshow (rFF.first));
-      if (rFF.first.arlen == rFlits) begin
-        $display ("%0t - mkFakeDDR consumes ", $time, fshow (rFF.first));
-        rFF.deq;
-        rFlits <= 0;
-      end else rFlits <= rFlits + 1;
-    endaction;
-  endinterface
-  interface Sink aw;
-    method canPut = awFF.notFull;
-    method put = awFF.enq;
-  endinterface
-  interface Sink w;
-    method canPut = wFF.notFull;
-    method put (x) = action
-      wFF.enq (x);
-      allTheMemoryInTheWorld <= x.wdata;
-    endaction;
-  endinterface
-  interface Source b;
-    method canPeek = awFF.notEmpty && wFF.notEmpty;
-    method peek = AXI4_BFlit { bid: awFF.first.awid
-                             , bresp: OKAY
-                             , buser: 0 };
-    method drop = action
-      if (awFF.first.awlen == wFlits) begin
-        $display ("%0t - mkFakeDDR consumes ", $time, fshow (awFF.first));
-        awFF.deq;
-        wFlits <= 0;
-      end else wFlits <= wFlits + 1;
-      wFF.deq;
-      $display ("%0t - mkFakeDDR consumes ", $time, fshow (wFF.first));
-    endaction;
-  endinterface
-
-endmodule
-
 // Simulation toplevel module
 ////////////////////////////////////////////////////////////////////////////////
 
 module mkCHERI_BGAS_Top_Sim (Empty);
-  DE10ProIfc cheri_bgas_top <- mkCHERI_BGAS_Top;
-  AXI4Lite_Master #( `H2F_LW_ADDR
-                   , `H2F_LW_DATA
-                   , `H2F_LW_AWUSER
-                   , `H2F_LW_WUSER
-                   , `H2F_LW_BUSER
-                   , `H2F_LW_ARUSER
-                   , `H2F_LW_RUSER ) axiLiteDriver <- mkAXILiteDriver;
-  AXI4_Slave #( `DRAM_ID
-              , `DRAM_ADDR
-              , `DRAM_DATA
-              , `DRAM_AWUSER
-              , `DRAM_WUSER
-              , `DRAM_BUSER
-              , `DRAM_ARUSER
-              , `DRAM_RUSER ) fakeDDRB <- mkFakeDDR;
 
+  // topmodule to simulate
+  DE10ProIfc cheri_bgas_top <- mkCHERI_BGAS_Top;
+
+  // H2F_LW driver
+  AXI4Lite_Master #( `H2F_LW_ADDR, `H2F_LW_DATA
+                   , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
+                   , `H2F_LW_ARUSER, `H2F_LW_RUSER )
+    axiLiteDriver <- mkAXILiteDriver;
+
+  // DDRs
+  AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
+              , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
+              , `DRAM_ARUSER, `DRAM_RUSER )
+    fakeDDRB <- mkAXI4Mem (4096, Nothing);
+  AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
+              , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
+              , `DRAM_ARUSER, `DRAM_RUSER )
+    fakeDDRC <- mkAXI4Mem (4096, Nothing);
+  AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
+              , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
+              , `DRAM_ARUSER, `DRAM_RUSER )
+    fakeDDRD <- mkAXI4Mem (4096, Nothing);
+
+  // connect it all up
   mkConnection (cheri_bgas_top.axls_h2f_lw, axiLiteDriver);
   //mkConnection (cheri_bgas_top.axs_h2f, culDeSac);
   //mkConnection (cheri_bgas_top.axm_f2h, culDeSac);
-  mkConnection (cheri_bgas_top.axm_ddrb, fakeDDRB);
-  //mkConnection (cheri_bgas_top.axm_ddrc, culDeSac);
-  //mkConnection (cheri_bgas_top.axm_ddrd, culDeSac);
+  mkConnection ( cheri_bgas_top.axm_ddrb
+               , debugAXI4_Slave (fakeDDRB, $format ("ddrb")));
+  mkConnection ( cheri_bgas_top.axm_ddrc
+               , debugAXI4_Slave (fakeDDRC, $format ("ddrc")));
+  mkConnection ( cheri_bgas_top.axm_ddrd
+               , debugAXI4_Slave (fakeDDRD, $format ("ddrd")));
 endmodule
 
 endpackage

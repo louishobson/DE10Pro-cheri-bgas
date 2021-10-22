@@ -107,21 +107,32 @@ $(SIMDIR)/sim_CHERI_BGAS: CHERI_BGAS_Top_Sim.bsv $(SRCS) TagTableStructure.bsv
 	mkdir -p $(BDIR)
 	mkdir -p $(SIMDIR)
 	$(BSC) $(BSCFLAGS) $(BSCSIMFLAGS) -sim -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
-	$(BSC) $(BSCFLAGS) $(BSCSIMFLAGS) -sim -e mkCHERI_BGAS_Top_Sim -u -o $@
+	$(BSC) $(BSCFLAGS) $(BSCSIMFLAGS) -sim -e mkCHERI_BGAS_Top_Sim -u -o $@ $(BLUESTUFFDIR)/BlueUtils/MemSim.c
 
 verilatorsim: $(VDIR)/mkCHERI_BGAS_Top_Sim.v CHERI_BGAS_Top_verilator_sim.cpp
-	verilator -cc $(VDIR)/mkCHERI_BGAS_Top_Sim.v \
-              -exe CHERI_BGAS_Top_verilator_sim.cpp \
-              -Mdir $(VERILATORDIR) \
-              -o mkCHERI_BGAS_Top_Sim \
-              -y $(VDIR) -y $(BLUESPECDIR)/Verilog \
-              -Wno-WIDTH \
-              -Wno-CASEINCOMPLETE \
-              -Wno-STMTDLY \
-              -Wno-INITIALDLY \
-              -Wno-UNSIGNED \
-              -Wno-CMPCONST \
-              #-Wno-fatal
+	$(eval TMP_V := $(shell mktemp -t mkCHERI_BGAS_Top_Sim_edited_XXXX.v))
+	sed 's/$$imported_//' $(VDIR)/mkCHERI_BGAS_Top_Sim.v > $(TMP_V)
+	verilator \
+      -Mdir $(VERILATORDIR) \
+      --prefix VmkCHERI_BGAS_Top_Sim \
+      -o mkCHERI_BGAS_Top_Sim \
+      -y $(VDIR) \
+      -y $(BLUESPECDIR)/Verilog \
+      -y $(BLUESTUFFDIR)/BlueUtils \
+      -I$(VDIR) \
+      -Wno-WIDTH \
+      -Wno-CASEINCOMPLETE \
+      -Wno-STMTDLY \
+      -Wno-INITIALDLY \
+      -Wno-UNSIGNED \
+      -Wno-CMPCONST \
+      -cc \
+      $(TMP_V) \
+      $(BLUESTUFFDIR)/BlueUtils/MemSim.v \
+      -exe \
+      CHERI_BGAS_Top_verilator_sim.cpp \
+      $(BLUESTUFFDIR)/BlueUtils/MemSim.c
+	#-Wno-fatal
 	make -C $(VERILATORDIR) -j -f VmkCHERI_BGAS_Top_Sim.mk mkCHERI_BGAS_Top_Sim
 
 $(VDIR)/mkCHERI_BGAS_Top_Sim.v: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
