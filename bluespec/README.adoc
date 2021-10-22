@@ -22,9 +22,9 @@ toc::[]
 == Toplevel structure
 
 The
-https://github.com/CTSRD-CHERI/DE10Pro-cheri-bgas/blob/main/bluespec/CHERI_BGAS_Top_Sim.bsv[CHERI_BGAS_Top_Sim.bsv]
+https://github.com/CTSRD-CHERI/DE10Pro-cheri-bgas/blob/main/bluespec/CHERI_BGAS_Top.bsv[CHERI_BGAS_Top.bsv]
 file is the toplevel file for the CHERI-BGAS system. It defines a
-`mkCHERI_BGAS_Top` bluespec module which provides an interface  defined by the
+`mkCHERI_BGAS_Top` bluespec module which provides an interface defined by the
 general https://github.com/POETSII/DE10Pro-bsv-shell[DE10Pro-bsv-shell] project.
 It basically consists in:
 
@@ -50,6 +50,14 @@ unit. It adds a fake 16550 interface facing the HPS system as the other end of
 the one previously mentioned already exposed to the RISC-V core. It also exposes
 a mechanism to trigger interrupts on the RISC-V core, and a mechanism to set the
 upper 32-bits of the memory requests performed via the "h2f" port.
+
+The specific AXI4Lite offsets are currently as follows:
+
+- offsets 0x0000_0000 -> 0x0000_0fff: Debug Unit
+- offsets 0x0000_1000 -> 0x0000_1fff: Interrupt lines
+- offsets 0x0000_2000 -> 0x0000_2fff: Others (unclear what exactly...)
+- offsets 0x0000_3000 -> 0x0000_3fff: "fake" 16550
+- offsets 0x0000_4000 -> 0x0000_4fff: h2f address controller
 
 == Simulation
 

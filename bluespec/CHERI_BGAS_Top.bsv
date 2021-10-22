@@ -229,7 +229,7 @@ module mkCHERI_BGAS_Top (DE10ProIfc)
         , {.fake16550s1, .fake16550irq1} } = fake16550ifcs;
   // ctrl sub entry
   let ctrSubFake16550 =
-        tuple2 (fake16550s0, Range { base: 'h0003_0000, size: 'h0000_1000 });
+        tuple2 (fake16550s0, Range { base: 'h0000_3000, size: 'h0000_1000 });
 
   // h2f address upper 32-bits banking register
   // (h2f port only has 32-bit addresses, this mechanism is intended to enable
@@ -242,7 +242,7 @@ module mkCHERI_BGAS_Top (DE10ProIfc)
   match {.h2fAddrCtrlSub, .h2fAddrCtrlRO} = h2fCtrlIfcs;
   // ctrl sub entry
   let ctrSubH2FAddrCtrl =
-        tuple2 (h2fAddrCtrlSub, Range { base: 'h0004_0000, size: 'h0000_1000 });
+        tuple2 (h2fAddrCtrlSub, Range { base: 'h0000_4000, size: 'h0000_1000 });
 
   // prepare AXI4 managers
   //////////////////////////////////////////////////////////////////////////////
