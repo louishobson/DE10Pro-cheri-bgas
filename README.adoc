@@ -69,26 +69,79 @@ to generate a `output_files/DE10Pro-cheri-bgas.sof` Stratix 10 FPGA bitfile.
 
 ==== Embed a bootloader in the generated bitfile
 
-You can run
+The bitfiles generated embed both a soft RISCV core and an ARM Hard Processor
+System (HPS). The bootloader code for the HPS can be embedded into a bitfile.
+To do so, you can run
 
 [source, shell]
 ----
 $ BOOTLOADER=some/bootloader/ihex make gen-rbf
 ----
 
-once an FPGA bitfile has been successfully generated to embed a bootloader and
-generate two `rbf` slices out of the `sof`, one for the base `hps` system
-configuration, and one  `core` configuration.
-If `BOOTLOADER` is not specified, it currently defaults to
-`../../DE10Pro-hps-ubuntu-sdcard/u-boot-socfpga/spl/u-boot-spl-dtb.ihex`. This
-means it is expected for a clone of
+once an FPGA bitfile has been successfully generated. This will generate two
+`rbf` slices out of the `sof`, one for the base `hps` system configuration, and
+one  `core` configuration.  If `BOOTLOADER` is not specified, it currently
+defaults to
+`../../DE10Pro-hps-ubuntu-sdcard/u-boot-socfpga/spl/u-boot-spl-dtb.ihex`. If no
+bootloader is explicitly provided, it is expected for a clone of
 https://github.com/POETSII/DE10Pro-hps-ubuntu-sdcard[DE10Pro-hps-ubuntu-sdcard]
-to exist in `../../` (two levels rather than simply `../` as the assumed git
+to exist in `../../` (`../../` rather than simply `../` as the assumed git
 workflow for this repository is to `git clone --bare ...` and explicitly create
-a worktree).
-One can follow
+a worktree). One can follow
 https://github.com/POETSII/DE10Pro-getting-started#building-the-ubuntu-sd-card-image[this]
 for information on building an sdcard image which contains a U-boot bootloader.
+
+== Intel Stratix 10 Hard Processor System interactions
+
+Software running on the HPS can interact with the RISCV system on the FPGA in a
+variety of ways.  The HPS can use a "lightweight" 32-bit AXI4 port as well as a
+128-bit AXI4 port to perform FPGA accesses.
+https://www.intel.com/content/www/us/en/programmable/hps/stratix-10/hps.html[As
+documented by Intel], several windows in the HPS's address space can be used to
+perform these accesses:
+- https://www.intel.com/content/www/us/en/programmable/hps/stratix-10/index.html#ukm1505401875982.html[FPGA_bridge_lwsoc2fpga_2M]:
+  `0xf900_0000 -> 0xf91f_ffff`
+- https://www.intel.com/content/www/us/en/programmable/hps/stratix-10/index.html#lqi1505400436349.html[FPGA_bridge_soc2fpga_1G_default]:
+  `0x8000_0000 -> 0xbfff_ffff`
+- https://www.intel.com/content/www/us/en/programmable/hps/stratix-10/index.html#ilv1505400437133.html[FPGA_bridge_soc2fpga_512M_default]:
+  `0xc000_0000 -> 0xdfff_ffff`
+- https://www.intel.com/content/www/us/en/programmable/hps/stratix-10/index.html#pzn1505408004094.html[FPGA_bridge_soc2fpga_1G]:
+  `0x20_0000_0000 -> 0x20_3fff_ffff`
+- https://www.intel.com/content/www/us/en/programmable/hps/stratix-10/index.html#aym1505408004945.html[FPGA_bridge_soc2fpga_512M]:
+  `0x20_4000_0000 -> 0x20_5fff_ffff`
+- https://www.intel.com/content/www/us/en/programmable/hps/stratix-10/index.html#rqc1505408005794.html[FPGA_bridge_soc2fpga_2.5G]:
+  `0x20_6000_0000 -> 0x20_ffff_ffff`
+
+Additionally, the RISCV system is provided a window into the HPS system's memory
+map via adedicated 128-bit fpga2hps AXI4 slave port.
+
+=== lwsoc2fpga "lightweight" AXI4 master port
+
+The 32-bit lwsoc2fpga "lightweight" AXI4 master port is used for accesses in the
+`0xf900_0000` to `0xf91f_ffff` range. Exposed through these addresses on the
+FPGA side in the RISCV system are the following:
+
+- `0xf900_0000 -> 0xf900_0fff`: Debug Unit
+- `0xf900_1000 -> 0xf900_1fff`: Interrupt lines
+- `0xf900_2000 -> 0xf900_2fff`: Others (not yet clear what exactly...)
+- `0xf900_3000 -> 0xf900_3fff`: "fake" 16550
+- `0xf900_4000 -> 0xf900_4fff`: h2f address controller
+
+=== soc2fpga AXI4 master port
+
+The 128-bit soc2fpga AXI4 master port is used for accesses in the ranges
+documented above. It is a 32-bit address port which exposes a 4GB wide window
+into the same 64-bit address memory map perceived by the RISCV core on the
+FPGA. The device exposed via the lwsoc2fpga port at `0xf900_4000 ->
+0xf900_4fff` allows software on the FPGA to specify the upper 32 bits of a full
+64-bit address and effectively slide the available 4GB window.
+
+=== fpga2hps AXI4 slave port
+
+The 128-bit fpga2hps AXI4 slave port provides the RISCV softcore system with
+cache-coherent access to the HPS memory map. See the
+https://www.intel.com/content/dam/www/programmable/us/en/pdfs/literature/hb/stratix-10/s10_5v4.pdf[Intel Stratix 10 Hard Processor System Technical Reference Manual]
+for further details.
 
 == Simulation framework
 
