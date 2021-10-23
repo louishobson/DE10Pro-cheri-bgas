@@ -99,6 +99,7 @@ variety of ways.  The HPS can use a "lightweight" 32-bit AXI4 port as well as a
 https://www.intel.com/content/www/us/en/programmable/hps/stratix-10/hps.html[As
 documented by Intel], several windows in the HPS's address space can be used to
 perform these accesses:
+
 - https://www.intel.com/content/www/us/en/programmable/hps/stratix-10/index.html#ukm1505401875982.html[FPGA_bridge_lwsoc2fpga_2M]:
   `0xf900_0000 -> 0xf91f_ffff`
 - https://www.intel.com/content/www/us/en/programmable/hps/stratix-10/index.html#lqi1505400436349.html[FPGA_bridge_soc2fpga_1G_default]:
