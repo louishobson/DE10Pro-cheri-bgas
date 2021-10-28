@@ -54,39 +54,47 @@ upper 32-bits of the memory requests performed via the "h2f" port.
 The specific AXI4Lite offsets are currently as follows:
 
 - `0x0000_0000 -> 0x0000_0fff`: Debug Unit
-  See https://github.com/CTSRD-CHERI/Toooba/blob/wip-aj443-WindCoreInterface/src_Core/Debug_Module/README.txt[here]
-  for further details on the register interface layout.
++
+See https://github.com/CTSRD-CHERI/Toooba/blob/wip-aj443-WindCoreInterface/src_Core/Debug_Module/README.txt[here]
+for further details on the register interface layout.
 - `0x0000_1000 -> 0x0000_1fff`: Interrupt lines
-  Reads to this device return a `SLVERR`. Writes behave as follows:
-  * 32-bit offset 0 (byte offset 0x00000000):
-    set irq lines that correspond to high bits in the written data
-  * 32-bit offset 1 (byte offset 0x00000004):
-    clear irq lines that correspond to high bits in the written data
-  * 32-bit offset 2 (byte offset 0x00000008):
-    set nmirq lines that correspond to high bits in the written data
-  * 32-bit offset 3 (byte offset 0x0000000c):
-    clear nmirq lines that correspond to high bits in the written data
-  See the definition of `mkIrqAXI4Lite_Subordinate` in
-  https://github.com/CTSRD-CHERI/WindCoreInterface/blob/main/WindCoreUtils.bsv[WindCoreUtils.bsv].
-  Currently, of the 32 interrupt lines to the riscv core exposed here, line 0 is
-  reserved for the internal 16550 interrupt. Bit 0 of the written data is
-  therefore ignored. Bit 1 to 31 correspond to the remaining interrupt lines.
++
+Reads to this device return a `SLVERR`. Writes behave as follows:
++
+* 32-bit offset 0 - byte offset 0x0000:
+  set irq lines that correspond to high bits in the written data
+* 32-bit offset 1 - byte offset 0x0004:
+  clear irq lines that correspond to high bits in the written data
+* 32-bit offset 2 - byte offset 0x0008:
+  set nmirq lines that correspond to high bits in the written data
+* 32-bit offset 3 - byte offset 0x000c:
+  clear nmirq lines that correspond to high bits in the written data
+
++
+See the definition of `mkIrqAXI4Lite_Subordinate` in
+https://github.com/CTSRD-CHERI/WindCoreInterface/blob/main/WindCoreUtils.bsv[WindCoreUtils.bsv].
+Currently, of the 32 interrupt lines to the riscv core exposed here, line 0 is
+reserved for the internal 16550 interrupt. Bit 0 of the written data is
+therefore ignored. Bit 1 to 31 correspond to the remaining interrupt lines.
 - `0x0000_2000 -> 0x0000_2fff`: Others
-  Not currently in use
++
+Not currently in use
 - `0x0000_3000 -> 0x0000_3fff`: "fake" 16550
-  A subset of the 16550 register interface is exposed. Note that, in order to
-  comply with the AXI4 Lite protocol mandating that reads/writes be exactly as
-  wide as the bus, the exposed register offsets are 4 bytes appart rather than
-  1 byte appart.
-  For more on the implementation, see the definition of `mkAXI4_Fake_16550` in
-  https://github.com/CTSRD-CHERI/BlueStuff/blob/master/AXI4_Fake_16550.bsv[AXI4_Fake_16550.bsv].
++
+A subset of the 16550 register interface is exposed. Note that, in order to
+comply with the AXI4 Lite protocol mandating that reads/writes be exactly as
+wide as the bus, the exposed register offsets are 4 bytes appart rather than 1
+byte appart.
+For more on the implementation, see the definition of `mkAXI4_Fake_16550` in
+https://github.com/CTSRD-CHERI/BlueStuff/blob/master/AXI4_Fake_16550.bsv[AXI4_Fake_16550.bsv].
 - `0x0000_4000 -> 0x0000_4fff`: h2f address controller
-  This device contains a single register holding the upper 32 bits to
-  concatenate to the 32-bit addresses used on the h2f AXI4 port to form a full
-  64-bit address. The register can be written to or read back at any offset
-  within the exposed range.
-  See the definition of `mkH2FAddrCtrl` in
-  https://github.com/CTSRD-CHERI/DE10Pro-cheri-bgas/blob/main/bluespec/CHERI_BGAS_Top.bsv[CHERI_BGAS_Top.bsv].
++
+This device contains a single register holding the upper 32 bits to concatenate
+to the 32-bit addresses used on the h2f AXI4 port to form a full 64-bit
+address. The register can be written to or read back at any offset within the
+exposed range.
+See the definition of `mkH2FAddrCtrl` in
+https://github.com/CTSRD-CHERI/DE10Pro-cheri-bgas/blob/main/bluespec/CHERI_BGAS_Top.bsv[CHERI_BGAS_Top.bsv].
 
 == Simulation
 
