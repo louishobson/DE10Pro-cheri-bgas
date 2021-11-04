@@ -250,9 +250,11 @@ module mkCHERI_BGAS_Top (DE10ProIfc)
   // convert to WindCoreHi interface and map additional AXI4 Lite subordinates
   let core <- windCoreMid2Hi_Core (
                 midCore
+                // This subordinate is facing the outside world
               , cons (ctrSubFake16550, cons (ctrSubH2FAddrCtrl, nil))
-              , cons (fake16550irq0, nil)
-              , reset_by newRst.new_rst);
+                // This irq is going into the RISCV core
+              , cons (fake16550irq1, nil)
+              , reset_by newRst.new_rst );
 
   // gather all managers
   Vector #(2, bus_mngr_t) ms;
@@ -330,7 +332,7 @@ module mkCHERI_BGAS_Top (DE10ProIfc)
                                                      method _read = False;
                                                    endinterface);
   // the fake 16550 irq
-  irqs[0] = fake16550irq1;
+  irqs[0] = fake16550irq0;
 
   // prepare h2f subordinate interface
   let h2fSub <-
