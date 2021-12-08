@@ -185,8 +185,8 @@ module mkH2FAddrCtrl #(Bit #(`H2F_LW_DATA) dfltUpperBits)
 
 endmodule
 
-// The toplevel wrapper around the core
-module mkCHERI_BGAS_Top (DE10ProIfc)
+// Wrapper around a single CHERI BGAS system
+module mkSingleCHERI_BGAS_Top (DE10ProIfc)
   provisos ( NumAlias #(bus_mid_w, TAdd #(Wd_MId, 1)) // id width out of the core
            , NumAlias #(bus_sid_w, TAdd #(Wd_MId, 2)) // cope with 2 masters only
            , Alias #(bus_mngr_t, AXI4_Master #( bus_mid_w, Wd_Addr, Wd_Data
@@ -293,15 +293,15 @@ module mkCHERI_BGAS_Top (DE10ProIfc)
   mkConnection ( fakeBootRomDeBurst.master, fakeBootRom
                , reset_by newRst.new_rst);
 
-  // prepare ddrb channel
-  bus_subshim_t ddrbDeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
-  let ddrb_mngr <-
-    toWider_AXI4_Master ( truncate_AXI4_Master_addr (ddrbDeBurst.master)
+  // prepare ddr channel
+  bus_subshim_t ddrDeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
+  let ddr_mngr <-
+    toWider_AXI4_Master ( truncate_AXI4_Master_addr (ddrDeBurst.master)
                         , reset_by newRst.new_rst );
 
   // gather all subordinates
   Vector #(4, bus_sub_t) ss;
-  ss[0] = ddrbDeBurst.slave;
+  ss[0] = ddrDeBurst.slave;
   ss[1] = fake16550_s;
   ss[2] = debugAXI4_Slave (fakeBootRomDeBurst.slave, $format ("fake bootRom"));
   ss[3] = f2hShim.slave;
@@ -345,9 +345,147 @@ module mkCHERI_BGAS_Top (DE10ProIfc)
   interface axls_h2f_lw = core.control_subordinate;
   interface axs_h2f = h2fSub;
   interface axm_f2h = f2hMngrIfc;
-  interface axm_ddrb = ddrb_mngr;
+  interface axm_ddrb = ddr_mngr;
   interface axm_ddrc = culDeSac;
   interface axm_ddrd = culDeSac;
+  interface ins_irq0 = irqs;
+endmodule
+
+`ifdef NB_CHERI_BGAS_SYSTEMS
+typedef `NB_CHERI_BGAS_SYSTEMS NBCheriBgasSystems;
+`else
+typedef 1 NBCheriBgasSystems;
+`endif
+Integer nbCheriBgasSystems = valueOf (NBCheriBgasSystems);
+
+module mkCHERI_BGAS_Top (DE10ProIfc)
+  provisos (
+    Alias #( ctrlSub_t
+           , AXI4Lite_Slave #( `H2F_LW_ADDR, `H2F_LW_DATA
+                             , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
+                             , `H2F_LW_ARUSER, `H2F_LW_RUSER ))
+  , Alias #( h2fSub_t
+           , AXI4_Slave #( `H2F_ID, `H2F_ADDR, `H2F_DATA
+                         , `H2F_AWUSER, `H2F_WUSER, `H2F_BUSER
+                         , `H2F_ARUSER, `H2F_RUSER ))
+  , Alias #( f2hMngr_t
+           , AXI4_Master #( `F2H_ID, `F2H_ADDR, `F2H_DATA
+                          , `F2H_AWUSER, `F2H_WUSER, `F2H_BUSER
+                          , `F2H_ARUSER, `F2H_RUSER ))
+  , Alias #( ddrMngr_t
+           , AXI4_Master #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
+                          , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
+                          , `DRAM_ARUSER, `DRAM_RUSER ))
+  , Alias #( irqs_t, Vector #(32, ReadOnly #(Bool)))
+  );
+
+  // establish the number of CHERI BGAS systems
+  // XXX Only support 2 systems at most for now
+  if (nbCheriBgasSystems < 1) error ("nbCheriBgasSystems must be > 0");
+  if (nbCheriBgasSystems > 2) error ("nbCheriBgasSystems must be < 3");
+
+  // instantiate CHERI BGAS system(s)
+  //////////////////////////////////////////////////////////////////////////////
+  Clock clk <- exposeCurrentClock;
+  Reset rst <- exposeCurrentReset;
+  let newRst <- mkReset (0, True, clk, reset_by rst);
+  Vector #(NBCheriBgasSystems, DE10ProIfc)
+    sys <- replicateM (mkSingleCHERI_BGAS_Top (reset_by newRst.new_rst));
+  // local helper functions
+  function ctrlSub_t getH2FLW (DE10ProIfc s) = s.axls_h2f_lw;
+  function h2fSub_t getH2F (DE10ProIfc s) = s.axs_h2f;
+  function f2hMngr_t getF2H (DE10ProIfc s) = s.axm_f2h;
+  function ddrMngr_t getDDRB (DE10ProIfc s) = s.axm_ddrb;
+  function irqs_t getIRQs (DE10ProIfc s) = s.ins_irq0;
+
+  // aggregate AXI Lite control traffic
+  //////////////////////////////////////////////////////////////////////////////
+  // Allocate 16 bits of address space per system, route to a system based on
+  // addr[17:16]: 2'b00 -> system 0
+  //              2'b01 -> system 1
+  //              2'b10 -> system 2
+  //              2'b11 -> h2f system selector (device to select which system is
+  //                       accessed upon h2f device reads/writes)
+
+  // AXI lite shim
+  AXI4Lite_Shim #( `H2F_LW_ADDR, `H2F_LW_DATA
+                 , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
+                 , `H2F_LW_ARUSER, `H2F_LW_RUSER )
+    h2flwShim <- mkAXI4LiteShimFF (reset_by newRst.new_rst);
+  // actual subordinates
+  Vector #(4, ctrlSub_t) h2flwSubs = replicate (culDeSac);
+  for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1)
+    h2flwSubs[i] = mask_AXI4Lite_Slave_addr ( zeroExtend (16'hffff)
+                                            , getH2FLW (sys[i]) );
+  // assign h2f system selector device
+  h2flwSubs[3] = culDeSac; // XXX TODO
+  // control traffic routing function
+  function route_lw (addr);
+    Vector #(4, Bool) res = replicate (False);
+    res[addr[17:16]] = True;
+    return res;
+  endfunction
+  // wire up
+  mkAXI4LiteBus ( route_lw, cons (h2flwShim.master, nil), h2flwSubs
+                , reset_by newRst.new_rst );
+
+  // aggregate AXI h2f traffic
+  //////////////////////////////////////////////////////////////////////////////
+  AXI4_Shim #( `H2F_ID, `H2F_ADDR, `H2F_DATA
+             , `H2F_AWUSER, `H2F_WUSER, `H2F_BUSER
+             , `H2F_ARUSER, `H2F_RUSER )
+    h2fShim <- mkAXI4ShimFF (reset_by newRst.new_rst);
+  Vector #(NBCheriBgasSystems, h2fSub_t) h2fSubs = map (getH2F, sys);
+
+  // XXX TODO use the system selector device to route
+  mkAXI4Bus ( constFn (unpack ('b1)), cons (h2fShim.master, nil), h2fSubs
+            , reset_by newRst.new_rst );
+
+  // aggregate AXI f2h traffic
+  //////////////////////////////////////////////////////////////////////////////
+  AXI4_Shim #( `F2H_ID, `F2H_ADDR, `F2H_DATA
+             , `F2H_AWUSER, `F2H_WUSER, `F2H_BUSER
+             , `F2H_ARUSER, `F2H_RUSER )
+    f2hShim <- mkAXI4ShimFF (reset_by newRst.new_rst);
+  // XXX TODO wire up all systems
+  //Vector #(NBCheriBgasSystems, f2hMngr_t) f2hMngrs = map (getF2H, sys);
+  //mkAXI4Bus ( constFn (cons (True, nil)), f2hMngrs, cons (f2hShim.slave, nil)
+  //          , reset_by newRst.new_rst );
+  mkConnection (getF2H (sys[0]), f2hShim.slave, reset_by newRst.new_rst);
+
+  // dispatch ddr channels
+  //////////////////////////////////////////////////////////////////////////////
+  Vector #(3, ddrMngr_t) ddr = replicate (culDeSac);
+  for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1)
+    ddr[i] = getDDRB (sys[i]);
+
+  // dispatch IRQs
+  //////////////////////////////////////////////////////////////////////////////
+  irqs_t irqs = replicate (interface ReadOnly;
+                             method _read = False;
+                           endinterface);
+  // allocate 8 IRQ lines per system
+  for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1) begin
+    Integer offset = i * 8;
+    for (Integer j = 0; j < 8; j = j + 1)
+      irqs[offset + j] = asIfc (getIRQs (sys[i])[j]);
+  end
+
+  // interface
+  //////////////////////////////////////////////////////////////////////////////
+  interface axls_h2f_lw = h2flwShim.slave;
+  interface axs_h2f = h2fShim.slave;
+  interface axm_f2h = f2hShim.master;
+  // XXX
+  //interface axm_ddrb = ddr[0];
+  //interface axm_ddrc = ddr[1];
+  //interface axm_ddrd = ddr[2];
+  // XXX Only support 2 systems at most for now, and force system 2 to use ddrd
+  //     due to a currently unresolved quartus fitter issue
+  interface axm_ddrb = ddr[0];
+  interface axm_ddrc = culDeSac;
+  interface axm_ddrd = ddr[1];
+  // XXX
   interface ins_irq0 = irqs;
 endmodule
 

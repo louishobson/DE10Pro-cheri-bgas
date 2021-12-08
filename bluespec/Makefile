@@ -29,6 +29,8 @@
 BSC = bsc
 BLUESPECDIR ?= $(shell which $(BSC) | xargs dirname | xargs dirname)/lib
 
+NB_SYSTEMS ?= 1
+
 SRCS  = CHERI_BGAS_Top.bsv
 
 # relevant folders
@@ -78,6 +80,8 @@ BSCFLAGS += -D CAP128
 CAPSIZE = 128
 TAGS_STRUCT = 0 64
 TAGS_ALIGN = 32
+# CHERI BGAS flags
+BSCFLAGS += -D NB_CHERI_BGAS_SYSTEMS=$(NB_SYSTEMS)
 
 # generated files directories
 BUILDDIR ?= $(CURDIR)/build
