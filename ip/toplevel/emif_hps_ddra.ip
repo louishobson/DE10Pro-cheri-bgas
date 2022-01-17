@@ -2892,7 +2892,7 @@
         <ipxact:parameter parameterId="MEM_FORMAT_ENUM" type="string">
           <ipxact:name>MEM_FORMAT_ENUM</ipxact:name>
           <ipxact:displayName>PARAM_MEM_FORMAT_ENUM_NAME</ipxact:displayName>
-          <ipxact:value>MEM_FORMAT_UDIMM</ipxact:value>
+          <ipxact:value>MEM_FORMAT_SODIMM</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_READ_LATENCY" type="real">
           <ipxact:name>MEM_READ_LATENCY</ipxact:name>
@@ -3687,7 +3687,7 @@
         <ipxact:parameter parameterId="MEM_DDR4_FORMAT_ENUM" type="string">
           <ipxact:name>MEM_DDR4_FORMAT_ENUM</ipxact:name>
           <ipxact:displayName>Memory format</ipxact:displayName>
-          <ipxact:value>MEM_FORMAT_UDIMM</ipxact:value>
+          <ipxact:value>MEM_FORMAT_SODIMM</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_DQ_WIDTH" type="int">
           <ipxact:name>MEM_DDR4_DQ_WIDTH</ipxact:name>
@@ -3732,7 +3732,7 @@
         <ipxact:parameter parameterId="MEM_DDR4_ROW_ADDR_WIDTH" type="int">
           <ipxact:name>MEM_DDR4_ROW_ADDR_WIDTH</ipxact:name>
           <ipxact:displayName>Row address width</ipxact:displayName>
-          <ipxact:value>14</ipxact:value>
+          <ipxact:value>15</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_COL_ADDR_WIDTH" type="int">
           <ipxact:name>MEM_DDR4_COL_ADDR_WIDTH</ipxact:name>
