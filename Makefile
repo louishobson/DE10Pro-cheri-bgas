@@ -29,12 +29,18 @@ export VDIR = $(CURDIR)/cheri-bgas-rtl
 
 BOOTLOADER ?= ../../DE10Pro-hps-ubuntu-sdcard/u-boot-socfpga/spl/u-boot-spl-dtb.ihex
 
-all: synthesize
+all: synthesize gen-rbf
 
 gen-rbf:
 ifneq ("$(wildcard $(BOOTLOADER))","")
-	quartus_cpf --bootloader=$(BOOTLOADER) output_files/DE10Pro-cheri-bgas.sof output_files/socfpga.sof
-	quartus_cpf -c --hps -o bitstream_compression=on output_files/socfpga.sof output_files/socfpga.rbf
+	$(eval NOW = $(shell date +"%d%m%Y-%H:%M"))
+	$(eval OUTDIR = output_files_$(NOW))
+	$(eval TEMPLATENAME = "cheri-bgas-socfpga")
+	cp -r output_files $(OUTDIR)
+	quartus_cpf --bootloader=$(BOOTLOADER) $(OUTDIR)/DE10Pro-cheri-bgas.sof $(OUTDIR)/socfpga.sof
+	quartus_cpf -c --hps -o bitstream_compression=on $(OUTDIR)/socfpga.sof $(OUTDIR)/socfpga.rbf
+	cp $(OUTDIR)/socfpga.hps.rbf $(OUTDIR)/$(TEMPLATENAME)-$(NOW).hps.rbf
+	cp $(OUTDIR)/socfpga.core.rbf $(OUTDIR)/$(TEMPLATENAME)-$(NOW).core.rbf
 else
 	@echo "Cannot gen-rbf: $(BOOTLOADER) does not exist"
 endif
