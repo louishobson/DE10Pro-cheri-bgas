@@ -27,20 +27,19 @@ VIPBUNDLE = $(VIPBUNDLEDIR)/vipbundle
 QPF = $(CURDIR)/DE10Pro-cheri-bgas.qpf
 export VDIR = $(CURDIR)/cheri-bgas-rtl
 
-BOOTLOADER ?= ../../DE10Pro-hps-ubuntu-sdcard/u-boot-socfpga/spl/u-boot-spl-dtb.ihex
+BOOTLOADER ?= ../../u-boot-socfpga/spl/u-boot-spl-dtb.ihex
 
 all: synthesize gen-rbf
 
 gen-rbf:
 ifneq ("$(wildcard $(BOOTLOADER))","")
-	$(eval NOW = $(shell date +"%d%m%Y-%H:%M"))
+	$(eval NOW = $(shell date +"%d%m%Y-%H_%M"))
 	$(eval OUTDIR = output_files_$(NOW))
 	$(eval TEMPLATENAME = "cheri-bgas-socfpga")
+	$(eval SOF = "$(OUTDIR)/DE10Pro-cheri-bgas.sof")
+	$(eval OUTNAME = "$(OUTDIR)/$(TEMPLATENAME)-$(NOW)")
 	cp -r output_files $(OUTDIR)
-	quartus_cpf --bootloader=$(BOOTLOADER) $(OUTDIR)/DE10Pro-cheri-bgas.sof $(OUTDIR)/socfpga.sof
-	quartus_cpf -c --hps -o bitstream_compression=on $(OUTDIR)/socfpga.sof $(OUTDIR)/socfpga.rbf
-	cp $(OUTDIR)/socfpga.hps.rbf $(OUTDIR)/$(TEMPLATENAME)-$(NOW).hps.rbf
-	cp $(OUTDIR)/socfpga.core.rbf $(OUTDIR)/$(TEMPLATENAME)-$(NOW).core.rbf
+	quartus_pfg -c $(SOF) -o hps=ON -o hps_path=$(BOOTLOADER) $(OUTNAME).rbf
 else
 	@echo "Cannot gen-rbf: $(BOOTLOADER) does not exist"
 endif
