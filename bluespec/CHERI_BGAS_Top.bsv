@@ -224,7 +224,9 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
                               , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
                               , `H2F_LW_ARUSER, `H2F_LW_RUSER)
             , ReadOnly #(Bool) ))
-    fake16550ifcs <- mkAXI4_Fake_16550_Pair (reset_by newRst.new_rst);
+    fake16550ifcs <- mkAXI4_Fake_16550_Pair ( 2048
+                                            , 2048
+                                            , reset_by newRst.new_rst);
   match { {.fake16550s0, .fake16550irq0}
         , {.fake16550s1, .fake16550irq1} } = fake16550ifcs;
   // ctrl sub entry
