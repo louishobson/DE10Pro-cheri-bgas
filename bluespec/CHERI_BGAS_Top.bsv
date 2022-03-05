@@ -330,11 +330,9 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
   // prepare irq vector
   //////////////////////////////////////////////////////////////////////////////
 
-  Vector #(32, ReadOnly #(Bool)) irqs = replicate (interface ReadOnly;
-                                                     method _read = False;
-                                                   endinterface);
+  Vector #(32, Irq) allIrqs = replicate (noIrq);
   // the fake 16550 irq
-  irqs[0] = fake16550irq0;
+  allIrqs[0] = interface Irq; method _read = fake16550irq0._read; endinterface;
 
   // prepare h2f subordinate interface
   let h2fSub <-
@@ -350,7 +348,8 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
   interface axm_ddrb = ddr_mngr;
   interface axm_ddrc = culDeSac;
   interface axm_ddrd = culDeSac;
-  interface ins_irq0 = irqs;
+  interface irqs = allIrqs;
+
 endmodule
 
 `ifdef NB_CHERI_BGAS_SYSTEMS
@@ -378,7 +377,7 @@ module mkCHERI_BGAS_Top (DE10ProIfc)
            , AXI4_Master #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
                           , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
                           , `DRAM_ARUSER, `DRAM_RUSER ))
-  , Alias #( irqs_t, Vector #(32, ReadOnly #(Bool)))
+  , Alias #( irqs_t, Vector #(32, Irq))
   );
 
   // establish the number of CHERI BGAS systems
@@ -398,7 +397,7 @@ module mkCHERI_BGAS_Top (DE10ProIfc)
   function h2fSub_t getH2F (DE10ProIfc s) = s.axs_h2f;
   function f2hMngr_t getF2H (DE10ProIfc s) = s.axm_f2h;
   function ddrMngr_t getDDRB (DE10ProIfc s) = s.axm_ddrb;
-  function irqs_t getIRQs (DE10ProIfc s) = s.ins_irq0;
+  function irqs_t getIRQs (DE10ProIfc s) = s.irqs;
 
   // aggregate AXI Lite control traffic
   //////////////////////////////////////////////////////////////////////////////
@@ -463,14 +462,12 @@ module mkCHERI_BGAS_Top (DE10ProIfc)
 
   // dispatch IRQs
   //////////////////////////////////////////////////////////////////////////////
-  irqs_t irqs = replicate (interface ReadOnly;
-                             method _read = False;
-                           endinterface);
+  irqs_t allIrqs = replicate (noIrq);
   // allocate 8 IRQ lines per system
   for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1) begin
     Integer offset = i * 8;
     for (Integer j = 0; j < 8; j = j + 1)
-      irqs[offset + j] = asIfc (getIRQs (sys[i])[j]);
+      allIrqs[offset + j] = asIfc (getIRQs (sys[i])[j]);
   end
 
   // interface
@@ -488,7 +485,7 @@ module mkCHERI_BGAS_Top (DE10ProIfc)
   interface axm_ddrc = culDeSac;
   interface axm_ddrd = ddr[1];
   // XXX
-  interface ins_irq0 = irqs;
+  interface irqs = allIrqs;
 endmodule
 
 (* synthesize *)
