@@ -214,7 +214,7 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
   // declare extra AXI4 lite ctrl subordinates
   //////////////////////////////////////////////////////////////////////////////
 
-  // fake 16550
+  // uart0 - fake 16550
   Tuple2 #(
     Tuple2 #( AXI4Lite_Slave #( `H2F_LW_ADDR, `H2F_LW_DATA
                               , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
@@ -224,14 +224,14 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
                               , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
                               , `H2F_LW_ARUSER, `H2F_LW_RUSER)
             , ReadOnly #(Bool) ))
-    fake16550ifcs <- mkAXI4_Fake_16550_Pair ( 2048
+    uart0ifcs <- mkAXI4_Fake_16550_Pair ( 2048
                                             , 2048
                                             , reset_by newRst.new_rst);
-  match { {.fake16550s0, .fake16550irq0}
-        , {.fake16550s1, .fake16550irq1} } = fake16550ifcs;
+  match { {.uart0s0, .uart0irq0}
+        , {.uart0s1, .uart0irq1} } = uart0ifcs;
   // ctrl sub entry
-  let ctrSubFake16550 =
-        tuple2 (fake16550s0, Range { base: 'h0000_3000, size: 'h0000_1000 });
+  let ctrSubUART0 =
+        tuple2 (uart0s0, Range { base: 'h0000_3000, size: 'h0000_1000 });
 
   // h2f address upper 32-bits banking register
   // (h2f port only has 32-bit addresses, this mechanism is intended to enable
@@ -253,9 +253,9 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
   let core <- windCoreMid2Hi_Core (
                 midCore
                 // This subordinate is facing the outside world
-              , cons (ctrSubFake16550, cons (ctrSubH2FAddrCtrl, nil))
+              , cons (ctrSubUART0, cons (ctrSubH2FAddrCtrl, nil))
                 // This irq is going into the RISCV core
-              , cons (fake16550irq1, nil)
+              , cons (uart0irq1, nil)
               , reset_by newRst.new_rst );
 
   // gather all managers
@@ -278,14 +278,14 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
     f2hMngrIfc <- toWider_AXI4_Master ( truncate_AXI4_Master_addr (f2hTmpIfc)
                                       , reset_by newRst.new_rst );
 
-  // prepare fake 16550
+  // prepare uart0
   AXI4_Shim #( bus_sid_w, `H2F_LW_ADDR, `H2F_LW_DATA
              , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
              , `H2F_LW_ARUSER, `H2F_LW_RUSER)
-    fake16550DeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
-  mkConnection (fake16550DeBurst.master, fake16550s1, reset_by newRst.new_rst);
-  bus_sub_t fake16550_s <-
-    toWider_AXI4_Slave ( truncate_AXI4_Slave_addr (fake16550DeBurst.slave)
+    uart0DeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
+  mkConnection (uart0DeBurst.master, uart0s1, reset_by newRst.new_rst);
+  bus_sub_t uart0_s <-
+    toWider_AXI4_Slave ( truncate_AXI4_Slave_addr (uart0DeBurst.slave)
                        , reset_by newRst.new_rst );
 
   // prepare bootrom
@@ -304,7 +304,7 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
   // gather all subordinates
   Vector #(4, bus_sub_t) ss;
   ss[0] = ddrDeBurst.slave;
-  ss[1] = fake16550_s;
+  ss[1] = uart0_s;
   ss[2] = debugAXI4_Slave (fakeBootRomDeBurst.slave, $format ("fake bootRom"));
   ss[3] = f2hShim.slave;
 
@@ -316,7 +316,7 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
       x[3] = True;
     else if (inRange (soc_map.m_boot_rom_addr_range, addr))
       x[2] = True;
-    else if (inRange (soc_map.m_uart16550_0_addr_range, addr))
+    else if (inRange (soc_map.m_uart_0_addr_range, addr))
       x[1] = True;
     else if (   inRange (soc_map.m_ddr4_0_uncached_addr_range, addr)
              || inRange (soc_map.m_ddr4_0_cached_addr_range, addr) )
@@ -331,8 +331,8 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
   //////////////////////////////////////////////////////////////////////////////
 
   Vector #(32, Irq) allIrqs = replicate (noIrq);
-  // the fake 16550 irq
-  allIrqs[0] = interface Irq; method _read = fake16550irq0._read; endinterface;
+  // uart0 irq
+  allIrqs[0] = interface Irq; method _read = uart0irq0._read; endinterface;
 
   // prepare h2f subordinate interface
   let h2fSub <-

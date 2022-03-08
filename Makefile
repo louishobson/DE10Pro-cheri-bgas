@@ -27,7 +27,7 @@ VIPBUNDLE = $(VIPBUNDLEDIR)/vipbundle
 QPF = $(CURDIR)/DE10Pro-cheri-bgas.qpf
 export VDIR = $(CURDIR)/cheri-bgas-rtl
 
-BOOTLOADER ?= ../../u-boot-socfpga/spl/u-boot-spl-dtb.ihex
+BOOTLOADER ?= ../u-boot-socfpga/spl/u-boot-spl-dtb.ihex
 
 all: synthesize gen-rbf
 
