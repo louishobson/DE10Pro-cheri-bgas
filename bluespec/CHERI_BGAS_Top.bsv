@@ -225,13 +225,32 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
                               , `H2F_LW_ARUSER, `H2F_LW_RUSER)
             , ReadOnly #(Bool) ))
     uart0ifcs <- mkAXI4_Fake_16550_Pair ( 2048
-                                            , 2048
-                                            , reset_by newRst.new_rst);
+                                        , 2048
+                                        , reset_by newRst.new_rst);
   match { {.uart0s0, .uart0irq0}
         , {.uart0s1, .uart0irq1} } = uart0ifcs;
   // ctrl sub entry
   let ctrSubUART0 =
         tuple2 (uart0s0, Range { base: 'h0000_3000, size: 'h0000_1000 });
+
+  // uart1 - fake 16550
+  Tuple2 #(
+    Tuple2 #( AXI4Lite_Slave #( `H2F_LW_ADDR, `H2F_LW_DATA
+                              , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
+                              , `H2F_LW_ARUSER, `H2F_LW_RUSER)
+            , ReadOnly #(Bool) )
+  , Tuple2 #( AXI4Lite_Slave #( `H2F_LW_ADDR, `H2F_LW_DATA
+                              , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
+                              , `H2F_LW_ARUSER, `H2F_LW_RUSER)
+            , ReadOnly #(Bool) ))
+    uart1ifcs <- mkAXI4_Fake_16550_Pair ( 2048
+                                        , 2048
+                                        , reset_by newRst.new_rst);
+  match { {.uart1s0, .uart1irq0}
+        , {.uart1s1, .uart1irq1} } = uart1ifcs;
+  // ctrl sub entry
+  let ctrSubUART1 =
+        tuple2 (uart1s0, Range { base: 'h0000_4000, size: 'h0000_1000 });
 
   // h2f address upper 32-bits banking register
   // (h2f port only has 32-bit addresses, this mechanism is intended to enable
@@ -244,18 +263,29 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
   match {.h2fAddrCtrlSub, .h2fAddrCtrlRO} = h2fCtrlIfcs;
   // ctrl sub entry
   let ctrSubH2FAddrCtrl =
-        tuple2 (h2fAddrCtrlSub, Range { base: 'h0000_4000, size: 'h0000_1000 });
+        tuple2 (h2fAddrCtrlSub, Range { base: 'h0000_5000, size: 'h0000_1000 });
 
   // prepare AXI4 managers
   //////////////////////////////////////////////////////////////////////////////
 
-  // convert to WindCoreHi interface and map additional AXI4 Lite subordinates
+  // re-wrap wind core:
+  // - convert mid core to hi core
+  // - add outside-world-facing AXI4 Lite subordinates to expose throug the
+  //   core's AXI4 Lite subordinate port (with their mappping)
+  // - add IRQs into the wind core
   let core <- windCoreMid2Hi_Core (
+                // the mid-level interface core to convert
                 midCore
-                // This subordinate is facing the outside world
-              , cons (ctrSubUART0, cons (ctrSubH2FAddrCtrl, nil))
-                // This irq is going into the RISCV core
-              , cons (uart0irq1, nil)
+                // the vector of additional AXI4 Lite subordinates to expose
+              , cons (        ctrSubUART0
+                     , cons ( ctrSubUART1
+                     , cons ( ctrSubH2FAddrCtrl
+                            , nil )))
+                // the vector of IRQs going in the wind core
+              , cons (        uart0irq1
+                     , cons ( uart1irq1
+                            , nil ))
+                // explicit reset_by
               , reset_by newRst.new_rst );
 
   // gather all managers
@@ -263,7 +293,7 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
   ms[0] = core.manager_0;
   ms[1] = core.manager_1;
 
-  // prepare AXI4 subordinates
+  // prepare AXI4 subordinates exposed to the wind core manager
   //////////////////////////////////////////////////////////////////////////////
 
   // prepare f2h interface
@@ -288,6 +318,16 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
     toWider_AXI4_Slave ( truncate_AXI4_Slave_addr (uart0DeBurst.slave)
                        , reset_by newRst.new_rst );
 
+  // prepare uart1
+  AXI4_Shim #( bus_sid_w, `H2F_LW_ADDR, `H2F_LW_DATA
+             , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
+             , `H2F_LW_ARUSER, `H2F_LW_RUSER)
+    uart1DeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
+  mkConnection (uart1DeBurst.master, uart1s1, reset_by newRst.new_rst);
+  bus_sub_t uart1_s <-
+    toWider_AXI4_Slave ( truncate_AXI4_Slave_addr (uart1DeBurst.slave)
+                       , reset_by newRst.new_rst );
+
   // prepare bootrom
   bus_subshim_t fakeBootRomDeBurst <-
     mkBurstToNoBurst (reset_by newRst.new_rst);
@@ -302,22 +342,25 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
                         , reset_by newRst.new_rst );
 
   // gather all subordinates
-  Vector #(4, bus_sub_t) ss;
+  Vector #(5, bus_sub_t) ss;
   ss[0] = ddrDeBurst.slave;
   ss[1] = uart0_s;
-  ss[2] = debugAXI4_Slave (fakeBootRomDeBurst.slave, $format ("fake bootRom"));
-  ss[3] = f2hShim.slave;
+  ss[2] = uart1_s;
+  ss[3] = debugAXI4_Slave (fakeBootRomDeBurst.slave, $format ("fake bootRom"));
+  ss[4] = f2hShim.slave;
 
   // build route
   SoC_Map_IFC soc_map <- mkSoC_Map (reset_by newRst.new_rst);
-  function Vector #(4, Bool) route (Bit #(Wd_Addr) addr);
-    Vector #(4, Bool) x = unpack (4'b0000);
+  function Vector #(5, Bool) route (Bit #(Wd_Addr) addr);
+    Vector #(5, Bool) x = unpack (5'b00000);
     if (inRange (soc_map.m_f2h_addr_range, addr))
-      x[3] = True;
+      x[4] = True;
     else if (inRange (soc_map.m_boot_rom_addr_range, addr))
+      x[3] = True;
+    else if (inRange (soc_map.m_uart_1_addr_range, addr))
       x[2] = True;
     else if (inRange (soc_map.m_uart_0_addr_range, addr))
-      x[1] = True;
+      x[2] = True;
     else if (   inRange (soc_map.m_ddr4_0_uncached_addr_range, addr)
              || inRange (soc_map.m_ddr4_0_cached_addr_range, addr) )
       x[0] = True;
@@ -327,12 +370,14 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
   // wire it all up
   mkAXI4Bus (route, ms, ss, reset_by newRst.new_rst);
 
-  // prepare irq vector
+  // prepare outside-world-faceing IRQs
   //////////////////////////////////////////////////////////////////////////////
 
   Vector #(32, Irq) allIrqs = replicate (noIrq);
   // uart0 irq
   allIrqs[0] = interface Irq; method _read = uart0irq0._read; endinterface;
+  // uart1 irq
+  allIrqs[1] = interface Irq; method _read = uart1irq0._read; endinterface;
 
   // prepare h2f subordinate interface
   let h2fSub <-

@@ -33,7 +33,6 @@ export  SoC_Map_IFC (..), mkSoC_Map;
 
 export  N_External_Interrupt_Sources;
 export  n_external_interrupt_sources;
-export  irq_num_uart_0;
 
 // ================================================================
 // Bluespec library imports
@@ -92,6 +91,7 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ethernet_0_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_dma_0_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_uart_0_addr_range;
+   (* always_ready *)   method  Range#(Wd_Addr)  m_uart_1_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_gpio_0_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_boot_rom_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_f2h_addr_range;
@@ -167,6 +167,14 @@ module mkSoC_Map (SoC_Map_IFC);
    };
 
    // ----------------------------------------------------------------
+   // UART 1
+
+   let uart_1_addr_range = Range {
+      base: 'h_6230_1000,
+      size: 'h_0000_1000    // 4K
+   };
+
+   // ----------------------------------------------------------------
    // GPIO 0
 
    let gpio_0_addr_range = Range {
@@ -209,10 +217,8 @@ module mkSoC_Map (SoC_Map_IFC);
    // ----------------------------------------------------------------
 
    function fn_is_flash_regs_addr = addr_function('h6240_0000, 'h1000);
-   function fn_is_uart1_addr = addr_function('h6230_0000, 'h1000);
    function fn_is_i2c_addr = addr_function('h6231_0000, 'h1000);
    function fn_is_spi_addr = addr_function('h6232_0000, 'h1000);
-   function fn_is_uart2_addr = addr_function('h6236_0000, 'h1000);
    function fn_is_gpio1_addr = addr_function('h6233_0000, 'h1000);
    function fn_is_gpio2_addr = addr_function('h6237_0000, 'h1000);
 
@@ -242,12 +248,11 @@ module mkSoC_Map (SoC_Map_IFC);
    // 	      || inRange(ethernet_0_addr_range, addr)
    // 	      || inRange(dma_0_addr_range, addr)
    // 	      || inRange(uart_0_addr_range, addr)
+   // 	      || inRange(uart_1_addr_range, addr)
    // 	      || inRange(gpio_0_addr_range, addr)
    // 	      || fn_is_flash_regs_addr (addr)
-   // 	      || fn_is_uart1_addr (addr)
    // 	      || fn_is_i2c_addr (addr)
    // 	      || fn_is_spi_addr (addr)
-   // 	      || fn_is_uart2_addr (addr)
    // 	      || fn_is_gpio1_addr (addr)
    // 	      || fn_is_gpio2_addr (addr)
    // 	      || fn_is_xdma_control (addr)
@@ -263,7 +268,8 @@ module mkSoC_Map (SoC_Map_IFC);
           && (   inRange(plic_addr_range, addr)
               || inRange(near_mem_io_addr_range, addr)
               || inRange(f2h_addr_range, addr)
-              || inRange(uart_0_addr_range, addr)));
+              || inRange(uart_0_addr_range, addr)
+              || inRange(uart_1_addr_range, addr)));
 
    // ----------------------------------------------------------------
    // PC, MTVEC and NMIVEC reset values
@@ -281,6 +287,7 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Range#(Wd_Addr)  m_ethernet_0_addr_range = ethernet_0_addr_range;
    method  Range#(Wd_Addr)  m_dma_0_addr_range = dma_0_addr_range;
    method  Range#(Wd_Addr)  m_uart_0_addr_range = uart_0_addr_range;
+   method  Range#(Wd_Addr)  m_uart_1_addr_range = uart_1_addr_range;
    method  Range#(Wd_Addr)  m_gpio_0_addr_range = gpio_0_addr_range;
    method  Range#(Wd_Addr)  m_boot_rom_addr_range = boot_rom_addr_range;
    method  Range#(Wd_Addr)  m_f2h_addr_range = f2h_addr_range;
@@ -305,8 +312,6 @@ endmodule
 
 typedef  16  N_External_Interrupt_Sources;
 Integer  n_external_interrupt_sources = valueOf (N_External_Interrupt_Sources);
-
-Integer irq_num_uart_0 = 0;
 
 // ================================================================
 
