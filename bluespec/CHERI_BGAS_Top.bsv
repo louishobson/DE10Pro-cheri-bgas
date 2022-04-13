@@ -224,8 +224,9 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
                               , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
                               , `H2F_LW_ARUSER, `H2F_LW_RUSER)
             , ReadOnly #(Bool) ))
-    uart0ifcs <- mkAXI4_Fake_16550_Pair ( 2048
-                                        , 2048
+    uart0ifcs <- mkAXI4_Fake_16550_Pair ( 50_000_000
+                                        , 16
+                                        , 16
                                         , reset_by newRst.new_rst);
   match { {.uart0s0, .uart0irq0}
         , {.uart0s1, .uart0irq1} } = uart0ifcs;
@@ -243,7 +244,8 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
                               , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
                               , `H2F_LW_ARUSER, `H2F_LW_RUSER)
             , ReadOnly #(Bool) ))
-    uart1ifcs <- mkAXI4_Fake_16550_Pair ( 2048
+    uart1ifcs <- mkAXI4_Fake_16550_Pair ( 50_000_000
+                                        , 2048
                                         , 2048
                                         , reset_by newRst.new_rst);
   match { {.uart1s0, .uart1irq0}
