@@ -10,10 +10,13 @@ import Fabric_Defs :: *;
 import CoreW :: *;
 import AXI4 :: *;
 import AXI4Lite :: *;
+import AXI4Stream :: *;
 import AXI4_AXI4Lite_Bridges :: *;
 import Vector :: *;
 import Clocks :: *;
 import Connectable :: *;
+
+import CHERI_BGAS_Bridge :: *;
 
 // Concrete parameters definitions
 // -------------------------------
@@ -26,7 +29,7 @@ import Connectable :: *;
 `define H2F_LW_ARUSER  0
 `define H2F_LW_RUSER   0
 
-`define H2F_ID       4
+`define H2F_ID       3
 `define H2F_ADDR    32 // from 20 (1MB) to 32 (4GB)
 `define H2F_DATA   128 // 32, 64 or 128
 `define H2F_AWUSER   0
@@ -186,7 +189,7 @@ module mkH2FAddrCtrl #(Bit #(`H2F_LW_DATA) dfltUpperBits)
 endmodule
 
 // Wrapper around a single CHERI BGAS system
-module mkSingleCHERI_BGAS_Top (DE10ProIfc)
+module mkSingleCHERI_BGAS_Top (Tuple2 #(DE10ProIfc, bgas_streams_t))
   provisos ( NumAlias #(bus_mid_w, TAdd #(Wd_MId, 1)) // id width out of the core
            , NumAlias #(bus_sid_w, TAdd #(Wd_MId, 2)) // cope with 2 masters only
            , Alias #(bus_mngr_t, AXI4_Master #( bus_mid_w, Wd_Addr, Wd_Data
@@ -195,6 +198,19 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
                                             , 0, 0, 0, 0, 0))
            , Alias #(bus_subshim_t, AXI4_Shim #( bus_sid_w, Wd_Addr, Wd_Data
                                                , 0, 0, 0, 0, 0))
+           , NumAlias #(stream_data_w, 512)
+           , NumAlias #(outer_id_w, 5)
+           , Alias #( bgas_streams_t
+                    , Tuple2 #( AXI4Stream_Master #(0, stream_data_w, 0, 0)
+                              , AXI4Stream_Slave #(0, stream_data_w, 0, 0)))
+           , Alias #( h2f_sub_shim_t
+                    , AXI4_Shim #( TSub #(Wd_CoreW_Bus_MId, 1), Wd_Addr, Wd_Data
+                                 , Wd_AW_User, Wd_W_User, Wd_B_User
+                                 , Wd_AR_User, Wd_R_User))
+           , Alias #( core_subPort_mngr_t
+                    , AXI4_Master #( TSub #(Wd_CoreW_Bus_MId, 1), Wd_Addr, Wd_Data
+                                   , Wd_AW_User, Wd_W_User, Wd_B_User
+                                   , Wd_AR_User, Wd_R_User))
            );
 
   // declare cpu core with WindCoreMid interface
@@ -210,6 +226,15 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
   rule rl_forward_debug_reset (otherRst);
     newRst.assertReset;
   endrule
+
+  // declare CHERI BGAS Bridge
+  //////////////////////////////////////////////////////////////////////////////
+  CHERI_BGAS_Bridge_Ifc #( TSub #(Wd_CoreW_Bus_MId, 1), bus_sid_w
+                         , outer_id_w, outer_id_w
+                         , Wd_Addr, Wd_Data
+                         , 0, 0, 0, 0, 0
+                         , 0, stream_data_w, 0, 0)
+    bridge <- mkCHERI_BGAS_Bridge;
 
   // declare extra AXI4 lite ctrl subordinates
   //////////////////////////////////////////////////////////////////////////////
@@ -344,18 +369,21 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
                         , reset_by newRst.new_rst );
 
   // gather all subordinates
-  Vector #(5, bus_sub_t) ss;
+  Vector #(6, bus_sub_t) ss;
   ss[0] = ddrDeBurst.slave;
   ss[1] = uart0_s;
   ss[2] = uart1_s;
   ss[3] = debugAXI4_Slave (fakeBootRomDeBurst.slave, $format ("fake bootRom"));
   ss[4] = f2hShim.slave;
+  ss[5] = bridge.subordinate;
 
   // build route
   SoC_Map_IFC soc_map <- mkSoC_Map (reset_by newRst.new_rst);
-  function Vector #(5, Bool) route (Bit #(Wd_Addr) addr);
-    Vector #(5, Bool) x = unpack (5'b00000);
-    if (inRange (soc_map.m_f2h_addr_range, addr))
+  function Vector #(6, Bool) route (Bit #(Wd_Addr) addr);
+    Vector #(6, Bool) x = unpack (6'b000000);
+    if (inRange (soc_map.m_bgas_bridge_addr_range, addr))
+      x[5] = True;
+    else if (inRange (soc_map.m_f2h_addr_range, addr))
       x[4] = True;
     else if (inRange (soc_map.m_boot_rom_addr_range, addr))
       x[3] = True;
@@ -382,20 +410,29 @@ module mkSingleCHERI_BGAS_Top (DE10ProIfc)
   allIrqs[1] = interface Irq; method _read = uart1irq0._read; endinterface;
 
   // prepare h2f subordinate interface
-  let h2fSub <-
-    toWider_AXI4_Slave ( zero_AXI4_Slave_user (
-                           prepend_AXI4_Slave_addr ( h2fAddrCtrlRO
-                                                   , core.subordinate_0 ))
-                       , reset_by newRst.new_rst );
+  h2f_sub_shim_t h2fShim <- mkAXI4ShimFF;
+  let h2fShimSlave <- toWider_AXI4_Slave (
+                        zero_AXI4_Slave_user (
+                          prepend_AXI4_Slave_addr ( h2fAddrCtrlRO
+                                                  , h2fShim.slave))
+                                         , reset_by newRst.new_rst );
+  core_subPort_mngr_t bridgeMngr = zero_AXI4_Master_user (bridge.manager);
+  mkAXI4Bus ( constFn (cons (True, nil))
+            , cons (h2fShim.master, cons (bridgeMngr, nil))
+            , cons (core.subordinate_0, nil)
+            , reset_by newRst.new_rst );
 
   // interface
-  interface axls_h2f_lw = core.control_subordinate;
-  interface axs_h2f = h2fSub;
-  interface axm_f2h = f2hMngrIfc;
-  interface axm_ddrb = ddr_mngr;
-  interface axm_ddrc = culDeSac;
-  interface axm_ddrd = culDeSac;
-  interface irqs = allIrqs;
+  return tuple2 (interface DE10ProIfc;
+    interface axls_h2f_lw = core.control_subordinate;
+    interface axs_h2f = h2fShimSlave;
+    interface axm_f2h = f2hMngrIfc;
+    interface axm_ddrb = ddr_mngr;
+    interface axm_ddrc = culDeSac;
+    interface axm_ddrd = culDeSac;
+    interface irqs = allIrqs;
+  endinterface
+  , tuple2 (bridge.tx, bridge.rx));
 
 endmodule
 
@@ -425,6 +462,9 @@ module mkCHERI_BGAS_Top (DE10ProIfc)
                           , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
                           , `DRAM_ARUSER, `DRAM_RUSER ))
   , Alias #( irqs_t, Vector #(32, Irq))
+  , Alias #( bgas_streams_t
+           , Tuple2 #( AXI4Stream_Master #(0, 512, 0, 0)
+                     , AXI4Stream_Slave #(0, 512, 0, 0)))
   );
 
   // establish the number of CHERI BGAS systems
@@ -437,14 +477,22 @@ module mkCHERI_BGAS_Top (DE10ProIfc)
   Clock clk <- exposeCurrentClock;
   Reset rst <- exposeCurrentReset;
   let newRst <- mkReset (0, True, clk, reset_by rst);
-  Vector #(NBCheriBgasSystems, DE10ProIfc)
-    sys <- replicateM (mkSingleCHERI_BGAS_Top (reset_by newRst.new_rst));
+  Vector #(NBCheriBgasSystems, Tuple2 #(DE10ProIfc, bgas_streams_t))
+    tmpSys <- replicateM (mkSingleCHERI_BGAS_Top (reset_by newRst.new_rst));
+  match {.sys, .bridge} = unzip (tmpSys);
   // local helper functions
   function ctrlSub_t getH2FLW (DE10ProIfc s) = s.axls_h2f_lw;
   function h2fSub_t getH2F (DE10ProIfc s) = s.axs_h2f;
   function f2hMngr_t getF2H (DE10ProIfc s) = s.axm_f2h;
   function ddrMngr_t getDDRB (DE10ProIfc s) = s.axm_ddrb;
   function irqs_t getIRQs (DE10ProIfc s) = s.irqs;
+
+  // for the 2 systems case, connect the CHERI BGAS bridges together
+  //////////////////////////////////////////////////////////////////////////////
+  if (nbCheriBgasSystems == 2) begin
+    mkConnection (tpl_1 (bridge[0]), tpl_2 (bridge[1]), reset_by rst);
+    mkConnection (tpl_2 (bridge[0]), tpl_1 (bridge[1]), reset_by rst);
+  end
 
   // aggregate AXI Lite control traffic
   //////////////////////////////////////////////////////////////////////////////

@@ -94,9 +94,10 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Range#(Wd_Addr)  m_uart_1_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_gpio_0_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_boot_rom_addr_range;
-   (* always_ready *)   method  Range#(Wd_Addr)  m_f2h_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range;
+   (* always_ready *)   method  Range#(Wd_Addr)  m_bgas_bridge_addr_range;
+   (* always_ready *)   method  Range#(Wd_Addr)  m_f2h_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_mem0_controller_addr_range;
 
    (* always_ready *)
@@ -183,14 +184,6 @@ module mkSoC_Map (SoC_Map_IFC);
    };
 
    // ----------------------------------------------------------------
-   // F2H interface
-
-   let f2h_addr_range = Range {
-      base: 'h_0000_0100_0000_0000, // just some 1TB aligned base region not already taken
-      size: 'h_0000_0100_0000_0000    // 1TB
-   };
-
-   // ----------------------------------------------------------------
    // Boot ROM
 
    let boot_rom_addr_range = Range {
@@ -212,6 +205,22 @@ module mkSoC_Map (SoC_Map_IFC);
    let ddr4_0_cached_addr_range = Range {
       base: 'h_C000_0000,
       size: 'h_C000_0000    // 3G
+   };
+
+   // ----------------------------------------------------------------
+   // BGAS Bridge
+
+   let bgas_bridge_addr_range = Range {
+      base: 'h_2_0000_0000,
+      size: 'h_4000_0000    // 1G
+   };
+
+   // ----------------------------------------------------------------
+   // F2H interface
+
+   let f2h_addr_range = Range {
+      base: 'h_0000_0100_0000_0000, // just some 1TB aligned base region not already taken
+      size: 'h_0000_0100_0000_0000    // 1TB
    };
 
    // ----------------------------------------------------------------
@@ -249,6 +258,7 @@ module mkSoC_Map (SoC_Map_IFC);
    // 	      || inRange(dma_0_addr_range, addr)
    // 	      || inRange(uart_0_addr_range, addr)
    // 	      || inRange(uart_1_addr_range, addr)
+   // 	      || inRange(bgas_bridge_addr_range, addr)
    // 	      || inRange(gpio_0_addr_range, addr)
    // 	      || fn_is_flash_regs_addr (addr)
    // 	      || fn_is_i2c_addr (addr)
@@ -269,7 +279,8 @@ module mkSoC_Map (SoC_Map_IFC);
               || inRange(near_mem_io_addr_range, addr)
               || inRange(f2h_addr_range, addr)
               || inRange(uart_0_addr_range, addr)
-              || inRange(uart_1_addr_range, addr)));
+              || inRange(uart_1_addr_range, addr)
+              || inRange(bgas_bridge_addr_range, addr)));
 
    // ----------------------------------------------------------------
    // PC, MTVEC and NMIVEC reset values
@@ -290,9 +301,10 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Range#(Wd_Addr)  m_uart_1_addr_range = uart_1_addr_range;
    method  Range#(Wd_Addr)  m_gpio_0_addr_range = gpio_0_addr_range;
    method  Range#(Wd_Addr)  m_boot_rom_addr_range = boot_rom_addr_range;
-   method  Range#(Wd_Addr)  m_f2h_addr_range = f2h_addr_range;
    method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range = ddr4_0_uncached_addr_range;
    method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range = ddr4_0_cached_addr_range;
+   method  Range#(Wd_Addr)  m_bgas_bridge_addr_range = bgas_bridge_addr_range;
+   method  Range#(Wd_Addr)  m_f2h_addr_range = f2h_addr_range;
    method  Range#(Wd_Addr)  m_mem0_controller_addr_range = ddr4_0_cached_addr_range;
 
    method  Bool  m_is_mem_addr (Fabric_Addr addr) = fn_is_mem_addr (addr);
