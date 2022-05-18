@@ -1,0 +1,373 @@
+:toc: macro
+:toclevels: 4
+:toc-title:
+:toc-placement!:
+:source-highlighter:
+
+This document describes the workflow for the CHERI-BGAS project.
+
+
+
+// -----------------------------------------------------------------------------
+
+
+
+[discrete]
+= TL;DR
+
+_Run the following commands to boot a CHERI-BGAS system (assuming all tools are installed, disk images and filenames match, etc...)_
+
+_Read the later sections for more details_
+[discrete]
+=== Prepare the RISCV FPGA soft-core and bring up FreeBSD on the DE10Pro's ARM HPS system
+
+```sh
+# host machine
+quartus_pgm -m jtag -o P\;cheri-bgas-socfpga-25012022-12_02.hps.rbf@2 && picocom -b 115200 /dev/ttyUSB0
+# DE10Pro's ARM HPS ...
+# u-boot
+fatload mmc 0:1 1000 cheri-bgas-socfpga-25012022-12_02.core.rbf
+fpga load 0 1000 ${filesize}
+bridge enable
+fatload mmc 0:1 0x2000000 efi/boot/bootaa64.efi
+fatload mmc 0:1 0x8000000 socfpga_stratix10_de10_pro2.dtb
+bootefi 0x2000000 0x8000000
+# FreeBSD loader
+set currdev=disk0s2:
+load /boot/kernel/kernel
+include /boot/lua/loader.lua
+# FreeBSD prompt...
+```
+[discrete]
+=== Boot FreeBSD on the RISCV soft-core
+[discrete]
+==== first terminal: RISCV gdb stub
+```sh
+# ARM HPS FreeBSD prompt
+setenv RISCV_GDB_STUB_FMEM_DEV /dev/fmem_sys0_debug_unit
+setenv RISCV_GDB_STUB_PORT 81
+RISCV_gdbstub/src/main
+```
+[discrete]
+==== second terminal: run `cu` to connect to the RISCV soft-core uart
+```sh
+# ARM HPS FreeBSD prompt
+cu -l /dev/ttyu0
+# enter when the gdb commands are sent in the third terminal
+
+# ... RISCV FreeBSD prompt
+
+```
+[discrete]
+==== third terminal: gdb session to drive the RISCV soft-core
+```gdb
+# ARM HPS FreeBSD prompt
+cd /root/riscv-freebsd-boot
+gdb bbl-riscv64
+# gdb prompt
+target remote localhost:81
+load devicetree.wrapped.elf
+load kernel-riscv64.GFE-NODEBUG
+load
+set $a0 = 0
+set $a1 = 0x80000000
+continue
+# see output of second terminal
+```
+
+
+
+// -----------------------------------------------------------------------------
+
+
+
+[discrete]
+= Contents
+
+toc::[]
+
+:sectnums:
+
+
+
+// -----------------------------------------------------------------------------
+
+
+
+= Prepare the SD card
+
+On a DE10Pro CHERI-BGAS system, we want a FreeBSD kernel to run on the ARM HPS system, and a CheriBSD kernel for the RISCV FPGA soft-core. As a first step to booting a software ecosystem on the DE10Pro CHERI-BGAS setup, we prepare a disk image to put on an SD card.
+We will use https://github.com/CTSRD-CHERI/cheribuild.git[cheribuild] to prepare our environment. Start by cloning cheribuild and run it with the `llvm` target to prepare the compiler needed for later builds:
+```sh
+./cheribuild.py llvm
+```
+
+
+== Preparing the RISCV environment
+
+_(At the time of writing)_ Booting CheriBSD on our RISCV soft-core requires:
+
+- a device tree binary for the RISCV soft-core system
+- a build of BBL
+- a build of CheriBSD with an embedded rootfs
+
+=== Device Tree Binary for the RISCV soft-core system
+
+Follow the instructions over https://github.com/CTSRD-CHERI/DE10Pro-softcore-devicetree.git[here] to obtain a `devicetree.wrapped.elf`.
+
+=== RISCV BBL
+Run the following cheribuild command:
+```
+./cheribuild.py bbl-gfe-baremetal-riscv64-purecap
+```
+A bbl image is created `cheri/output/sdk/bbl-gfe/riscv64-purecap/bbl`.
+
+=== RISCV CheriBSD kernel with embedded rootfs
+Run the following cheribuild commands:
+```
+./cheribuild.py cheribsd-riscv64-purecap
+./cheribuild.py disk-image-mfs-root-riscv64-purecap
+./cheribuild.py --cheribsd-mfs-root-kernel/build-fpga-kernels cheribsd-mfs-root-kernel-riscv64-purecap
+```
+A riscv CheriBSD kernel with embedded rootfs is created `cheri/output/kernel-riscv64-purecap.CHERI-PURECAP-GFE`.
+
+== Preparing the ARM HPS environment
+
+_(At the time of writing)_ We want to boot a FreeBSD "host" setup on the ARM HPS system that will drive the RISCV soft-core. On this ARM host system, we will want to have all the necessary files to simply boot FreeBSD correctly, and the necessary tools to properly interact with the soft-core system. Here, we first go through files to be embedded in the final rootfs, and we then use cheribuild to create both the ARM FreeBSD kernel and the disk image with the files of interest.
+
+=== Preparing the relevant device trees
+
+==== Device tree for the ARM HPS
+
+#TODO#
+
+==== Device tree overlay exposing the soft-core system to the ARM HPS
+
+To allow the ARM HPS system to communicate with the RISCV soft-core on the FPGA, we need to expose the various RISCV debug unit, uart, interrupts... to HPS. To do this, we build a device tree overlay as follows:
+
+#TODO#
+
+
+=== Preparing relevant files for the FreeBSD rootfs
+
+Extra files can be added to the final FreeBSD rootfs by placing them in `<path to your cheri build source root, a.k.a. /home/gameboo/devstuff/cheri>/extra-files/\*` **prior to running the command which builds the rootfs**.
+
+In our FreeBSD rootfs, we will want (in addition to all the files already included by the FreeBSD build):
+
+- the RISCV environment we prepared in <<Preparing the RISCV environment>>, i.e.
+
+  * Device Tree Binary for the RISCV soft-core system
+  * RISCV BBL
+  * RISCV CheriBSD kernel with embedded rootfs
+
+- the files necessary to allow the ARM HPS to communicate with the RISCV FPGA soft-core, i.e.
+
+  * a device tree overlay `/boot/fpga-cheri-bgas.dtbo` built in <<Device tree overlay exposing the soft-core system to the ARM HPS>>
+  * a loader configuration `/boot/loader.conf.local` containing
+    `fdt_overlays="/boot/fpga-cheri-bgas.dtbo"`
+
+- possibly your ssh keys to help ssh-ing into the ARM HPS system (this can be automatically added when building the FreeBSD disk image)
+
+- optionally, in `/etc/rc.conf` add
+```sh
+ifconfig_<interface name, a.k.a. dwc0>="inet <ip for the ARM HPS system, e.g. 192.168.10.10/24>"
+defaultrouter="<ip of a host machine to act as a router, e.g. 192.168.10.1>"
+```
+
+- optionally, in `/etc/resolv.conf` add
+```sh
+nameserver 8.8.8.8
+nameserver 208.67.222.222
+nameserver 208.67.220.220
+```
+
+- a clone of https://github.com/bukinr/RISCV_gdbstub.git to enable gdb sessions to the RISCV FPGA soft-core
+
+- a clone of https://github.com/CTSRD-CHERI/fmem.git to interact with the various fmem devices from the command line
+
+- git / vim / gcc / whatever tools...
+
+//- a loader script `/boot/lua/loader.lua` to be included from the FreeBSD loader when booting FreeBSD
+
+=== Build an ARM FreeBSD kernel and disk image
+
+Once the `<path to your cheri build source root, a.k.a. /home/gameboo/devstuff/cheri>/extra-files/>` folder is prepared as described in <<Preparing relevant files for the FreeBSD rootfs>>, you can run the following command to build a FreeBSD kernel and a disk image:
+
+```sh
+./cheribuild.py --source-root=<path to your cheri build source root, a.k.a. /home/gameboo/devstuff/cheri> --freebsd/repository=https://github.com/CTSRD-CHERI/freebsd-morello --freebsd/git-revision=stratix10 --freebsd/toolchain=system-llvm freebsd-aarch64 disk-image-freebsd-aarch64
+```
+
+##
+_**Note:** we explicitly use the https://github.com/CTSRD-CHERI/freebsd-morello FreeBSD fork on the stratix10 branch as it contains the fmem driver necessary to expose the AXI memory-mapped device described in the device tree overlay_
+##
+
+Once the command is done, a `<path to your cheri build source root, a.k.a. /home/gameboo/devstuff/cheri>/output/freebsd-aarch64.img` disk image should be available. This image can be flashed onto an SD card by running _(most likely as `root` to allow access to the SD card device)_:
+```sh
+dd if=<path to your cheri build source root, a.k.a. /home/gameboo/devstuff/cheri>/output/freebsd-aarch64.img> of=<path to your SD card device, a.k.a. /dev/sdX> bs=4M
+```
+
+##
+_**Note:** you can mount the FAT partition from the SD card and copy files to it on a linux system easily. The rootfs partition uses UFS which cannot be easily written from a linux system. You will want a FreeBSD system to change files on it._
+##
+
+=== Build an ARM u-boot bootloader
+
+You can build u-boot by running https://raw.githubusercontent.com/POETSII/DE10Pro-hps-ubuntu-sdcard-scripts/0f671c7726ab2b65011ed5632b7eb2d96cef9c80/build_uboot.sh[this] script.
+Running the script in `./` generates (amongst others) the following files:
+
+- a u-boot image `./u-boot-socfpga/u-boot-dtb.img`
+- a first stage memory image `./u-boot-socfpga/spl/u-boot-spl-dtb.ihex`
+
+== Finalising the FAT partition
+
+To enable the later steps, the FAT partition on the SD card should contain:
+
+- the `*.core.rbf` FPGA image to use for the FPGA configuration
+- a u-boot binary image `u-boot-dtb.img` built in <<Build an ARM u-boot bootloader>>
+- the `*.dtb` device tree binary used by the ARM HPS system (see <<Dervice tree for the ARM HPS>>)
+//- the `*.efi` bsd loader
+//- the (fmem-enabled, with https://github.com/CTSRD-CHERI/freebsd-morello/blob/stratix10/sys/arm64/intel/fmem.c[this] driver) FreeBSD kernel to boot
+
+
+
+// -----------------------------------------------------------------------------
+
+
+
+= Prepare the RISCV FPGA soft-core system
+
+== Embed a u-boot bootloader in the FPGA bitfile, and get an hps and a core slice
+
+The first stage memory image `u-boot-spl-dtb.ihex` built in <<Build an ARM u-boot bootloader>> should be embedded in the startix 10 FPGA configuration.
+
+##
+This assumes a built DE10Pro-cheri-bgas sof file. Add explanations...
+##
+
+```sh
+BOOTLOADER=<path to u-boot-spl-dtb.ihex>
+SOF=<path to your stratix 10 *.sof file>
+OUTNAME=socfpga
+quartus_pfg -c $SOF -o hps=ON -o hps_path=$BOOTLOADER $OUTNAME.rbf
+```
+
+== Push the hps rbf slice to the board and get a usb terminal going
+
+From the host machine driving the DE10pro board:
+
+```sh
+RBF=<path to your stratix 10 *.hps.rbf file>
+quartus_pgm -m jtag -o P\;$RBF@2 && picocom -b 115200 /dev/ttyUSB0
+```
+
+== Push the core rbf slice from the sdcard to the FPGA and setup the AXI bridges
+
+From the u-boot prompt on the ARM HPS system:
+
+```uboot
+fatload mmc 0:1 1000 <FAT partition path to your stratix 10 *.core.rbf file>
+fpga load 0 1000 ${filesize}
+bridge enable
+```
+
+=== side note - other useful u-boot commands:
+
+```uboot
+printenv
+usb start
+usb info
+fatload usb ...
+```
+
+
+
+// -----------------------------------------------------------------------------
+
+
+
+= Boot FreeBSD on the ARM HPS system
+
+== Get to the BSD loader
+
+From the u-boot prompt on the ARM HPS system:
+
+```uboot
+fatload mmc 0:1 0x2000000 <FAT partition path to your *.efi FreeBSD loader file>
+fatload mmc 0:1 0x8000000 <FAT partition path to your *.dtb device tree file>
+bootefi 0x2000000 0x8000000
+```
+
+== Actually boot FreeBSD
+
+From the FreeBSD loader prompt:
+
+```bsdloader
+load <disk0s1>:</path/to/kernel>
+set currdev=<disk0s2:>
+include <ROOTFS path to loader script, e.g. /boot/lua/loader.lua>
+boot
+```
+
+=== side note - other useful FreeBSD loader commands:
+
+Misc:
+
+```bsdloader
+show
+fdt ls
+```
+
+To specify the usb drive as the rootfs on FreeBSD boot:
+
+```sh
+ufs:diskid/DISK-20090815198100000s2a
+```
+
+
+
+// -----------------------------------------------------------------------------
+
+
+
+= Get a FreeBSD prompt on the RISCV FPGA soft-core system
+
+== Get a GDB session to the RISCV FPGA soft-core
+
+Once FreeBSD is booted on the ARM HPS system:
+
+- Run RISCV gdb stub from an ARM HPS system FreeBSD prompt. RISCV gdb stub can
+  be cloned from https://github.com/bukinr/RISCV_gdbstub.git and built simply
+  using `make`.
+- Once a RISCV gdb stub session is running on the ARM HPS system, connect a
+  riscv gdb session. This should be done from a machine which has access to:
+  * a RISCV bbl bootloader
+  * a RISCV FreeBSD kernel
+  * a device tree for the RISCV FPGA soft-core system (see
+    https://github.com/gameboo/DE10Pro-softcore-devicetree.git)
+  Typically, you would run on the same host machine driving the DE10Pro board
+  `gdb-multiarch <path to RISCV bbl>` (running gdb-multiarch wih a riscv binary
+  as argument will ensure a riscv-gdb session) and connect to the RISCV gdb
+  stub running (on port 81) on the ARM HPS system with `target remote <DE10Pro
+  board ip or hostname>:81`
+
+== Boot the RISCV FPGA soft-core system
+
+From the gdb session to the RISCV FPGA soft-core:
+
+- load the RISCV system's device tree (the one generated from
+  https://github.com/gameboo/DE10Pro-softcore-devicetree.git is wrapped in an
+  elf container which will load at address `0x80000000`):
+  `load <path to the elf container for the RISCV system's device tree>`
+- load the RISCV FreeBSD kernel: `load <path to the RISCV FreeBSD kernel>`
+- load the bbl bootloader: `load`
+- set the `a0` and `a1` argument registers to bbl with the hart id and device
+  tree address respectively:
+  * `set $a0 = 0`
+  * `set $a1 = <device tree load address, e.g. 0x80000000>`
+- send the RISCV core running: `continue`
+
+== Connect a prompt to the RISCV FPGA soft-core system UART
+
+From an ARM FreeBSD prompt, connect to the uart using `cu -l /dev/ttyu0` (this
+`/dev/ttyu0` device should have been detected by virtue of having booted the
+ARM FreeBSD kernel with the previously mentioned device tree overlay).
