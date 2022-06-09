@@ -120,7 +120,7 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Range#(Wd_Addr)  m_boot_rom_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range;
-   (* always_ready *)   method  Range#(Wd_Addr)  m_bgas_bridge_addr_range;
+   (* always_ready *)   method  Range#(Wd_Addr)  m_global_bgas_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_f2h_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_mem0_controller_addr_range;
 
@@ -232,9 +232,9 @@ module mkSoC_Map (SoC_Map_IFC);
    };
 
    // ----------------------------------------------------------------
-   // BGAS Bridge
+   // Global BGAS accesses
 
-   let bgas_bridge_addr_range = Range {
+   let global_bgas_addr_range = Range {
       base: 'h_0001_0000_0000_0000,
       size: 'h_FFFF_0000_0000_0000
    };
@@ -264,7 +264,7 @@ module mkSoC_Map (SoC_Map_IFC);
               || inRange(f2h_addr_range, addr)
               || inRange(uart_0_addr_range, addr)
               || inRange(uart_1_addr_range, addr)
-              || inRange(bgas_bridge_addr_range, addr)));
+              || inRange(global_bgas_addr_range, addr)));
 
    // ----------------------------------------------------------------
    // PC, MTVEC and NMIVEC reset values
@@ -287,7 +287,7 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Range#(Wd_Addr)  m_boot_rom_addr_range = boot_rom_addr_range;
    method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range = ddr4_0_uncached_addr_range;
    method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range = ddr4_0_cached_addr_range;
-   method  Range#(Wd_Addr)  m_bgas_bridge_addr_range = bgas_bridge_addr_range;
+   method  Range#(Wd_Addr)  m_global_bgas_addr_range = global_bgas_addr_range;
    method  Range#(Wd_Addr)  m_f2h_addr_range = f2h_addr_range;
    method  Range#(Wd_Addr)  m_mem0_controller_addr_range = ddr4_0_cached_addr_range;
 
