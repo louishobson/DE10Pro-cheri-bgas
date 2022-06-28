@@ -474,32 +474,6 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   // uart1 irq
   allIrqs[1] = interface Irq; method _read = uart1irq0._read; endinterface;
 
-  // AXI4 interface ports
-  //////////////////////////////////////////////////////////////////////////////
-  //////////////////////////////////////////////////////////////////////////////
-
-  // AXI4 manager 0 port
-  //////////////////////
-  //let mngr0TmpIfc <-
-  //  sizedSerializeWithId_AXI4_Master ( 4, 0, 4, 0, mngr0Shim.master
-  //                                   , reset_by newRst.new_rst );
-  //t_axi_mngr_0 mngr0 <-
-  //  toWider_AXI4_Master ( truncate_AXI4_Master_addr (mngr0TmpIfc)
-  //                      , reset_by newRst.new_rst );
-  //t_axi_mngr mngr0 = mngrShim[0].master;
-
-  // AXI4 manager 1 port
-  //////////////////////
-  //t_bus_subshim ddrDeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
-  //let ddr_mngr <-
-  //  toWider_AXI4_Master ( truncate_AXI4_Master_addr (ddrDeBurst.master)
-  //                      , reset_by newRst.new_rst );
-  //t_axi_mngr mngr1 = mngrShim[1].master;
-
-  // AXI4 manager 2 port
-  //////////////////////
-  //t_axi_mngr mngr2 = mngrShim[2].master;
-
   // interface
   //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////

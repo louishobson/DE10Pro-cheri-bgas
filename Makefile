@@ -22,6 +22,7 @@
 #
 
 BSVSRCDIR = bluespec
+BLUESTUFFDIR = $(BSVSRCDIR)/Toooba/libs/BlueStuff
 VIPBUNDLEDIR = $(CURDIR)/vipbundle
 VIPBUNDLE = $(VIPBUNDLEDIR)/vipbundle
 QPF = $(CURDIR)/DE10Pro-cheri-bgas.qpf

@@ -234,9 +234,11 @@ module mkSoC_Map (SoC_Map_IFC);
    // ----------------------------------------------------------------
    // Global BGAS accesses
 
+   // top 20 bits, with MSB indicating global access, and remaining
+   // 19 bits indicating the node id
    let global_bgas_addr_range = Range {
-      base: 'h_0001_0000_0000_0000,
-      size: 'h_FFFF_0000_0000_0000
+      base: 'h_1000_0000_0000_0000,
+      size: 'h_FFFF_F000_0000_0000
    };
 
    // ----------------------------------------------------------------
