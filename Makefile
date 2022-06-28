@@ -21,7 +21,7 @@
 # @BERI_LICENSE_HEADER_END@
 #
 
-BSVSRCDIR = bluespec
+BSVSRCDIR = $(CURDIR)/bluespec
 BLUESTUFFDIR = $(BSVSRCDIR)/Toooba/libs/BlueStuff
 VIPBUNDLEDIR = $(CURDIR)/vipbundle
 VIPBUNDLE = $(VIPBUNDLEDIR)/vipbundle
