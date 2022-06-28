@@ -281,16 +281,16 @@ module mkAXI4StreamBridge
   creditOutSrcs[3] = arIn.credit;
   creditOutSrcs[4] = rIn.credit;
   Source #(t_global_credits_flit) globalCreditsOutSrc
-    <- mergeVectorSourcesNonBlocking (isValid, creditOutSrcs);
+    <- mergeAnyHomogeneousSources (isValid, creditOutSrcs);
   // send all outgoing traffic
   function globalMerge (mAXIFlit, mCreditsFlit) =
     tuple2 ( fromMaybe ( tuple5 (Invalid, Invalid, Invalid, Invalid, Invalid)
                        , mAXIFlit )
            , fromMaybe (replicate (False), mCreditsFlit) );
   Source #(t_global_flit)
-    mergedSrc <- mergeSourcesNonBlockingWith ( globalMerge
-                                             , toSource (globalAXIOutFF)
-                                             , globalCreditsOutSrc );
+    mergedSrc <- mergeAnyHeterogeneousSources ( globalMerge
+                                              , toSource (globalAXIOutFF)
+                                              , globalCreditsOutSrc );
   mkConnection (mergedSrc, toSink (globalOutFF));
 
   // Incoming traffic
@@ -300,15 +300,15 @@ module mkAXI4StreamBridge
   function globalSplitAXI = compose (Valid, tpl_1);
   function globalSplitCredits = compose (Valid, tpl_2);
   match {.axiInSrc, .creditsInSrc} <-
-    splitSourceNonBlockingWith ( globalSplitAXI
-                               , globalSplitCredits
-                               , toSource (globalInFF) );
+    splitAnyHeterogeneousSource ( globalSplitAXI
+                                , globalSplitCredits
+                                , toSource (globalInFF) );
   // unbundle incoming global AXI traffic into individual AXI channels
   unbundle ( axiInSrc
            , awIn.data, wIn.data, bIn.data, arIn.data, rIn.data );
   // unbundle incoming global credits traffic into individual credit channels
   function Maybe #(Bit #(0)) splitCredits (Bool x) = (x) ? Valid (?) : Invalid;
-  let creditInSrcs <- splitVectorSourceNonBlocking (splitCredits, creditsInSrc);
+  let creditInSrcs <- splitAnyHomogeneousSource (splitCredits, creditsInSrc);
   mkConnection (creditInSrcs[0], awOut.credit);
   mkConnection (creditInSrcs[1], wOut.credit);
   mkConnection (creditInSrcs[2], bOut.credit);
