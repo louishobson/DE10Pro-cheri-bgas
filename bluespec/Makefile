@@ -104,7 +104,7 @@ BSCFLAGS += +RTS -K128M -RTS
 #BSCFLAGS += -show-rule-rel \* \*
 #BSCFLAGS += -steps-warn-interval n
 BSCSIMFLAGS = -simdir $(SIMDIR)
-BSCSIMFLAGS += -D NO_TAGTABLE_ZEROING
+BSCSIMFLAGS += -D NO_TAGTABLE_ZEROING -D BSIM
 BSCVERILOGFLAGS = -vdir $(VDIR)
 BSCVERILOGFLAGS += -unspecified-to X
 BSCVERILOGFLAGS += -opt-undetermined-vals
@@ -113,7 +113,7 @@ rtl: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 
 bluesim: $(SIMDIR)/sim_CHERI_BGAS
 
-$(SIMDIR)/sim_CHERI_BGAS: CHERI_BGAS_Top_Sim.bsv $(SRCS) TagTableStructure.bsv GenerateHPMVector.bsv
+$(SIMDIR)/sim_CHERI_BGAS: CHERI_BGAS_Top_Sim.bsv $(SRCS) TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
 	mkdir -p $(BDIR)
 	mkdir -p $(SIMDIR)
 	$(BSC) $(BSCFLAGS) $(BSCSIMFLAGS) -sim -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
