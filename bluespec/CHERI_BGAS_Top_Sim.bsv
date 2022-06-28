@@ -274,7 +274,7 @@ module mkAXILiteDriver (AXI4Lite_Master #( `H2F_LW_ADDR
     $display("finishing at time %0t", $time);
     $finish(0);
   endrule
-  return debugAXI4Lite_Master ( truncateAddrFieldsMasterLite (shim.master)
+  return debugAXI4Lite_Master ( truncate_AXI4Lite_Master_addr (shim.master)
                               , $format ("axilite driver"));
 endmodule
 
