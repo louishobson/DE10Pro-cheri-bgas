@@ -46,10 +46,10 @@ else
 endif
 
 synthesize output_files/DE10Pro-cheri-bgas.sof &: gen-ip
-	time quartus_sh --flow compile $(QPF)
+	BLUESTUFFDIR=$(BLUESTUFFDIR) time quartus_sh --flow compile $(QPF)
 
 gen-ip: gen-bluespec-quartus-ip
-	quartus_ipgenerate $(QPF)
+	BLUESTUFFDIR=$(BLUESTUFFDIR) quartus_ipgenerate $(QPF)
 
 gen-bluespec-quartus-ip: $(VIPBUNDLE) gen-bluespec-rtl
 	$(VIPBUNDLEDIR)/vipbundle \
