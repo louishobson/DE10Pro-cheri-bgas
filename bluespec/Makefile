@@ -40,6 +40,7 @@ COREW_DIRS = $(COREDIR)/src_Core/Core:$(COREDIR)/src_Core/CPU:$(COREDIR)/src_Cor
 WINDCOREIFCDIR ?= $(COREDIR)/libs/WindCoreInterface
 CHERICAPLIBDIR ?= $(COREDIR)/libs/cheri-cap-lib
 TAGCONTROLLERDIR ?= $(COREDIR)/libs/TagController
+VIRTUALDEVICE_DIRS ?= $(CURDIR)/VirtualDevice:$(CURDIR)/VirtualDevice/BSV-RVFI-DII
 RISCVHPMEVENTSDIR ?= $(COREDIR)/libs/RISCV_HPM_Events
 TAGCONTROLLER_DIRS = $(TAGCONTROLLERDIR)/TagController:$(TAGCONTROLLERDIR)/TagController/CacheCore
 BLUESTUFFDIR ?= $(COREDIR)/libs/BlueStuff
@@ -47,7 +48,7 @@ BLUESTUFF_DIRS = $(BLUESTUFFDIR):$(BLUESTUFFDIR)/BlueBasics:$(BLUESTUFFDIR)/Blue
 RECIPEDIR = $(CURDIR)/Recipe
 
 # search path for bsc imports
-BSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(WINDCOREIFCDIR):$(RISCVHPMEVENTSDIR):$(CHERICAPLIBDIR):$(TAGCONTROLLER_DIRS):$(COREW_DIRS):$(BLUESTUFF_DIRS)
+BSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(WINDCOREIFCDIR):$(RISCVHPMEVENTSDIR):$(CHERICAPLIBDIR):$(TAGCONTROLLER_DIRS):$(COREW_DIRS):$(BLUESTUFF_DIRS):$(VIRTUALDEVICE_DIRS)
 BSCFLAGS = -p $(BSVPATH)
 
 # design configuration variables
@@ -117,7 +118,7 @@ $(SIMDIR)/sim_CHERI_BGAS: CHERI_BGAS_Top_Sim.bsv $(SRCS) TagTableStructure.bsv G
 	mkdir -p $(BDIR)
 	mkdir -p $(SIMDIR)
 	$(BSC) $(BSCFLAGS) $(BSCSIMFLAGS) -sim -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
-	$(BSC) $(BSCFLAGS) $(BSCSIMFLAGS) -sim -e mkCHERI_BGAS_Top_Sim -u -o $@ $(BLUESTUFFDIR)/BlueUtils/MemSim.c
+	$(BSC) $(BSCFLAGS) $(BSCSIMFLAGS) -sim -e mkCHERI_BGAS_Top_Sim -u -o $@ $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(CURDIR)/VirtualDevice/BSV-RVFI-DII/SocketPacketUtils/socket_packet_utils.c
 
 verilatorsim: $(VDIR)/mkCHERI_BGAS_Top_Sim.v CHERI_BGAS_Top_verilator_sim.cpp
 	$(eval TMP_V := $(shell mktemp -t mkCHERI_BGAS_Top_Sim_edited_XXXX.v))
