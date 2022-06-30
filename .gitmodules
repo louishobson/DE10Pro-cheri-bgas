@@ -11,3 +11,6 @@
 [submodule "bluespec/Recipe"]
 	path = bluespec/Recipe
 	url = https://github.com/CTSRD-CHERI/Recipe.git
+[submodule "bluespec/VirtualDevice"]
+	path = bluespec/VirtualDevice
+	url = https://github.com/jonwoodruff/VirtualDevice
