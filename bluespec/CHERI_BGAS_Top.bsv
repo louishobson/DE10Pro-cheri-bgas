@@ -269,6 +269,10 @@ provisos (
       t_sys_axi_mngr_id, t_sys_axi_mngr_addr, t_sys_axi_mngr_data
     , t_sys_axi_mngr_awuser, t_sys_axi_mngr_wuser, t_sys_axi_mngr_buser
     , t_sys_axi_mngr_aruser, t_sys_axi_mngr_ruser ))
+, Alias #( t_sys_axi_shim, AXI4_Shim #(
+      t_sys_axi_mngr_id, t_sys_axi_mngr_addr, t_sys_axi_mngr_data
+    , t_sys_axi_mngr_awuser, t_sys_axi_mngr_wuser, t_sys_axi_mngr_buser
+    , t_sys_axi_mngr_aruser, t_sys_axi_mngr_ruser ))
 , Alias #( t_global_mngr, AXI4_Master #(
       t_global_axi_id, t_global_axi_addr, t_global_axi_data
     , t_global_axi_awuser, t_global_axi_wuser, t_global_axi_buser
@@ -486,8 +490,10 @@ provisos (
   //////////////////////////////////////////////////////////////////////////////
   Vector #(3, t_ddr_mngr) ddr = replicate (culDeSac);
   for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1) begin
+    t_sys_axi_shim ddrDeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
+    mkConnection (ddrDeBurst.slave, getDDRMngr (sys[i]), reset_by newRst.new_rst);
     let ddrTmp <-
-      toWider_AXI4_Master ( truncate_AXI4_Master_addr (getDDRMngr (sys[i]))
+      toWider_AXI4_Master ( truncate_AXI4_Master_addr (ddrDeBurst.master)
                           , reset_by newRst.new_rst );
     NumProxy #(16) proxyDDRTableSz = ?;
     NumProxy #(8)  proxyDDRMaxSameId = ?;
