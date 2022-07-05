@@ -118,6 +118,7 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Range#(Wd_Addr)  m_uart_1_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_gpio_0_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_boot_rom_addr_range;
+   (* always_ready *)   method  Range#(Wd_Addr)  m_virt_dev_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_global_bgas_addr_range;
@@ -165,6 +166,14 @@ module mkSoC_Map (SoC_Map_IFC);
    let flash_mem_addr_range = Range {
       base: 'h_4000_0000,
       size: 'h_0800_0000    // 128M
+   };
+
+   // ----------------------------------------------------------------
+   // Virtual Device
+
+   let virt_dev_addr_range = Range {
+      base: 'h_5000_0000,
+      size: 'h_0010_0000    // 1M
    };
 
    // ----------------------------------------------------------------
@@ -260,6 +269,7 @@ module mkSoC_Map (SoC_Map_IFC);
    function Bool fn_is_IO_addr (Fabric_Addr addr, Bool imem_not_dmem) =
          inRange(ddr4_0_uncached_addr_range, addr)
       || inRange(boot_rom_addr_range, addr)
+      || inRange(virt_dev_addr_range, addr)
       || (   (! imem_not_dmem)
           && (   inRange(plic_addr_range, addr)
               || inRange(near_mem_io_addr_range, addr)
@@ -287,6 +297,7 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Range#(Wd_Addr)  m_uart_1_addr_range = uart_1_addr_range;
    method  Range#(Wd_Addr)  m_gpio_0_addr_range = gpio_0_addr_range;
    method  Range#(Wd_Addr)  m_boot_rom_addr_range = boot_rom_addr_range;
+   method  Range#(Wd_Addr)  m_virt_dev_addr_range = virt_dev_addr_range;
    method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range = ddr4_0_uncached_addr_range;
    method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range = ddr4_0_cached_addr_range;
    method  Range#(Wd_Addr)  m_global_bgas_addr_range = global_bgas_addr_range;

@@ -36,6 +36,7 @@ import Connectable :: *;
 import AXI4 :: *;
 import AXI4Lite :: *;
 import AXI4_Fake_16550 :: *;
+import AXI4_AXI4Lite_Bridges :: *;
 import Routable :: *;
 import SourceSink :: *;
 import Fabric_Defs :: *;
@@ -43,6 +44,7 @@ import CoreW :: *;
 import WindCoreInterface :: *;
 import DE10Pro_bsv_shell :: *;
 import SoC_Map :: *;
+import VirtualDevice :: *;
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -231,6 +233,14 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
                t_axil_sub_addr, t_axil_sub_data
              , t_axil_sub_awuser, t_axil_sub_wuser, t_axil_sub_buser
              , t_axil_sub_aruser, t_axil_sub_ruser ))
+  , Alias #(t_axil_virt_dev_mngr, AXI4_Master #(
+               t_bus_sid, t_axil_sub_addr, TMul#(t_axil_sub_data,2)
+             , t_axil_sub_awuser, t_axil_sub_wuser, t_axil_sub_buser
+             , t_axil_sub_aruser, t_axil_sub_ruser ))
+  , Alias #(t_axil_full_shim, AXI4_Shim #(
+               t_bus_sid, t_axil_sub_addr, t_axil_sub_data
+             , t_axil_sub_awuser, t_axil_sub_wuser, t_axil_sub_buser
+             , t_axil_sub_aruser, t_axil_sub_ruser ))
     // outgoing traffic
   , NumAlias #(t_bus_mid, TAdd #(Wd_MId, 1)) // id width out of the core
   , NumAlias #(t_bus_sid, TAdd #(Wd_MId, 2)) // cope with 2 masters only
@@ -345,6 +355,17 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   // ctrl sub entry
   let ctrSubH2FAddrCtrl =
         tuple2 (h2fAddrCtrlSub, Range { base: 'h0000_5000, size: 'h0000_1000 });
+  
+  // virtual device for emulating control registers, e.g. for virtio.
+  // (Has both a control interface and a virtualised interface;
+  // The control interface for AXI4 lite, and virtualised for Toooba MMIO.
+  // The virtual device does not support bursts.)
+  VirtualDeviceIfc#(t_bus_sid,t_axil_sub_addr,TMul#(t_axil_sub_data,2)) virtDev <- mkVirtualDevice (reset_by newRst.new_rst);
+  t_axil_full_shim virtDevShim <- mkAXI4ShimFF (reset_by newRst.new_rst);
+  t_axil_virt_dev_mngr virtDevMngtMaster <- toWider_AXI4_Master(virtDevShim.master, reset_by newRst.new_rst);
+  mkConnection(virtDevMngtMaster, virtDev.mngt, reset_by newRst.new_rst);
+  let ctrSubVirtDevCtrl =
+        tuple2 (fromAXI4ToAXI4Lite_Slave(virtDevShim.slave), Range { base: 'h0000_8000, size: 'h0000_4000 });
 
   // Outgoing interconnect
   //////////////////////////////////////////////////////////////////////////////
@@ -364,7 +385,8 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
               , cons (        ctrSubUART0
                      , cons ( ctrSubUART1
                      , cons ( ctrSubH2FAddrCtrl
-                            , nil )))
+                     , cons ( ctrSubVirtDevCtrl
+                            , nil ))))
                 // the vector of IRQs going in the wind core
               , cons (        uart0irq1
                      , cons ( uart1irq1
@@ -412,18 +434,21 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
                , reset_by newRst.new_rst);
 
   // gather all subordinates
-  Vector #(6, t_bus_sub) ss;
+  Vector #(7, t_bus_sub) ss;
   ss[0] = mngrShim[0].slave; // f2h accesses
   ss[1] = mngrShim[1].slave; // ddr accesses
   ss[2] = mngrShim[2].slave; // global accesses
   ss[3] = uart0_s;
   ss[4] = uart1_s;
   ss[5] = fakeBootRomDeBurst.slave;
+  ss[6] = truncate_AXI4_Slave_addr (virtDev.virt);
 
   // build route
-  function Vector #(6, Bool) route (Bit #(Wd_Addr) addr);
-    Vector #(6, Bool) x = unpack (6'b000000);
-    if (inRange (soc_map.m_boot_rom_addr_range, addr))
+  function Vector #(7, Bool) route (Bit #(Wd_Addr) addr);
+    Vector #(7, Bool) x = unpack (7'b0000000);
+    if (inRange (soc_map.m_virt_dev_addr_range, addr))
+      x[6] = True;
+    else if (inRange (soc_map.m_boot_rom_addr_range, addr))
       x[5] = True;
     else if (inRange (soc_map.m_uart_1_addr_range, addr))
       x[4] = True;
