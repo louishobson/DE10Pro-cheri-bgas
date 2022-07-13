@@ -31,15 +31,14 @@
 package CHERI_BGAS_Top_Sim;
 
 import FIFOF :: *;
-import AXI4 :: *;
-import AXI4Lite :: *;
-import AXI4_AXI4Lite_Bridges :: *;
+import BlueAXI4 :: *;
+import BlueUnixBridges :: *;
 import BlueUtils :: *;
 import SourceSink :: *;
 import Connectable :: *;
 import CHERI_BGAS_Top :: *;
 import DE10Pro_bsv_shell :: *;
-import Recipe :: *;
+//import Recipe :: *;
 
 // Concrete parameters definitions
 // -------------------------------
@@ -62,7 +61,7 @@ import Recipe :: *;
 `define H2F_RUSER    0
 
 `define F2H_ID       4
-`define F2H_ADDR    32 // from 20 (1MB) to 40 (1TB)
+`define F2H_ADDR    40 // from 20 (1MB) to 40 (1TB)
 `define F2H_DATA   128
 `define F2H_AWUSER   0
 `define F2H_WUSER    0
@@ -81,6 +80,7 @@ import Recipe :: *;
 `define DRAM_ARUSER   0
 `define DRAM_RUSER    0
 
+/*
 // AXI4Lite control port driver
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -277,6 +277,7 @@ module mkAXILiteDriver (AXI4Lite_Master #( `H2F_LW_ADDR
   return debugAXI4Lite_Master ( truncate_AXI4Lite_Master_addr (shim.master)
                               , $format ("axilite driver"));
 endmodule
+*/
 
 // Simulation toplevel module
 ////////////////////////////////////////////////////////////////////////////////
@@ -286,34 +287,70 @@ module mkCHERI_BGAS_Top_Sim (Empty);
   // topmodule to simulate
   DE10ProIfc cheri_bgas_top <- mkCHERI_BGAS_Top;
 
-  // H2F_LW driver
-  AXI4Lite_Master #( `H2F_LW_ADDR, `H2F_LW_DATA
-                   , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
-                   , `H2F_LW_ARUSER, `H2F_LW_RUSER )
-    axiLiteDriver <- mkAXILiteDriver;
+  // unix FIFOs for the router ports
+  Sink #(Bit #(512))
+    northTX <- mkUnixFifoSink ("simports/bgas-global-ports/north/txSource");
+  mkConnection (cheri_bgas_top.tx_north, northTX);
+  Sink #(Bit #(512))
+    eastTX <- mkUnixFifoSink ("simports/bgas-global-ports/east/txSource");
+  mkConnection (cheri_bgas_top.tx_east, eastTX);
+  Sink #(Bit #(512))
+    southTX <- mkUnixFifoSink ("simports/bgas-global-ports/south/txSource");
+  mkConnection (cheri_bgas_top.tx_south, southTX);
+  Sink #(Bit #(512))
+    westTX <- mkUnixFifoSink ("simports/bgas-global-ports/west/txSource");
+  mkConnection (cheri_bgas_top.tx_west, westTX);
+  Source #(Bit #(512))
+    northRX <- mkUnixFifoSource ("simports/bgas-global-ports/north/rxSink");
+  mkConnection (cheri_bgas_top.rx_north, northRX);
+  Source #(Bit #(512))
+    eastRX <- mkUnixFifoSource ("simports/bgas-global-ports/east/rxSink");
+  mkConnection (cheri_bgas_top.rx_east, eastRX);
+  Source #(Bit #(512))
+    southRX <- mkUnixFifoSource ("simports/bgas-global-ports/south/rxSink");
+  mkConnection (cheri_bgas_top.rx_south, southRX);
+  Source #(Bit #(512))
+    westRX <- mkUnixFifoSource ("simports/bgas-global-ports/west/rxSink");
+  mkConnection (cheri_bgas_top.rx_west, westRX);
+
+  // H2F_LW port
+  AXI4_Master #( 0, `H2F_LW_ADDR, `H2F_LW_DATA
+               , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
+               , `H2F_LW_ARUSER, `H2F_LW_RUSER )
+    h2f_lw_mngr <- mkUnixFifo_AXI4_Master ("simports/h2f_lw");
+  mkConnection (h2f_lw_mngr, cheri_bgas_top.axls_h2f_lw);
+
+  // H2F port
+  AXI4_Master #( `H2F_ID, `H2F_ADDR, `H2F_DATA
+               , `H2F_AWUSER, `H2F_WUSER, `H2F_BUSER
+               , `H2F_ARUSER, `H2F_RUSER )
+    h2f_mngr <- mkUnixFifo_AXI4_Master ("simports/h2f");
+  mkConnection (h2f_mngr, cheri_bgas_top.axs_h2f);
+
+  // F2H port
+  AXI4_Slave #( `F2H_ID, `F2H_ADDR, `F2H_DATA
+              , `F2H_AWUSER, `F2H_WUSER, `F2H_BUSER
+              , `F2H_ARUSER, `F2H_RUSER )
+    f2h_sub <- mkUnixFifo_AXI4_Slave ("simports/f2h");
+  mkConnection (cheri_bgas_top.axm_f2h, f2h_sub);
 
   // DDRs
   AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
               , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
               , `DRAM_ARUSER, `DRAM_RUSER )
     fakeDDRB <- mkAXI4Mem (4096, Nothing);
+  mkConnection ( cheri_bgas_top.axm_ddrb
+               , debugAXI4_Slave (fakeDDRB, $format ("ddrb")));
   AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
               , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
               , `DRAM_ARUSER, `DRAM_RUSER )
     fakeDDRC <- mkAXI4Mem (4096, Nothing);
+  mkConnection ( cheri_bgas_top.axm_ddrc
+               , debugAXI4_Slave (fakeDDRC, $format ("ddrc")));
   AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
               , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
               , `DRAM_ARUSER, `DRAM_RUSER )
     fakeDDRD <- mkAXI4Mem (4096, Nothing);
-
-  // connect it all up
-  mkConnection (cheri_bgas_top.axls_h2f_lw, axiLiteDriver);
-  //mkConnection (cheri_bgas_top.axs_h2f, culDeSac);
-  //mkConnection (cheri_bgas_top.axm_f2h, culDeSac);
-  mkConnection ( cheri_bgas_top.axm_ddrb
-               , debugAXI4_Slave (fakeDDRB, $format ("ddrb")));
-  mkConnection ( cheri_bgas_top.axm_ddrc
-               , debugAXI4_Slave (fakeDDRC, $format ("ddrc")));
   mkConnection ( cheri_bgas_top.axm_ddrd
                , debugAXI4_Slave (fakeDDRD, $format ("ddrd")));
 endmodule
