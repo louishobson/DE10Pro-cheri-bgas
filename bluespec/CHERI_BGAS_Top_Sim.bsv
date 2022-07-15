@@ -318,21 +318,24 @@ module mkCHERI_BGAS_Top_Sim (Empty);
                , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
                , `H2F_LW_ARUSER, `H2F_LW_RUSER )
     h2f_lw_mngr <- mkUnixFifo_AXI4_Master ("simports/h2f_lw");
-  mkConnection (h2f_lw_mngr, cheri_bgas_top.axls_h2f_lw);
+  mkConnection ( debugAXI4_Master (h2f_lw_mngr, $format ("h2f_lw_mngr"))
+               , cheri_bgas_top.axls_h2f_lw );
 
   // H2F port
   AXI4_Master #( `H2F_ID, `H2F_ADDR, `H2F_DATA
                , `H2F_AWUSER, `H2F_WUSER, `H2F_BUSER
                , `H2F_ARUSER, `H2F_RUSER )
     h2f_mngr <- mkUnixFifo_AXI4_Master ("simports/h2f");
-  mkConnection (h2f_mngr, cheri_bgas_top.axs_h2f);
+  mkConnection ( debugAXI4_Master (h2f_mngr, $format ("h2f_mngr"))
+               , cheri_bgas_top.axs_h2f );
 
   // F2H port
   AXI4_Slave #( `F2H_ID, `F2H_ADDR, `F2H_DATA
               , `F2H_AWUSER, `F2H_WUSER, `F2H_BUSER
               , `F2H_ARUSER, `F2H_RUSER )
     f2h_sub <- mkUnixFifo_AXI4_Slave ("simports/f2h");
-  mkConnection (cheri_bgas_top.axm_f2h, f2h_sub);
+  mkConnection ( cheri_bgas_top.axm_f2h
+               , debugAXI4_Slave (f2h_sub, $format ("f2h_sub")) );
 
   // DDRs
   AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA

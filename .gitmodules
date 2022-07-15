@@ -11,3 +11,6 @@
 [submodule "bluespec/Recipe"]
 	path = bluespec/Recipe
 	url = https://github.com/CTSRD-CHERI/Recipe.git
+[submodule "bluespec/cheri-bgas-fuse-devfs"]
+	path = bluespec/cheri-bgas-fuse-devfs
+	url = https://github.com/CTSRD-CHERI/cheri-bgas-fuse-devfs.git
