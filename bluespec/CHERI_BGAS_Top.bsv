@@ -146,7 +146,9 @@ typedef DE10Pro_bsv_shell #( `H2F_LW_ADDR
                            , `DRAM_WUSER
                            , `DRAM_BUSER
                            , `DRAM_ARUSER
-                           , `DRAM_RUSER ) DE10ProIfc;
+                           , `DRAM_RUSER
+                           , Bit #(512)
+                           , Bit #(512) ) DE10ProIfc;
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -528,7 +530,15 @@ provisos (
   interface axm_ddrc = culDeSac;
   interface axm_ddrd = ddr[1];
   // XXX
-  interface irqs = allIrqs;
+  interface tx_north = tileNorthPort.tx;
+  interface rx_north = tileNorthPort.rx;
+  interface  tx_east = tileEastPort.tx;
+  interface  rx_east = tileEastPort.rx;
+  interface tx_south = tileSouthPort.tx;
+  interface rx_south = tileSouthPort.rx;
+  interface  tx_west = tileWestPort.tx;
+  interface  rx_west = tileWestPort.rx;
+  interface     irqs = allIrqs;
 endmodule
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -581,7 +591,9 @@ typedef DE10Pro_bsv_shell_Sig #( `H2F_LW_ADDR
                                , `DRAM_WUSER
                                , `DRAM_BUSER
                                , `DRAM_ARUSER
-                               , `DRAM_RUSER ) DE10ProIfcSig;
+                               , `DRAM_RUSER
+                               , Bit #(512)
+                               , Bit #(512) ) DE10ProIfcSig;
 
 (* synthesize *)
 module mkCHERI_BGAS_Top_Sig (DE10ProIfcSig);

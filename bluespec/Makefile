@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2021 Alexandre Joannou
+# Copyright (c) 2021-2022 Alexandre Joannou
 # All rights reserved.
 #
 # This software was developed by SRI International and the University of
@@ -44,8 +44,14 @@ VIRTUALDEVICE_DIRS ?= $(CURDIR)/VirtualDevice:$(CURDIR)/VirtualDevice/BSV-RVFI-D
 RISCVHPMEVENTSDIR ?= $(COREDIR)/libs/RISCV_HPM_Events
 TAGCONTROLLER_DIRS = $(TAGCONTROLLERDIR)/TagController:$(TAGCONTROLLERDIR)/TagController/CacheCore
 BLUESTUFFDIR ?= $(COREDIR)/libs/BlueStuff
-BLUESTUFF_DIRS = $(BLUESTUFFDIR):$(BLUESTUFFDIR)/BlueBasics:$(BLUESTUFFDIR)/BlueUtils:$(BLUESTUFFDIR)/AXI:$(BLUESTUFFDIR)/Stratix10ChipID
+BLUEAXI4DIR = $(BLUESTUFFDIR)/BlueAXI4
+BLUEAXI4DIRS = $(BLUEAXI4DIR):$(BLUEAXI4DIR)/AXI4:$(BLUEAXI4DIR)/AXI4Lite:$(BLUEAXI4DIR)/AXI4Stream:$(BLUEAXI4DIR)/BlueUnixBridges
+BLUEUNIXBRIDGESDIR = $(BLUEAXI4DIR)/BlueUnixBridges
+BLUEBASICSDIR = $(BLUESTUFFDIR)/BlueBasics
+BLUEUTILSDIR = $(BLUESTUFFDIR)/BlueUtils
+BLUESTUFF_DIRS = $(BLUESTUFFDIR):$(BLUEAXI4DIRS):$(BLUEBASICSDIR):$(BLUEUTILSDIR):$(BLUESTUFFDIR)/Stratix10ChipID
 RECIPEDIR = $(CURDIR)/Recipe
+
 
 # search path for bsc imports
 BSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(WINDCOREIFCDIR):$(RISCVHPMEVENTSDIR):$(CHERICAPLIBDIR):$(TAGCONTROLLER_DIRS):$(COREW_DIRS):$(BLUESTUFF_DIRS):$(VIRTUALDEVICE_DIRS)
@@ -114,11 +120,11 @@ rtl: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 
 bluesim: $(SIMDIR)/sim_CHERI_BGAS
 
-$(SIMDIR)/sim_CHERI_BGAS: CHERI_BGAS_Top_Sim.bsv $(SRCS) TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
+$(SIMDIR)/sim_CHERI_BGAS: CHERI_BGAS_Top_Sim.bsv $(SRCS) $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(BLUEUNIXBRIDGESDIR)/BlueUnixFifo.c TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
 	mkdir -p $(BDIR)
 	mkdir -p $(SIMDIR)
 	$(BSC) $(BSCFLAGS) $(BSCSIMFLAGS) -sim -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
-	$(BSC) $(BSCFLAGS) $(BSCSIMFLAGS) -sim -e mkCHERI_BGAS_Top_Sim -u -o $@ $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(CURDIR)/VirtualDevice/BSV-RVFI-DII/SocketPacketUtils/socket_packet_utils.c
+	$(BSC) $(BSCFLAGS) $(BSCSIMFLAGS) -sim -e mkCHERI_BGAS_Top_Sim -u -o $@ $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(BLUEUNIXBRIDGESDIR)/BlueUnixFifo.c
 
 verilatorsim: $(VDIR)/mkCHERI_BGAS_Top_Sim.v CHERI_BGAS_Top_verilator_sim.cpp
 	$(eval TMP_V := $(shell mktemp -t mkCHERI_BGAS_Top_Sim_edited_XXXX.v))

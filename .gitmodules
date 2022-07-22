@@ -14,3 +14,6 @@
 [submodule "bluespec/VirtualDevice"]
 	path = bluespec/VirtualDevice
 	url = https://github.com/jonwoodruff/VirtualDevice
+[submodule "bluespec/cheri-bgas-fuse-devfs"]
+	path = bluespec/cheri-bgas-fuse-devfs
+	url = https://github.com/CTSRD-CHERI/cheri-bgas-fuse-devfs.git
