@@ -111,7 +111,6 @@ SoC_Map_Struct {
 interface SoC_Map_IFC;
    (* always_ready *)   method  Range#(Wd_Addr)  m_plic_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_near_mem_io_addr_range;
-   (* always_ready *)   method  Range#(Wd_Addr)  m_flash_mem_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ethernet_0_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_dma_0_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_uart_0_addr_range;
@@ -161,18 +160,10 @@ module mkSoC_Map (SoC_Map_IFC);
    };
 
    // ----------------------------------------------------------------
-   // Flash Mem
-
-   let flash_mem_addr_range = Range {
-      base: 'h_4000_0000,
-      size: 'h_0800_0000    // 128M
-   };
-
-   // ----------------------------------------------------------------
    // Virtual Device
 
    let virt_dev_addr_range = Range {
-      base: 'h_5000_0000,
+      base: 'h_4000_0000,
       size: 'h_0010_0000    // 1M
    };
 
@@ -290,7 +281,6 @@ module mkSoC_Map (SoC_Map_IFC);
 
    method  Range#(Wd_Addr)  m_plic_addr_range = plic_addr_range;
    method  Range#(Wd_Addr)  m_near_mem_io_addr_range = near_mem_io_addr_range;
-   method  Range#(Wd_Addr)  m_flash_mem_addr_range = flash_mem_addr_range;
    method  Range#(Wd_Addr)  m_ethernet_0_addr_range = ethernet_0_addr_range;
    method  Range#(Wd_Addr)  m_dma_0_addr_range = dma_0_addr_range;
    method  Range#(Wd_Addr)  m_uart_0_addr_range = uart_0_addr_range;

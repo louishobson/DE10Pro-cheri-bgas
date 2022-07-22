@@ -100,7 +100,7 @@ module mkCHERI_BGAS_Top_Sim (Empty);
   AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
               , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
               , `DRAM_ARUSER, `DRAM_RUSER )
-    fakeDDRB <- mkAXI4Mem (4096, Nothing);
+    fakeDDRB <- mkAXI4Mem (268435456, Valid("/tmp/mem.hex"));
   AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
               , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
               , `DRAM_ARUSER, `DRAM_RUSER )
@@ -115,11 +115,11 @@ module mkCHERI_BGAS_Top_Sim (Empty);
   //mkConnection (cheri_bgas_top.axs_h2f, culDeSac);
   //mkConnection (cheri_bgas_top.axm_f2h, culDeSac);
   mkConnection ( cheri_bgas_top.axm_ddrb
-               , debugAXI4_Slave (fakeDDRB, $format ("ddrb")));
+               , fakeDDRB);
   mkConnection ( cheri_bgas_top.axm_ddrc
-               , debugAXI4_Slave (fakeDDRC, $format ("ddrc")));
+               , fakeDDRC);
   mkConnection ( cheri_bgas_top.axm_ddrd
-               , debugAXI4_Slave (fakeDDRD, $format ("ddrd")));
+               , fakeDDRD);
 endmodule
 
 endpackage
