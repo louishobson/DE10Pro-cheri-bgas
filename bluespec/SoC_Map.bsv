@@ -121,6 +121,7 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_global_bgas_addr_range;
+   (* always_ready *)   method  Range#(Wd_Addr)  m_bgas_router_conf_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_f2h_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_mem0_controller_addr_range;
 
@@ -232,12 +233,20 @@ module mkSoC_Map (SoC_Map_IFC);
    };
 
    // ----------------------------------------------------------------
+   // BGAS router configuration
+
+   let bgas_router_conf_addr_range = Range {
+      base: 'h_0000_0200_0000_0000, // right passed the F2H interface
+      size: 'h_0000_0000_0000_1000  // 4K
+   };
+
+   // ----------------------------------------------------------------
    // Global BGAS accesses
 
    // top 20 bits, with MSB indicating global access, and remaining
    // 19 bits indicating the node id
    let global_bgas_addr_range = Range {
-      base: 'h_1000_0000_0000_0000,
+      base: 'h_8000_0000_0000_0000,
       size: 'h_FFFF_F000_0000_0000
    };
 
@@ -266,6 +275,7 @@ module mkSoC_Map (SoC_Map_IFC);
               || inRange(f2h_addr_range, addr)
               || inRange(uart_0_addr_range, addr)
               || inRange(uart_1_addr_range, addr)
+              || inRange(bgas_router_conf_addr_range, addr)
               || inRange(global_bgas_addr_range, addr)));
 
    // ----------------------------------------------------------------
@@ -290,6 +300,7 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range = ddr4_0_uncached_addr_range;
    method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range = ddr4_0_cached_addr_range;
    method  Range#(Wd_Addr)  m_global_bgas_addr_range = global_bgas_addr_range;
+   method  Range#(Wd_Addr)  m_bgas_router_conf_addr_range = bgas_router_conf_addr_range;
    method  Range#(Wd_Addr)  m_f2h_addr_range = f2h_addr_range;
    method  Range#(Wd_Addr)  m_mem0_controller_addr_range = ddr4_0_cached_addr_range;
 

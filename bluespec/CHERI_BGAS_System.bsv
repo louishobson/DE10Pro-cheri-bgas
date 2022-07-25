@@ -422,17 +422,18 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
 
   // build route
   function Vector #(6, Bool) route (Bit #(Wd_Addr) addr);
-    Vector #(6, Bool) x = unpack (6'b000000);
+    Vector #(6, Bool) x = replicate (False);
     if (inRange (soc_map.m_boot_rom_addr_range, addr))
       x[5] = True;
     else if (inRange (soc_map.m_uart_1_addr_range, addr))
       x[4] = True;
     else if (inRange (soc_map.m_uart_0_addr_range, addr))
       x[3] = True;
-    else if (inRange (soc_map.m_global_bgas_addr_range, addr))
+    else if (  inRange (soc_map.m_global_bgas_addr_range, addr)
+            || inRange (soc_map.m_bgas_router_conf_addr_range, addr) )
       x[2] = True;
-    else if (   inRange (soc_map.m_ddr4_0_uncached_addr_range, addr)
-             || inRange (soc_map.m_ddr4_0_cached_addr_range, addr) )
+    else if (  inRange (soc_map.m_ddr4_0_uncached_addr_range, addr)
+            || inRange (soc_map.m_ddr4_0_cached_addr_range, addr) )
       x[1] = True;
     else if (inRange (soc_map.m_f2h_addr_range, addr))
       x[0] = True;

@@ -32,15 +32,14 @@ package CHERI_BGAS_Top;
 
 import DE10Pro_bsv_shell :: *;
 import CHERI_BGAS_System :: *;
-import AXI4 :: *;
-import AXI4Lite :: *;
-import AXI4Stream :: *;
-import AXI4_AXI4Lite_Bridges :: *;
+import BlueAXI4 :: *;
+import Routable :: *;
 import BlueBasics :: *;
 import Stratix10ChipID :: *;
 import Vector :: *;
 import Clocks :: *;
 import Connectable :: *;
+import SoC_Map :: *;
 
 import CHERI_BGAS_System :: *;
 import CHERI_BGAS_Router :: *;
@@ -180,10 +179,12 @@ provisos (
 , NumAlias #(t_sys_axi_sub_1_addr, t_global_axi_addr)
 , NumAlias #(t_sys_axi_sub_1_data, t_global_axi_data)
 , NumAlias #(t_sys_axi_sub_1_awuser, t_global_axi_awuser)
-, NumAlias #(t_sys_axi_sub_1_wuser, t_global_axi_wuser)
+, NumAlias #(t_sys_axi_sub_1_wuser, 1)
+//, NumAlias #(t_sys_axi_sub_1_wuser, t_global_axi_wuser)
 , NumAlias #(t_sys_axi_sub_1_buser, t_global_axi_buser)
 , NumAlias #(t_sys_axi_sub_1_aruser, t_global_axi_aruser)
-, NumAlias #(t_sys_axi_sub_1_ruser, t_global_axi_ruser)
+, NumAlias #(t_sys_axi_sub_1_ruser, 1)
+//, NumAlias #(t_sys_axi_sub_1_ruser, t_global_axi_ruser)
   // AXI4 manager ports - outgoing F2H, DDR and global traffic
 , NumAlias #(t_sys_axi_mngr_id, 8)
 , NumAlias #(t_sys_axi_mngr_addr, 64)
@@ -197,18 +198,17 @@ provisos (
 , Alias #(t_global_flit_container, Bit #(512))
   //////////////////////////////////////////////////////////////////////////////
   // aliases for the CHERI-BGAS toplevel module
-  // node ID
-, Alias #(t_node_id, NodeId #(8, 8))
-, Bits #(t_node_id, t_node_id_sz)
   // AXI4 global traffic ports
-, NumAlias #(t_global_axi_id, TAdd #(t_sys_axi_mngr_id, t_node_id_sz))
+, NumAlias #(t_global_axi_id, t_sys_axi_mngr_id)
 , NumAlias #(t_global_axi_addr, 64)
 , NumAlias #(t_global_axi_data, 64)
 , NumAlias #(t_global_axi_awuser, 0)
-, NumAlias #(t_global_axi_wuser, 1)
+, NumAlias #(t_global_axi_wuser, 0)
+//, NumAlias #(t_global_axi_wuser, 1)
 , NumAlias #(t_global_axi_buser, 0)
 , NumAlias #(t_global_axi_aruser, 0)
-, NumAlias #(t_global_axi_ruser, 1)
+, NumAlias #(t_global_axi_ruser, 0)
+//, NumAlias #(t_global_axi_ruser, 1)
 , Alias #(t_global_aw_flit, AXI4_AWFlit #( t_global_axi_id
                                          , t_global_axi_addr
                                          , t_global_axi_awuser ))
@@ -224,6 +224,7 @@ provisos (
 , Alias #( t_irqs, Vector #(32, Irq))
   //////////////////////////////////////////////////////////////////////////////
   // local CHERI-BGAS system types
+, Alias #(t_router_id, RouterId #(8, 8))
 , Alias #( t_cheri_bgas_sys, CHERI_BGAS_System_Ifc # (
     // AXI4Lite subordinate port - incoming control traffic
       t_sys_axil_sub_addr, t_sys_axil_sub_data
@@ -251,7 +252,11 @@ provisos (
              , t_global_axi_aruser, t_global_axi_ruser ) )
 , Alias #( t_router_ifc
          , CHERI_BGAS_Router_Ifc #(
-               t_global_axi_id, t_global_axi_addr, t_global_axi_data
+               t_sys_axi_mngr_id, t_global_axi_addr, t_global_axi_data
+             , t_global_axi_awuser, t_global_axi_wuser, t_global_axi_buser
+             , t_global_axi_aruser, t_global_axi_ruser
+             , t_sys_axi_mngr_id, t_sys_axi_sub_1_id
+             , t_global_axi_addr, t_global_axi_data
              , t_global_axi_awuser, t_global_axi_wuser, t_global_axi_buser
              , t_global_axi_aruser, t_global_axi_ruser
              , t_global_flit ) )
@@ -281,6 +286,10 @@ provisos (
     , t_global_axi_aruser, t_global_axi_ruser ))
 , Alias #( t_global_sub, AXI4_Slave #(
       t_global_axi_id, t_global_axi_addr, t_global_axi_data
+    , t_global_axi_awuser, t_global_axi_wuser, t_global_axi_buser
+    , t_global_axi_aruser, t_global_axi_ruser ))
+, Alias #( t_sys_global_sub, AXI4_Slave #(
+      t_sys_axi_sub_1_id, t_global_axi_addr, t_global_axi_data
     , t_global_axi_awuser, t_global_axi_wuser, t_global_axi_buser
     , t_global_axi_aruser, t_global_axi_ruser ))
 , Alias #( t_ctrl_sub
@@ -314,15 +323,20 @@ provisos (
   let newRst <- mkReset (0, True, clk, reset_by rst);
   Vector #(NBCheriBgasSystems, t_cheri_bgas_sys)
     sys <- replicateM (mkCHERI_BGAS_System (reset_by newRst.new_rst));
-  // TODO handle nodeId correctly
-  function t_node_id toNodeId (Integer x) = fromInteger (x);
   Vector #(NBCheriBgasSystems, t_router_ifc) router;
+  Maybe #(t_router_id) initRouterId = Invalid;
   for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1)
-    router[i] <- mkCHERI_BGAS_Router (toNodeId (i), reset_by newRst.new_rst);
+    router[i] <- mkCHERI_BGAS_Router (initRouterId, reset_by newRst.new_rst);
   Vector #(NBCheriBgasSystems, t_global_mngr)
     globalMngr = replicate (?);
-  Vector #(NBCheriBgasSystems, t_global_sub)
+  Vector #(NBCheriBgasSystems, t_sys_global_sub)
     globalSub = replicate (?);
+
+  // instanciate the SoC_Map
+  //////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
+  SoC_Map_IFC soc_map <- mkSoC_Map (reset_by newRst.new_rst);
 
   // local helper functions
   function t_ctrl_sub getH2FLWSub (t_cheri_bgas_sys ifc) = ifc.axil_sub;
@@ -339,34 +353,31 @@ provisos (
   // XXX It is not possible to "speak capability" past the capability tag
   // XXX controller. It should eventually be moved nearer the ddr and the user
   // XXX field should be exported.
-  // create the outgoing local -> global ID conversion
-  // (simple concat of unique id for now)
-  for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1)
-    globalMngr[i] =
-      prepend_AXI4_Master_id ( pack (toNodeId (i))
-                             , zero_AXI4_Master_user (getGlobalMngr (sys[i])) );
-  // create the incoming global -> local ID conversion
-  // (ID realocation)
+  // connect up global router's local manager and subordinate ports as well as
+  // management subordinate port
   for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1) begin
-    NumProxy #(16) proxyGlblTableSz = ?;
-    NumProxy #(8)  proxyGlblMaxSameId = ?;
-    globalSub[i] <- change_AXI4_Slave_Id ( proxyGlblTableSz
-                                         , proxyGlblMaxSameId
-                                         , getGlobalSub (sys[i])
-                                         , reset_by newRst.new_rst );
+    // incoming traffic
+    t_sys_global_sub sub =
+      zero_AXI4_Slave_user (
+        mask_AXI4_Slave_addr ( zeroExtend (44'hFFF_FFFF_FFFF)
+                             , getGlobalSub (sys[i]) ) );
+    mkConnection (router[i].localManager, sub, reset_by newRst.new_rst);
+    // outgoing traffic
+    t_global_mngr mngr = zero_AXI4_Master_user (getGlobalMngr (sys[i]));
+    Vector #(2, t_global_sub) subs;
+    subs[0] = router[i].mngmntSubordinate;
+    subs[1] = router[i].localSubordinate;
+    function route_to_router (addr);
+      Vector #(2, Bool) x = replicate (False);
+      if (inRange (soc_map.m_global_bgas_addr_range, addr))
+        x[1] = True;
+      else if (inRange (soc_map.m_bgas_router_conf_addr_range, addr))
+        x[0] = True;
+      return x;
+    endfunction
+    mkAXI4Bus ( route_to_router, cons (mngr, nil), subs
+              , reset_by newRst.new_rst );
   end
-  // connect up to global router's local port
-  for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1)
-    mkConnection (
-      router[i].localPort
-    , interface AXI4_Router_Port;
-        interface manager = globalMngr[i];
-        interface subordinate =
-          mask_AXI4_Slave_addr ( zeroExtend (44'hFFF_FFFF_FFFF)
-                               , globalSub[i] );
-      endinterface
-    , reset_by newRst.new_rst );
-
 
   // connect the CHERI BGAS systems together and aggregate their remaining ports
   //////////////////////////////////////////////////////////////////////////////

@@ -30,9 +30,10 @@
 
 package CHERI_BGAS_Router;
 
-import AXI4 :: *;
+import BlueAXI4 :: *;
 import Routable :: *;
 import Vector :: *;
+import ConfigReg :: *;
 import Connectable :: *;
 import BlueBasics :: *;
 import FIFOF :: *;
@@ -105,18 +106,18 @@ module mkCHERI_BGAS_NoRouteTile
 
 endmodule
 
-// A NodeId type, split between an X coordinate and a Y coordinate
+// A RouterId type, split between an X coordinate and a Y coordinate
 typedef struct {
   Bit #(t_y_sz) y;
   Bit #(t_x_sz) x;
-} NodeId #(numeric type t_x_sz, numeric type t_y_sz) deriving (Bits);
+} RouterId #(numeric type t_x_sz, numeric type t_y_sz) deriving (Bits);
 
-instance Literal #(NodeId #(xsz, ysz));
-  function NodeId #(xsz, ysz) fromInteger (Integer x);
+instance Literal #(RouterId #(xsz, ysz));
+  function RouterId #(xsz, ysz) fromInteger (Integer x);
     Bit #(TAdd #(xsz, ysz)) tmp = fromInteger (x);
     return unpack (tmp);
   endfunction
-  function Bool inLiteralRange (NodeId #(xsz, ysz) target, Integer x);
+  function Bool inLiteralRange (RouterId #(xsz, ysz) target, Integer x);
     Bit #(TAdd #(xsz, ysz)) tmp = pack (target);
     return inLiteralRange (tmp, x);
   endfunction
@@ -136,12 +137,22 @@ Integer southPortIdx = 2;
 Integer eastPortIdx = 3;
 //   - 4: north port
 Integer northPortIdx = 4;
-module mkAXI4Router #(NodeId #(t_x_sz, t_y_sz) nodeId)
+module mkAXI4Router #(Maybe #(RouterId #(t_x_sz, t_y_sz)) routerId)
   (Vector #(5, AXI4_Router_Port #( t_id, t_addr, t_data
                                  , t_awuser, t_wuser, t_buser
                                  , t_aruser, t_ruser )))
-  provisos ( Add #(a__, TAdd#(t_x_sz, t_y_sz), t_id)
-           , Add #(b__, TAdd#(t_x_sz, t_y_sz), t_addr) );
+  provisos ( NumAlias #(t_router_id_sz, SizeOf #(RouterId #(t_x_sz, t_y_sz)))
+           , Add #(a__, t_router_id_sz, t_id)
+           , Add #(b__, t_router_id_sz, t_addr) );
+  // NOTE: the router id changing mechanism assumes:
+  //   - to handle bursts, the underlying interconnect fabric does not try to
+  //   allocate a route more than once per request (if the router id is changed
+  //   in the middle of a burst, the rest of the wflits will reach the same
+  //   destination)
+  //   - to handle responses, the masters who want to change the router id are
+  //   responsible to do so only when all outstanding requests have received
+  //   their response
+  Bool acceptTraffic = isValid (routerId);
   // interface shims
   Vector #(5, AXI4_Shim #( t_id, t_addr, t_data
                          , t_awuser, t_wuser, t_buser
@@ -161,23 +172,23 @@ module mkAXI4Router #(NodeId #(t_x_sz, t_y_sz) nodeId)
     , AXI4_Shim #(a,b,c,d,e,f,g,h) outpt ) =
       interface AXI4_Router_Port;
         interface manager = outpt.master;
-        interface subordinate = inpt.slave;
+        interface subordinate = guard_AXI4_Slave (inpt.slave, !acceptTraffic);
       endinterface;
   // routing functions
   // the MSB of the address indicates global routing, the next m bits are the
-  // node id
-  function Bit #(m) nodeIdFromAXIAddr (Bit #(n) axiAddr)
+  // router id
+  function Bit #(m) routerIdFromAXIAddr (Bit #(n) axiAddr)
     provisos (Add #(_, m, n)) = axiAddr [ valueOf (n) - 2
-                                        : valueOf (n) - (valueOf (m) - 1) ];
-  // the MSBs of the axi ID field are the node id, the LSBs are a local ID
+                                        : valueOf (n) - valueOf (m) - 1 ];
+  // the MSBs of the axi ID field are the router id, the LSBs are a local ID
   // within the node
-  function Bit #(m) nodeIdFromAXIId (Bit #(n) axiId)
+  function Bit #(m) routerIdFromAXIId (Bit #(n) axiId)
     provisos (Add #(_, m, n)) = truncateLSB (axiId);
   // route x first (find correct column)
   // then y (within column, find correct row)
-  function Vector #(5, Bool) routeXY (NodeId #(nx, ny) ownId, Bit #(n) dest)
+  function Vector #(5, Bool) routeXY (RouterId #(nx, ny) ownId, Bit #(n) dest)
     provisos (Add #(nx, ny, n));
-    NodeId #(nx, ny) destId = unpack (dest);
+    RouterId #(nx, ny) destId = unpack (dest);
     Vector #(5, Bool) res = replicate (False);
     // XY routing
     // X routing first, a.k.a. find correct column (west <-> east) first
@@ -196,8 +207,8 @@ module mkAXI4Router #(NodeId #(t_x_sz, t_y_sz) nodeId)
       res [localPortIdx] = True;
     return res;
   endfunction
-  function routeReq = compose (routeXY (nodeId), nodeIdFromAXIAddr);
-  function routeRsp = compose (routeXY (nodeId), nodeIdFromAXIId);
+  function routeReq = compose (routeXY (routerId.Valid), routerIdFromAXIAddr);
+  function routeRsp = compose (routeXY (routerId.Valid), routerIdFromAXIId);
   // wire up switches // TODO: change to one bus per destination
   mkAXI4Switch ( routeReq, routeRsp
                , map (getShimMaster, inShims)
@@ -206,6 +217,9 @@ module mkAXI4Router #(NodeId #(t_x_sz, t_y_sz) nodeId)
   return zipWith (wrapRouterPort, inShims, outShims);
 endmodule
 
+// Turn AXI4 traffic into global traffic by adding some credit-based flow
+// control and gathering incoming traffic together and outgoing traffic
+// together.
 module mkAXI4StreamBridge
   #( parameter NumProxy #(t_max_credit) maxCreditProxy
    , function module #(Empty) bundle (
@@ -455,27 +469,46 @@ module mkCHERI_BGAS_StreamBridge
 endmodule
 
 interface CHERI_BGAS_Router_Ifc #(
-  numeric type t_id, numeric type t_addr, numeric type t_data
+  // management interface
+  numeric type t_mngnt_id, numeric type t_mngnt_addr, numeric type t_mngnt_data
+, numeric type t_mngnt_awuser, numeric type t_mngnt_wuser
+, numeric type t_mngnt_buser
+, numeric type t_mngnt_aruser, numeric type t_mngnt_ruser
+  // traffic interface
+, numeric type t_s_id, numeric type t_m_id
+, numeric type t_addr, numeric type t_data
 , numeric type t_awuser, numeric type t_wuser, numeric type t_buser
 , numeric type t_aruser, numeric type t_ruser
+  // container type for global flits
 , type t_global_flit_container );
-  interface AXI4_Router_Port #( t_id, t_addr, t_data
-                              , t_awuser, t_wuser, t_buser
-                              , t_aruser, t_ruser ) localPort;
+  interface AXI4_Slave #( t_mngnt_id, t_mngnt_addr, t_mngnt_data
+                        , t_mngnt_awuser, t_mngnt_wuser, t_mngnt_buser
+                        , t_mngnt_aruser, t_mngnt_ruser ) mngmntSubordinate;
+  interface AXI4_Master #( t_m_id, t_addr, t_data
+                         , t_awuser, t_wuser, t_buser
+                         , t_aruser, t_ruser ) localManager;
+  interface AXI4_Slave #( t_s_id, t_addr, t_data
+                        , t_awuser, t_wuser, t_buser
+                        , t_aruser, t_ruser ) localSubordinate;
   interface Global_Port #(t_global_flit_container) westPort;
   interface Global_Port #(t_global_flit_container) southPort;
   interface Global_Port #(t_global_flit_container) eastPort;
   interface Global_Port #(t_global_flit_container) northPort;
 endinterface
 
-module mkCHERI_BGAS_Router #(NodeId #(t_x_sz, t_y_sz) nodeId)
-  (CHERI_BGAS_Router_Ifc #( t_id, t_addr, t_data
+module mkCHERI_BGAS_Router #(Maybe #(RouterId #(t_x_sz, t_y_sz)) initRouterId)
+  (CHERI_BGAS_Router_Ifc #( t_mngnt_id, t_mngnt_addr, t_mngnt_data
+                          , t_mngnt_awuser, t_mngnt_wuser, t_mngnt_buser
+                          , t_mngnt_aruser, t_mngnt_ruser
+                          , t_s_id, t_m_id, t_addr, t_data
                           , t_awuser, t_wuser, t_buser
                           , t_aruser, t_ruser
                           , t_global_flit_container ))
   provisos (
-  // local type aliases
-    Alias #(t_aw_flit, AXI4_AWFlit #(t_id, t_addr, t_awuser))
+    // local type aliases
+    NumAlias #(t_id, TAdd #(t_s_id, t_router_id_sz))
+  , NumAlias #(t_router_id_sz, SizeOf #(RouterId #(t_x_sz, t_y_sz)))
+  , Alias #(t_aw_flit, AXI4_AWFlit #(t_id, t_addr, t_awuser))
   , Alias #(t_w_flit, AXI4_WFlit #(t_data, t_wuser))
   , Alias #(t_b_flit, AXI4_BFlit #(t_id, t_buser))
   , Alias #(t_ar_flit, AXI4_ARFlit #(t_id, t_addr, t_aruser))
@@ -484,22 +517,91 @@ module mkCHERI_BGAS_Router #(NodeId #(t_x_sz, t_y_sz) nodeId)
            , Tuple5 #( Maybe# (t_aw_flit), Maybe# (t_w_flit), Maybe# (t_b_flit)
                      , Maybe# (t_ar_flit), Maybe# (t_r_flit) ) )
     // constraints
-  , Add #(a__, TAdd#(t_x_sz, t_y_sz), t_id)
-  , Add #(b__, TAdd#(t_x_sz, t_y_sz), t_addr)
+  , Add #(a__, t_router_id_sz, t_id)
+  , Add #(b__, t_router_id_sz, t_addr)
+  , Add #(c__, t_router_id_sz, t_mngnt_data)
+    // XXX t_mngnt_data is a multiple of 8
+  , Mul #(TDiv #(t_mngnt_data, 8), 8, t_mngnt_data)
   , Bits #(t_global_axi_flit, t_global_axi_flit_sz)
   , Bits #(t_global_flit_container, t_global_flit_container_sz)
   , Add #(_, TAdd #(t_global_axi_flit_sz, 5), t_global_flit_container_sz) );
+
+  // CHERI BGAS router management
+  let mngntShim <- mkAXI4Shim;
+  Reg #(Maybe #(RouterId #(t_x_sz, t_y_sz)))
+    routerId <- mkConfigReg (initRouterId);
+  // handle reads
+  rule management_read (  mngntShim.master.ar.canPeek
+                       && mngntShim.master.r.canPut );
+    let arflit <- get (mngntShim.master.ar);
+    mngntShim.master.r.put (AXI4_RFlit {
+        rid: arflit.arid
+      , rdata: zeroExtend (pack (fromMaybe (unpack (~0), routerId)))
+      , rresp: arflit.arlen == 0 ? OKAY : SLVERR
+      , rlast: True
+      , ruser: ? });
+  endrule
+  // handle writes
+  let awflit = mngntShim.master.aw.peek;
+  let wflit = mngntShim.master.w.peek;
+  Bool isLegalAW = awflit.awlen == 0;
+  Bool isLegalW = wflit.wlast;
+  (* descending_urgency = "legal_write, illegal_write" *)
+  rule legal_write (  mngntShim.master.aw.canPeek && isLegalAW
+                   && mngntShim.master.w.canPeek && isLegalW
+                   && mngntShim.master.b.canPut );
+    mngntShim.master.aw.drop;
+    mngntShim.master.w.drop;
+    routerId <= Valid (unpack (truncate (mergeWithBE ( wflit.wstrb
+                                                     , 0
+                                                     , wflit.wdata ))));
+    mngntShim.master.b.put (AXI4_BFlit {
+        bid: awflit.awid
+      , bresp: OKAY
+      , buser: ? });
+  endrule
+  rule illegal_write (  mngntShim.master.aw.canPeek
+                     && mngntShim.master.w.canPeek
+                     && mngntShim.master.b.canPut );
+    mngntShim.master.w.drop;
+    if (wflit.wlast) begin
+      mngntShim.master.aw.drop;
+      mngntShim.master.b.put (AXI4_BFlit {
+          bid: awflit.awid
+        , bresp: SLVERR
+        , buser: ? });
+    end
+  endrule
+
   // route AXI4 traffic
   Vector #(5, AXI4_Router_Port #( t_id, t_addr, t_data
                                 , t_awuser, t_wuser, t_buser
                                 , t_aruser, t_ruser ))
-    ports <- mkAXI4Router (nodeId);
+    ports <- mkAXI4Router (routerId);
+  // ID field adapter for local port connection
+  let localRouterPort = head (ports);
+  // create the outgoing local -> global ID conversion
+  // (simple concat of unique id for now)
+  let localSub =
+    guard_AXI4_Slave ( prepend_AXI4_Slave_id ( pack (routerId.Valid)
+                                             , localRouterPort.subordinate )
+                     , !isValid (routerId) );
+  // create the incoming global -> local ID conversion
+  // (ID realocation)
+  NumProxy #(16) proxyTableSz = ?;
+  NumProxy #(8)  proxyMaxSameId = ?;
+  let localMngr <- change_AXI4_Master_Id ( proxyTableSz, proxyMaxSameId
+                                         , localRouterPort.manager );
+
   // wrap ports and return interface
   NumProxy #(32) maxCreditProxy = ?;
   Vector #(4, Global_Port #(t_global_flit_container))
     remotePorts <- mapM ( mkCHERI_BGAS_StreamBridge (maxCreditProxy)
                         , tail (ports) );
-  interface localPort = head (ports);
+  // interfaces
+  interface mngmntSubordinate = mngntShim.slave;
+  interface localManager = localMngr;
+  interface localSubordinate = localSub;
   interface westPort  = remotePorts[0];
   interface southPort = remotePorts[1];
   interface eastPort  = remotePorts[2];
