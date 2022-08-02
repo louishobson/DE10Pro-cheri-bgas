@@ -31,7 +31,7 @@ BLUESPECDIR ?= $(shell which $(BSC) | xargs dirname | xargs dirname)/lib
 
 NB_SYSTEMS ?= 1
 
-SRCS  = CHERI_BGAS_Top.bsv
+TOPFILE = $(CURDIR)/CHERI_BGAS_Top.bsv
 
 # relevant folders
 DE10PROBSVSHELLDIR ?= $(CURDIR)/DE10Pro-bsv-shell
@@ -50,7 +50,6 @@ BLUEBASICSDIR = $(BLUESTUFFDIR)/BlueBasics
 BLUEUTILSDIR = $(BLUESTUFFDIR)/BlueUtils
 BLUESTUFF_DIRS = $(BLUESTUFFDIR):$(BLUEAXI4DIRS):$(BLUEBASICSDIR):$(BLUEUTILSDIR):$(BLUESTUFFDIR)/Stratix10ChipID
 RECIPEDIR = $(CURDIR)/Recipe
-
 
 # search path for bsc imports
 BSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(WINDCOREIFCDIR):$(RISCVHPMEVENTSDIR):$(CHERICAPLIBDIR):$(TAGCONTROLLER_DIRS):$(COREW_DIRS):$(BLUESTUFF_DIRS)
@@ -102,6 +101,8 @@ SIMDIR ?= $(BUILDDIR)/simdir
 VDIR ?= $(CURDIR)/verilogdir
 VERILATORDIR ?= $(CURDIR)/verilatordir
 
+TOPFILE_BO = $(BDIR)/$(patsubst %.bsv,%.bo,$(notdir $(TOPFILE)))
+
 BSCFLAGS += -bdir $(BDIR)
 BSCFLAGS += +RTS -K128M -RTS
 #BSCFLAGS += -show-schedule
@@ -115,11 +116,25 @@ BSCVERILOGFLAGS = -vdir $(VDIR)
 BSCVERILOGFLAGS += -unspecified-to X
 BSCVERILOGFLAGS += -opt-undetermined-vals
 
+ifeq (,$(filter clean mrproper,$(MAKECMDGOALS)))
+include .depends.mk
+
+.depends.mk: TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv | $(BDIR)
+	if ! bluetcl -exec makedepend -elab $(BSCFLAGS) -o $@ $(TOPFILE); then rm -f $@ && false; fi
+endif
+
+$(BDIR):
+	mkdir -p $(BDIR)
+
+$(BDIR)/%.bo:
+	$(info building $@)
+	bsc -elab $(BSCFLAGS) $<
+
 rtl: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 
 bluesim: $(SIMDIR)/sim_CHERI_BGAS
 
-$(SIMDIR)/sim_CHERI_BGAS: CHERI_BGAS_Top_Sim.bsv $(SRCS) $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(BLUEUNIXBRIDGESDIR)/BlueUnixFifo.c TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
+$(SIMDIR)/sim_CHERI_BGAS: CHERI_BGAS_Top_Sim.bsv $(TOPFILE_BO) $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(BLUEUNIXBRIDGESDIR)/BlueUnixFifo.c TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
 	mkdir -p $(BDIR)
 	mkdir -p $(SIMDIR)
 	$(BSC) $(BSCFLAGS) $(BSCSIMFLAGS) -sim -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
@@ -156,7 +171,7 @@ $(VDIR)/mkCHERI_BGAS_Top_Sim.v: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 	mkdir -p $(VDIR)
 	$(BSC) $(BSCFLAGS) $(BSCVERILOGFLAGS) -verilog -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
 
-$(VDIR)/mkCHERI_BGAS_Top_Sig.v: $(SRCS) TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
+$(VDIR)/mkCHERI_BGAS_Top_Sig.v: $(TOPFILE_BO) TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
 	mkdir -p $(BDIR)
 	mkdir -p $(VDIR)
 	$(BSC) $(BSCFLAGS) $(BSCVERILOGFLAGS) -verilog -g mkCHERI_BGAS_Top_Sig -u CHERI_BGAS_Top.bsv
