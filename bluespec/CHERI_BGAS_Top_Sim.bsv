@@ -139,7 +139,7 @@ module mkCHERI_BGAS_Top_Sim (Empty);
   AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
               , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
               , `DRAM_ARUSER, `DRAM_RUSER )
-  fakeDDRB <- mkAXI4Mem (268435456, Valid("/tmp/mem.hex"));
+  fakeDDRB <- mkAXI4Mem (1073741824, Valid("/tmp/mem.hex"));
   mkConnection ( cheri_bgas_top.axm_ddrb
                , debugAXI4_Slave (fakeDDRB, $format ("ddrb")));
   AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
