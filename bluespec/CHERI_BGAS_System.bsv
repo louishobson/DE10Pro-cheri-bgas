@@ -360,12 +360,11 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   // (Has both a control interface and a virtualised interface;
   // The control interface for AXI4 lite, and virtualised for Toooba MMIO.
   // The virtual device does not support bursts.)
-  VirtualDeviceIfc#(t_bus_sid,t_axil_sub_addr,TMul#(t_axil_sub_data,2)) virtDev <- mkVirtualDevice (reset_by newRst.new_rst);
-  t_axil_full_shim virtDevShim <- mkAXI4ShimFF (reset_by newRst.new_rst);
-  t_axil_virt_dev_mngr virtDevMngtMaster <- toWider_AXI4_Master(virtDevShim.master, reset_by newRst.new_rst);
-  mkConnection(virtDevMngtMaster, virtDev.mngt, reset_by newRst.new_rst);
+  VirtualDeviceIfc#(t_bus_sid,t_axil_sub_addr,t_axil_sub_data,
+                    t_bus_sid,Wd_Addr,Wd_Data)
+    virtDev <- mkVirtualDevice (reset_by newRst.new_rst);
   let ctrSubVirtDevCtrl =
-        tuple2 (fromAXI4ToAXI4Lite_Slave(virtDevShim.slave), Range { base: 'h0000_8000, size: 'h0000_4000 });
+        tuple2 (fromAXI4ToAXI4Lite_Slave(virtDev.mngt), Range { base: 'h0000_8000, size: 'h0000_4000 });
 
   // Outgoing interconnect
   //////////////////////////////////////////////////////////////////////////////
@@ -441,7 +440,7 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   ss[3] = uart0_s;
   ss[4] = uart1_s;
   ss[5] = fakeBootRomDeBurst.slave;
-  ss[6] = truncate_AXI4_Slave_addr (virtDev.virt);
+  ss[6] = virtDev.virt;
 
   // build route
   function Vector #(7, Bool) route (Bit #(Wd_Addr) addr);
