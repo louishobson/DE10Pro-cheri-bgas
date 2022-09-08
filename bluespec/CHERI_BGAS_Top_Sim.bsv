@@ -80,205 +80,6 @@ import DE10Pro_bsv_shell :: *;
 `define DRAM_ARUSER   0
 `define DRAM_RUSER    0
 
-/*
-// AXI4Lite control port driver
-////////////////////////////////////////////////////////////////////////////////
-
-module mkAXILiteDriver (AXI4Lite_Master #( `H2F_LW_ADDR
-                                         , `H2F_LW_DATA
-                                         , `H2F_LW_AWUSER
-                                         , `H2F_LW_WUSER
-                                         , `H2F_LW_BUSER
-                                         , `H2F_LW_ARUSER
-                                         , `H2F_LW_RUSER ));
-
-  // general helpers
-  //////////////////////////////////////////////////////////////////////////////
-
-  let delayReg <- mkRegU;
-  function recipeDelay (delay) = rSeq ( rBlock (
-    action delayReg <= delay; endaction
-    , rWhile ( delayReg > 0, rAct ( action delayReg <= delayReg - 1; endaction))
-  ));
-
-  let shim <- mkAXI4LiteShim;
-
-  let readRegRes <- mkRegU; // reg used by reads and writes for return values.
-                            // Must be explicitly handled by the caller
-
-  function readReg (verbosity, addr) = rSeq ( rBlock (
-      rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Starting readReg, addr = "
-                             , $time
-                             , fshow (addr))))
-    , shim.slave.ar.put (AXI4Lite_ARFlit { araddr: addr
-                                         , arprot: 0
-                                         , aruser: 0 })
-    , action
-        let val <- get (shim.slave.r);
-        readRegRes <= val.rdata;
-      endaction
-    , rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Ended readReg, value returned = "
-                             , $time
-                             , fshow (readRegRes))))
-    ) );
-  function writeReg (verbosity, addr, data) = rSeq ( rBlock (
-      rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Starting writeReg, addr = "
-                             , $time
-                             , fshow (addr)
-                             , ", data = "
-                             , fshow (data))))
-    , action
-        shim.slave.aw.put (AXI4Lite_AWFlit { awaddr: addr
-                                           , awprot: 0
-                                           , awuser: 0 });
-        shim.slave.w.put (AXI4Lite_WFlit { wdata: data
-                                         , wstrb: ~0
-                                         , wuser: 0 });
-      endaction
-    , shim.slave.b.drop
-    , rWhen ( verbosity > 0
-            , rAct ($display ("%0t - Ended writeReg", $time)))
-    ) );
-
-  // Debug unit helpers
-  //////////////////////////////////////////////////////////////////////////////
-
-  let debugBaseAddr = 32'hf9000000;
-  function debugUnitReadReg (verbosity, idx) =
-    readReg (verbosity, debugBaseAddr + zeroExtend ({idx, 2'b00}));
-  function debugUnitWriteReg (verbosity, idx, data) =
-    writeReg (verbosity, debugBaseAddr + zeroExtend ({idx, 2'b00}), data);
-
-  function Recipe debugUnitSendHalt (Integer verbosity) =
-    rSeq ( rBlock (
-      rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Starting debugUnitSendHalt"
-                             , $time )))
-    , debugUnitWriteReg (verbosity - 1, 7'h10, 'h80000001)
-    , debugUnitReadReg (verbosity - 1, 7'h11)
-    , rWhile ( readRegRes[8] == 1'b0
-             , debugUnitReadReg (verbosity - 1, 7'h11) )
-    , rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Ended debugUnitSendHalt, value returned = "
-                             , $time
-                             , fshow (readRegRes))))
-    ) );
-
-  function Recipe debugUnitSendResume (Integer verbosity) =
-    rSeq ( rBlock (
-      rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Starting debugUnitSendResume"
-                             , $time )))
-    , debugUnitWriteReg (verbosity - 1, 7'h10, 'h40000001)
-    , debugUnitReadReg (verbosity - 1, 7'h11)
-    , rWhile ( readRegRes[10] == 1'b0
-             , debugUnitReadReg (verbosity - 1, 7'h11) )
-    , rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Ended debugUnitSendResume, value returned = "
-                             , $time
-                             , fshow (readRegRes))))
-    ) );
-
-  function Recipe debugUnitSendReset (Integer verbosity, Bool running) =
-    rSeq ( rBlock (
-      rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Starting debugUnitSendReset, running = "
-                             , $time
-                             , fshow (running))))
-    , debugUnitSendHalt (verbosity - 1)
-    , debugUnitWriteReg (verbosity - 1, 7'h10, running ? 'h00000003 : 'h80000003)
-    , recipeDelay (5)
-    , debugUnitWriteReg (verbosity - 1, 7'h10, running ? 'h00000001 : 'h80000001)
-    , recipeDelay (500)
-    , debugUnitReadReg (verbosity - 1, 7'h11)
-    , rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Ended debugUnitSendReset, value returned = "
-                             , $time
-                             , fshow (readRegRes))))
-    ) );
-
-  function Recipe debugUnitSendMemRead (Integer verbosity, Bit #(64) addr) =
-    rSeq ( rBlock (
-      rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Starting debugUnitSendMemRead, addr = "
-                             , $time
-                             , fshow (addr))))
-    , debugUnitWriteReg (verbosity - 1, 7'h17, 'h003207b0)
-    , debugUnitWriteReg (verbosity - 1, 7'h38, 'h00150000)
-    , debugUnitWriteReg (verbosity - 1, 7'h3a, truncateLSB (addr))
-    , debugUnitWriteReg (verbosity - 1, 7'h39, truncate (addr))
-    , debugUnitReadReg (verbosity - 1, 7'h3c)
-    , rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Ended debugUnitSendMemRead, value returned = "
-                             , $time
-                             , fshow (readRegRes))))
-    ) );
-
-  function Recipe debugUnitSendMemWrite ( Integer verbosity
-                                      , Bit #(64) addr
-                                      , Bit #(32) data) =
-    rSeq ( rBlock (
-      rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Starting debugUnitSendMemWrite, addr = "
-                             , $time
-                             , fshow (addr)
-                             , ", data = "
-                             , fshow (data))))
-    , debugUnitWriteReg (verbosity - 1, 7'h17, 'h003207b0)
-    , debugUnitWriteReg (verbosity - 1, 7'h38, 'h00050000)
-    , debugUnitWriteReg (verbosity - 1, 7'h3a, truncateLSB (addr))
-    , debugUnitWriteReg (verbosity - 1, 7'h39, truncate (addr))
-    , debugUnitWriteReg (verbosity - 1, 7'h3c, data)
-    , debugUnitReadReg (verbosity - 1, 7'h38)
-    , rWhen ( verbosity > 0
-            , rAct ($display ( "%0t - Ended debugUnitSendMemWrite, value returned = "
-                             , $time
-                             , fshow (readRegRes))))
-    ) );
-
-  // fake 16550 helpers
-  //////////////////////////////////////////////////////////////////////////////
-
-  let fake16550BaseAddr = 32'hf9030000;
-  function fake16550ReadReg (verbosity, idx) =
-    readReg (verbosity, fake16550BaseAddr + zeroExtend (idx));
-  function fake16550WriteReg (verbosity, idx, data) =
-    writeReg (verbosity, fake16550BaseAddr + zeroExtend (idx), data);
-  function fake16550ReceiveData (verbosity) =
-    readReg (verbosity, fake16550BaseAddr + zeroExtend (4'h0));
-  function fake16550TransmitData (verbosity, data) =
-    writeReg (verbosity, fake16550BaseAddr + zeroExtend (4'h0), data);
-
-  // Instantiate top recipe
-  //////////////////////////////////////////////////////////////////////////////
-
-  Integer verbosity = 2;
-  PulseWire done <- mkPulseWire;
-  // Set the "AXILiteSimRecipe.bsv" simlink to the "*.AXILiteSimRecipe.bsv" of
-  // choice (a "*.AXILiteSimRecipe.bsv" file must define a single `Recipe r`).
-  `include "AXILiteSimRecipe.bsv"
-  RecipeFSM m <- mkRecipeFSM (r);
-  // Start runing the recipe
-  rule run;
-    $display("starting at time %0t", $time);
-    $display("------------------------------------------");
-    m.trigger;
-  endrule
-
-  // On the recipe's last cyle, terminate simulation
-  rule endSim (done);
-    $display("------------------------------------------");
-    $display("finishing at time %0t", $time);
-    $finish(0);
-  endrule
-  return debugAXI4Lite_Master ( truncate_AXI4Lite_Master_addr (shim.master)
-                              , $format ("axilite driver"));
-endmodule
-*/
-
 // Simulation toplevel module
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -289,28 +90,28 @@ module mkCHERI_BGAS_Top_Sim (Empty);
 
   // unix FIFOs for the router ports
   Sink #(Bit #(512))
-    northTX <- mkUnixFifoSink ("simports/bgas-global-ports/north/txSource");
+    northTX <- mkUnixFifoSink ("simports/bgas-global-ports/north/tx");
   mkConnection (cheri_bgas_top.tx_north, northTX);
   Sink #(Bit #(512))
-    eastTX <- mkUnixFifoSink ("simports/bgas-global-ports/east/txSource");
+    eastTX <- mkUnixFifoSink ("simports/bgas-global-ports/east/tx");
   mkConnection (cheri_bgas_top.tx_east, eastTX);
   Sink #(Bit #(512))
-    southTX <- mkUnixFifoSink ("simports/bgas-global-ports/south/txSource");
+    southTX <- mkUnixFifoSink ("simports/bgas-global-ports/south/tx");
   mkConnection (cheri_bgas_top.tx_south, southTX);
   Sink #(Bit #(512))
-    westTX <- mkUnixFifoSink ("simports/bgas-global-ports/west/txSource");
+    westTX <- mkUnixFifoSink ("simports/bgas-global-ports/west/tx");
   mkConnection (cheri_bgas_top.tx_west, westTX);
   Source #(Bit #(512))
-    northRX <- mkUnixFifoSource ("simports/bgas-global-ports/north/rxSink");
+    northRX <- mkUnixFifoSource ("simports/bgas-global-ports/north/rx");
   mkConnection (cheri_bgas_top.rx_north, northRX);
   Source #(Bit #(512))
-    eastRX <- mkUnixFifoSource ("simports/bgas-global-ports/east/rxSink");
+    eastRX <- mkUnixFifoSource ("simports/bgas-global-ports/east/rx");
   mkConnection (cheri_bgas_top.rx_east, eastRX);
   Source #(Bit #(512))
-    southRX <- mkUnixFifoSource ("simports/bgas-global-ports/south/rxSink");
+    southRX <- mkUnixFifoSource ("simports/bgas-global-ports/south/rx");
   mkConnection (cheri_bgas_top.rx_south, southRX);
   Source #(Bit #(512))
-    westRX <- mkUnixFifoSource ("simports/bgas-global-ports/west/rxSink");
+    westRX <- mkUnixFifoSource ("simports/bgas-global-ports/west/rx");
   mkConnection (cheri_bgas_top.rx_west, westRX);
 
   // H2F_LW port
@@ -343,19 +144,22 @@ module mkCHERI_BGAS_Top_Sim (Empty);
               , `DRAM_ARUSER, `DRAM_RUSER )
     fakeDDRB <- mkAXI4Mem (4096, Nothing);
   mkConnection ( cheri_bgas_top.axm_ddrb
-               , debugAXI4_Slave (fakeDDRB, $format ("ddrb")));
+               //, debugAXI4_Slave (fakeDDRB, $format ("ddrb")));
+               , fakeDDRB );
   AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
               , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
               , `DRAM_ARUSER, `DRAM_RUSER )
     fakeDDRC <- mkAXI4Mem (4096, Nothing);
   mkConnection ( cheri_bgas_top.axm_ddrc
-               , debugAXI4_Slave (fakeDDRC, $format ("ddrc")));
+               //, debugAXI4_Slave (fakeDDRC, $format ("ddrc")));
+               , fakeDDRC );
   AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
               , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
               , `DRAM_ARUSER, `DRAM_RUSER )
     fakeDDRD <- mkAXI4Mem (4096, Nothing);
   mkConnection ( cheri_bgas_top.axm_ddrd
-               , debugAXI4_Slave (fakeDDRD, $format ("ddrd")));
+               //, debugAXI4_Slave (fakeDDRD, $format ("ddrd")));
+               , fakeDDRD );
 endmodule
 
 endpackage

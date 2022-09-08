@@ -11,6 +11,7 @@ import GHC.IO.Handle
 import System.IO
 import Control.Concurrent
 import System.Process
+import System.Posix.Signals
 import System.Directory
 import System.Environment
 import System.Console.GetOpt
@@ -27,8 +28,10 @@ data CHERI_BGAS_Sim_Instance = CHERI_BGAS_Sim_Instance {
   , path_sim_folder :: String
   , cmd_cheri_bgas_sim :: String
   , cmd_cheri_bgas_devfs :: String
+  , cmd_gdbstub :: String
   , sim_handles :: (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
   , devfs_handles :: (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
+  , gdbstub_handles :: (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
 }
 
 data CHERI_BGAS_Sim_Connection = CHERI_BGAS_Sim_Connection {
@@ -40,36 +43,64 @@ data CHERI_BGAS_Sim_Connection = CHERI_BGAS_Sim_Connection {
 }
 
 spawn_CHERI_BGAS_Sim_Instance :: Verbosity
-                              -> (Int, Int) -> String -> String -> String
+                              -> (Int, Int) -> Int
+                              -> String -> String -> String -> String
                               -> IO (CHERI_BGAS_Sim_Instance)
-spawn_CHERI_BGAS_Sim_Instance v (x, y) dir simCmd devfsCmd = do
+spawn_CHERI_BGAS_Sim_Instance v (x, y) pBase dir simCmd devfsCmd gdbstubCmd = do
   lvlPrint 2 v $ "Creating directory " ++ dir
   createDirectoryIfMissing True dir
   withCurrentDirectory dir do
-    let simProc = proc simCmd []
+
     simStdout <- openFile ("sim_stdout") AppendMode
     simStderr <- openFile ("sim_stderr") AppendMode
+    let simProc = (proc simCmd []) {
+        std_in = CreatePipe --NoStream
+      , std_out = UseHandle simStdout
+      , std_err = UseHandle simStderr
+      }
     lvlPrint 2 v $ "Spawning simulator: " ++ show simProc
-    simHandles <- createProcess simProc { std_in = CreatePipe
-                                        , std_out = UseHandle simStdout
-                                        , std_err = UseHandle simStderr }
-    let devfsProc = proc devfsCmd ["simports/", "simdev/"]
+    simHandles <- createProcess simProc
+
+    threadDelay 50000
+
     devfsStdout <- openFile ("devfs_stdout") AppendMode
     devfsStderr <- openFile ("devfs_stderr") AppendMode
+    let devfsDir = "simdev/"
+    createDirectoryIfMissing True devfsDir
+    let devfsProc = (proc devfsCmd ["simports/", devfsDir]) {
+        std_in = CreatePipe --NoStream
+      , std_out = UseHandle devfsStdout
+      , std_err = UseHandle devfsStderr
+      }
     lvlPrint 2 v $ "Spawning devfs: " ++ show devfsProc
-    devfsHandles <- createProcess devfsProc { std_in = CreatePipe
-                                            , std_out = UseHandle devfsStdout
-                                            , std_err = UseHandle devfsStderr }
-    --threadDelay 1000000
-    threadDelay 100000
+    devfsHandles <- createProcess devfsProc
+
+    threadDelay 50000
+
+    gdbstubStdout <- openFile ("gdbstub_stdout") AppendMode
+    gdbstubStderr <- openFile ("gdbstub_stderr") AppendMode
+    let fmemDev = "simdev/debug_unit"
+    let port = pBase + 100 * x + y
+    let gdbstubProc = (proc gdbstubCmd []) {
+        std_in = CreatePipe --NoStream
+        , std_out = UseHandle gdbstubStdout
+        , std_err = UseHandle gdbstubStderr
+        , env = Just [ ("RISCV_GDB_STUB_FMEM_DEV", fmemDev)
+                     , ("RISCV_GDB_STUB_PORT", show port) ]
+      }
+    lvlPrint 2 v $ "Spawning gdbstub: " ++ show gdbstubProc
+    gdbstubHandles <- createProcess gdbstubProc
+
     return CHERI_BGAS_Sim_Instance {
         x = x
       , y = y
       , path_sim_folder = dir
       , cmd_cheri_bgas_sim = simCmd
       , cmd_cheri_bgas_devfs = devfsCmd
+      , cmd_gdbstub = gdbstubCmd
       , sim_handles = simHandles
       , devfs_handles = devfsHandles
+      , gdbstub_handles = gdbstubHandles
     }
 
 spawn_CHERI_BGAS_Sim_Connection :: Verbosity
@@ -130,7 +161,7 @@ spawn_CHERI_BGAS_Sim_Connection v cmd simFolder insts ((x0, y0), (x1, y1)) = do
             connStderr <- openFile ("conn_stderr") AppendMode
             lvlPrint 2 v $ "Spawning connection: " ++ show p
             handles@(_, _, _, ph) <-
-              createProcess p { std_in = CreatePipe
+              createProcess p { std_in = CreatePipe --NoStream
                               , std_out = UseHandle connStdout
                               , std_err = UseHandle connStderr }
             Just pid <- getPid ph
@@ -140,6 +171,7 @@ spawn_CHERI_BGAS_Sim_Connection v cmd simFolder insts ((x0, y0), (x1, y1)) = do
 cleanup_CHERI_BGAS_Sim_Instance :: Verbosity -> CHERI_BGAS_Sim_Instance -> IO ()
 cleanup_CHERI_BGAS_Sim_Instance v CHERI_BGAS_Sim_Instance {..} = do
   lvlPrint 2 v $ "Cleaning sim instance"
+  cleanupProcess gdbstub_handles
   cleanupProcess devfs_handles
   cleanupProcess sim_handles
 
@@ -156,6 +188,7 @@ data Options = Options {
     verbosity  :: Int
   , simCmd     :: String
   , devfsCmd   :: String
+  , gdbstubCmd :: String
   , connectCmd :: String
   , runFolder  :: String
   , topology   :: (Int, Int)
@@ -166,6 +199,7 @@ defaultOptions = Options {
     verbosity = 0
   , simCmd = "../build/simdir/sim_CHERI_BGAS"
   , devfsCmd = "./cheri-bgas-fuse-devfs/cheri-bgas-fuse-devfs"
+  , gdbstubCmd = "./RISCV_gdbstub/src/main"
   , connectCmd = "./forever-splice/forever-splice"
   , runFolder = "./sim-cheri-bgas"
   , topology = (1,1)
@@ -185,6 +219,9 @@ options = [
   , Option ['d'] ["devfs-bin-path"]
            (ReqArg (\x opts -> opts { devfsCmd = x }) "DEVFS_BIN_PATH")
            "Specify path to the devfs binary"
+  , Option ['g'] ["gdbstub-bin-path"]
+           (ReqArg (\x opts -> opts { gdbstubCmd = x }) "GDBSTUB_BIN_PATH")
+           "Specify path to the gdb stub binary"
   , Option ['c'] ["connect-bin-path"]
            (ReqArg (\x opts -> opts { devfsCmd = x }) "CONNECT_BIN_PATH")
            "Specify path to the command to connect instances"
@@ -214,6 +251,7 @@ main = do
   runFolder <- makeAbsolute opts.runFolder
   simCmd <- makeAbsolute opts.simCmd
   devfsCmd <- makeAbsolute opts.devfsCmd
+  gdbstubCmd <- makeAbsolute opts.gdbstubCmd
   connectCmd <- makeAbsolute opts.connectCmd
   let (width, height) = opts.topology
   let simFolder x y = runFolder ++ "/sim_" ++ show x ++ "_" ++ show y
@@ -224,7 +262,8 @@ main = do
   createDirectoryIfMissing True runFolder
   lvlPrint 1 v $ ">> Creating simulator instances"
   insts <- forM coords \(x, y) ->
-    spawn_CHERI_BGAS_Sim_Instance v (x, y) (simFolder x y) simCmd devfsCmd
+    spawn_CHERI_BGAS_Sim_Instance v (x, y) 80000 (simFolder x y)
+                                    simCmd devfsCmd gdbstubCmd
   let instsMap = Map.fromList [ ((x, y), inst)
                               | inst@CHERI_BGAS_Sim_Instance{..} <- insts ]
   lvlPrint 1 v $ ">> Simulator instances created"
@@ -233,11 +272,25 @@ main = do
     spawn_CHERI_BGAS_Sim_Connection v connectCmd runFolder instsMap conn
   lvlPrint 1 v $ ">> Simulator connections created"
 
-  -- lvlPrint 1 v $ ">> Destroying simulator connections"
-  -- forM_ conns \conn -> cleanup_CHERI_BGAS_Sim_Connection v conn
-  -- lvlPrint 1 v $ ">> Simulator connections destroyed"
-  -- lvlPrint 1 v $ ">> Destroying simulator instances"
-  -- forM_ insts \inst -> cleanup_CHERI_BGAS_Sim_Instance v inst
-  -- lvlPrint 1 v $ ">> Simulator instances destroyed"
+  tid <- myThreadId
+  let cleanup = do
+        lvlPrint 1 v $ ">> Destroying simulator connections"
+        forM_ conns \conn -> cleanup_CHERI_BGAS_Sim_Connection v conn
+        lvlPrint 1 v $ ">> Simulator connections destroyed"
+        lvlPrint 1 v $ ">> Destroying simulator instances"
+        forM_ insts \inst -> cleanup_CHERI_BGAS_Sim_Instance v inst
+        lvlPrint 1 v $ ">> Simulator instances destroyed"
+        killThread tid
+  lvlPrint 1 v $ ">> Install signal handler"
+  installHandler keyboardSignal (Catch cleanup) Nothing
+  installHandler sigKILL (Catch cleanup) Nothing
+  installHandler sigQUIT (Catch cleanup) Nothing
+  installHandler sigTERM (Catch cleanup) Nothing
+
+  -- the line bellow does not seam to behave
+  -- awaitSignal Nothing
+  -- using this instead:
+  let foreverDoomed = foreverDoomed
+  foreverDoomed
 
   return ()
