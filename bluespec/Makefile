@@ -36,11 +36,11 @@ SRCS  = CHERI_BGAS_Top.bsv
 # relevant folders
 DE10PROBSVSHELLDIR ?= $(CURDIR)/DE10Pro-bsv-shell
 COREDIR ?= $(CURDIR)/Toooba
-COREW_DIRS = $(COREDIR)/src_Core/Core:$(COREDIR)/src_Core/CPU:$(COREDIR)/src_Core/ISA:$(COREDIR)/src_Core/PLIC:$(COREDIR)/src_Core/Debug_Module:$(COREDIR)/src_Core/BSV_Additional_Libs:$(COREDIR)/src_Core/RISCY_OOO/procs/RV64G_OOO:$(COREDIR)/src_Core/RISCY_OOO/procs/lib:$(COREDIR)/src_Core/RISCY_OOO/coherence/src:$(COREDIR)/src_Core/RISCY_OOO/fpgautils/lib
+COREW_DIRS = $(COREDIR)/src_Core/Core:$(COREDIR)/src_Core/CPU:$(COREDIR)/src_Core/ISA:$(COREDIR)/src_Core/PLIC:$(COREDIR)/src_Core/Debug_Module:$(COREDIR)/src_Core/BSV_Additional_Libs:$(COREDIR)/src_Core/RISCY_OOO/procs/RV64G_OOO:$(COREDIR)/src_Core/RISCY_OOO/procs/lib:$(COREDIR)/src_Core/RISCY_OOO/coherence/src:$(COREDIR)/src_Core/RISCY_OOO/fpgautils/lib:$(COREDIR)/src_Verifier/BSV-RVFI-DII
 WINDCOREIFCDIR ?= $(COREDIR)/libs/WindCoreInterface
 CHERICAPLIBDIR ?= $(COREDIR)/libs/cheri-cap-lib
 TAGCONTROLLERDIR ?= $(COREDIR)/libs/TagController
-VIRTUALDEVICE_DIRS ?= $(CURDIR)/VirtualDevice:$(CURDIR)/VirtualDevice/BSV-RVFI-DII
+VIRTUALDEVICE_DIRS ?= $(CURDIR)/VirtualDevice
 RISCVHPMEVENTSDIR ?= $(COREDIR)/libs/RISCV_HPM_Events
 TAGCONTROLLER_DIRS = $(TAGCONTROLLERDIR)/TagController:$(TAGCONTROLLERDIR)/TagController/CacheCore
 BLUESTUFFDIR ?= $(COREDIR)/libs/BlueStuff
