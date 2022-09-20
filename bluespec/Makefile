@@ -31,12 +31,12 @@ BLUESPECDIR ?= $(shell which $(BSC) | xargs dirname | xargs dirname)/lib
 
 NB_SYSTEMS ?= 1
 
-SRCS  = CHERI_BGAS_Top.bsv
+TOPFILE = $(CURDIR)/CHERI_BGAS_Top.bsv
 
 # relevant folders
 DE10PROBSVSHELLDIR ?= $(CURDIR)/DE10Pro-bsv-shell
 COREDIR ?= $(CURDIR)/Toooba
-COREW_DIRS = $(COREDIR)/src_Core/Core:$(COREDIR)/src_Core/CPU:$(COREDIR)/src_Core/ISA:$(COREDIR)/src_Core/PLIC:$(COREDIR)/src_Core/Debug_Module:$(COREDIR)/src_Core/BSV_Additional_Libs:$(COREDIR)/src_Core/RISCY_OOO/procs/RV64G_OOO:$(COREDIR)/src_Core/RISCY_OOO/procs/lib:$(COREDIR)/src_Core/RISCY_OOO/coherence/src:$(COREDIR)/src_Core/RISCY_OOO/fpgautils/lib:$(COREDIR)/src_Verifier/BSV-RVFI-DII
+COREW_DIRS = $(COREDIR)/src_Core/Core:$(COREDIR)/src_Verifier/BSV-RVFI-DII:$(COREDIR)/src_Core/CPU:$(COREDIR)/src_Core/ISA:$(COREDIR)/src_Core/PLIC:$(COREDIR)/src_Core/Debug_Module:$(COREDIR)/src_Core/BSV_Additional_Libs:$(COREDIR)/src_Core/RISCY_OOO/procs/RV64G_OOO:$(COREDIR)/src_Core/RISCY_OOO/procs/lib:$(COREDIR)/src_Core/RISCY_OOO/coherence/src:$(COREDIR)/src_Core/RISCY_OOO/fpgautils/lib
 WINDCOREIFCDIR ?= $(COREDIR)/libs/WindCoreInterface
 CHERICAPLIBDIR ?= $(COREDIR)/libs/cheri-cap-lib
 TAGCONTROLLERDIR ?= $(COREDIR)/libs/TagController
@@ -52,6 +52,12 @@ BLUEUTILSDIR = $(BLUESTUFFDIR)/BlueUtils
 BLUESTUFF_DIRS = $(BLUESTUFFDIR):$(BLUEAXI4DIRS):$(BLUEBASICSDIR):$(BLUEUTILSDIR):$(BLUESTUFFDIR)/Stratix10ChipID
 RECIPEDIR = $(CURDIR)/Recipe
 
+# generated files directories
+BUILDDIR ?= $(CURDIR)/build
+BDIR ?= $(BUILDDIR)/bdir
+SIMDIR ?= $(BUILDDIR)/simdir
+VDIR ?= $(CURDIR)/verilogdir
+VERILATORDIR ?= $(CURDIR)/verilatordir
 
 # search path for bsc imports
 BSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(WINDCOREIFCDIR):$(RISCVHPMEVENTSDIR):$(CHERICAPLIBDIR):$(TAGCONTROLLER_DIRS):$(COREW_DIRS):$(BLUESTUFF_DIRS):$(VIRTUALDEVICE_DIRS)
@@ -85,6 +91,9 @@ BSCFLAGS += -aggressive-conditions
 BSCFLAGS += -no-warn-action-shadowing
 BSCFLAGS += -suppress-warnings G0020
 # CHERI / Tag Controller conf and flags
+ifneq ($(filter bluesim,$(MAKECMDGOALS)),)
+BSCFLAGS += -D NO_TAGTABLE_ZEROING -D BSIM -D RVFI
+endif
 BSCFLAGS += -D CheriMasterIDWidth=1
 BSCFLAGS += -D CheriTransactionIDWidth=6
 BSCFLAGS += -D USECAP
@@ -96,12 +105,7 @@ TAGS_ALIGN = 32
 # CHERI BGAS flags
 BSCFLAGS += -D NB_CHERI_BGAS_SYSTEMS=$(NB_SYSTEMS)
 
-# generated files directories
-BUILDDIR ?= $(CURDIR)/build
-BDIR ?= $(BUILDDIR)/bdir
-SIMDIR ?= $(BUILDDIR)/simdir
-VDIR ?= $(CURDIR)/verilogdir
-VERILATORDIR ?= $(CURDIR)/verilatordir
+TOPFILE_BO = $(BDIR)/$(patsubst %.bsv,%.bo,$(notdir $(TOPFILE)))
 
 BSCFLAGS += -bdir $(BDIR)
 BSCFLAGS += +RTS -K128M -RTS
@@ -110,21 +114,34 @@ BSCFLAGS += +RTS -K128M -RTS
 #BSCFLAGS += -show-range-conflict
 #BSCFLAGS += -show-rule-rel \* \*
 #BSCFLAGS += -steps-warn-interval n
-BSCSIMFLAGS = -simdir $(SIMDIR)
-BSCSIMFLAGS += -D NO_TAGTABLE_ZEROING -D BSIM -D RVFI
+BSCBSIMFLAGS = -simdir $(SIMDIR)
 BSCVERILOGFLAGS = -vdir $(VDIR)
 BSCVERILOGFLAGS += -unspecified-to X
 BSCVERILOGFLAGS += -opt-undetermined-vals
+
+ifeq (,$(filter clean mrproper,$(MAKECMDGOALS)))
+include .depends.mk
+
+.depends.mk: TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv | $(BDIR)
+	if ! bluetcl -exec makedepend -elab $(BSCFLAGS) -o $@ $(TOPFILE); then rm -f $@ && false; fi
+endif
+
+$(BDIR):
+	mkdir -p $(BDIR)
+
+$(BDIR)/%.bo:
+	$(info building $@)
+	bsc -elab $(BSCFLAGS) $<
 
 rtl: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 
 bluesim: $(SIMDIR)/sim_CHERI_BGAS
 
-$(SIMDIR)/sim_CHERI_BGAS: CHERI_BGAS_Top_Sim.bsv $(SRCS) $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(BLUEUNIXBRIDGESDIR)/BlueUnixFifo.c TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
+$(SIMDIR)/sim_CHERI_BGAS: CHERI_BGAS_Top_Sim.bsv $(TOPFILE_BO) $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(BLUEUNIXBRIDGESDIR)/BlueUnixFifo.c TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
 	mkdir -p $(BDIR)
 	mkdir -p $(SIMDIR)
-	$(BSC) $(BSCFLAGS) $(BSCSIMFLAGS) -sim -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
-	$(BSC) $(BSCFLAGS) $(BSCSIMFLAGS) -sim -e mkCHERI_BGAS_Top_Sim -u -o $@ $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(BLUEUNIXBRIDGESDIR)/BlueUnixFifo.c
+	$(BSC) $(BSCFLAGS) $(BSCBSIMFLAGS) -sim -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
+	$(BSC) $(BSCFLAGS) $(BSCBSIMFLAGS) -sim -e mkCHERI_BGAS_Top_Sim -u -o $@ $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(BLUEUNIXBRIDGESDIR)/BlueUnixFifo.c
 
 verilatorsim: $(VDIR)/mkCHERI_BGAS_Top_Sim.v CHERI_BGAS_Top_verilator_sim.cpp
 	$(eval TMP_V := $(shell mktemp -t mkCHERI_BGAS_Top_Sim_edited_XXXX.v))
@@ -157,7 +174,7 @@ $(VDIR)/mkCHERI_BGAS_Top_Sim.v: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 	mkdir -p $(VDIR)
 	$(BSC) $(BSCFLAGS) $(BSCVERILOGFLAGS) -verilog -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
 
-$(VDIR)/mkCHERI_BGAS_Top_Sig.v: $(SRCS) TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
+$(VDIR)/mkCHERI_BGAS_Top_Sig.v: $(TOPFILE_BO) TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
 	mkdir -p $(BDIR)
 	mkdir -p $(VDIR)
 	$(BSC) $(BSCFLAGS) $(BSCVERILOGFLAGS) -verilog -g mkCHERI_BGAS_Top_Sig -u CHERI_BGAS_Top.bsv

@@ -1,7 +1,7 @@
 [submodule "bluespec/Toooba"]
 	path = bluespec/Toooba
 	url = https://github.com/CTSRD-CHERI/Toooba.git
-	branch = wip-aj443-WindCoreInterface
+	branch = CHERI
 [submodule "bluespec/DE10Pro-bsv-shell"]
 	path = bluespec/DE10Pro-bsv-shell
 	url = https://github.com/POETSII/DE10Pro-bsv-shell.git
@@ -15,5 +15,11 @@
 	path = bluespec/VirtualDevice
 	url = https://github.com/jonwoodruff/VirtualDevice
 [submodule "bluespec/cheri-bgas-fuse-devfs"]
-	path = bluespec/cheri-bgas-fuse-devfs
+	path = bluespec/sim-utils/cheri-bgas-fuse-devfs
 	url = https://github.com/CTSRD-CHERI/cheri-bgas-fuse-devfs.git
+[submodule "bluespec/sim-utils/RISCV_gdbstub"]
+	path = bluespec/sim-utils/RISCV_gdbstub
+	url = https://github.com/CTSRD-CHERI/RISCV_gdbstub.git
+[submodule "bluespec/sim-utils/forever-splice"]
+	path = bluespec/sim-utils/forever-splice
+	url = https://github.com/CTSRD-CHERI/forever-splice.git

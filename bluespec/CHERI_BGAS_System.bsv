@@ -33,10 +33,8 @@ package CHERI_BGAS_System;
 import Vector :: *;
 import Clocks :: *;
 import Connectable :: *;
-import AXI4 :: *;
-import AXI4Lite :: *;
+import BlueAXI4 :: *;
 import AXI4_Fake_16550 :: *;
-import AXI4_AXI4Lite_Bridges :: *;
 import Routable :: *;
 import SourceSink :: *;
 import Fabric_Defs :: *;
@@ -233,11 +231,13 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
                t_axil_sub_addr, t_axil_sub_data
              , t_axil_sub_awuser, t_axil_sub_wuser, t_axil_sub_buser
              , t_axil_sub_aruser, t_axil_sub_ruser ))
-  , Alias #(t_axil_virt_dev_mngr, AXI4_Master #(
+  , Alias #( t_axil_virt_dev_mngr
+           , AXI4_Master #(
                t_bus_sid, t_axil_sub_addr, TMul#(t_axil_sub_data,2)
              , t_axil_sub_awuser, t_axil_sub_wuser, t_axil_sub_buser
              , t_axil_sub_aruser, t_axil_sub_ruser ))
-  , Alias #(t_axil_full_shim, AXI4_Shim #(
+  , Alias #( t_axil_full_shim
+           , AXI4_Shim #(
                t_bus_sid, t_axil_sub_addr, t_axil_sub_data
              , t_axil_sub_awuser, t_axil_sub_wuser, t_axil_sub_buser
              , t_axil_sub_aruser, t_axil_sub_ruser ))
@@ -354,17 +354,18 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   match {.h2fAddrCtrlSub, .h2fAddrCtrlRO} = h2fCtrlIfcs;
   // ctrl sub entry
   let ctrSubH2FAddrCtrl =
-        tuple2 (h2fAddrCtrlSub, Range { base: 'h0000_5000, size: 'h0000_1000 });
-  
-  // virtual device for emulating control registers, e.g. for virtio.
+    tuple2 (h2fAddrCtrlSub, Range { base: 'h0000_5000, size: 'h0000_1000 });
+
+  // Virtual device for emulating control registers, e.g. for virtio.
   // (Has both a control interface and a virtualised interface;
   // The control interface for AXI4 lite, and virtualised for Toooba MMIO.
   // The virtual device does not support bursts.)
-  VirtualDeviceIfc#(t_bus_sid,t_axil_sub_addr,t_axil_sub_data,
-                    t_bus_sid,Wd_Addr,Wd_Data)
+  VirtualDeviceIfc #( t_bus_sid, t_axil_sub_addr, t_axil_sub_data
+                    , t_bus_sid, Wd_Addr, Wd_Data )
     virtDev <- mkVirtualDevice (reset_by newRst.new_rst);
   let ctrSubVirtDevCtrl =
-        tuple2 (fromAXI4ToAXI4Lite_Slave(virtDev.mngt), Range { base: 'h0000_8000, size: 'h0000_4000 });
+    tuple2 ( fromAXI4ToAXI4Lite_Slave (virtDev.mngt)
+           , Range { base: 'h0000_8000, size: 'h0000_4000 } );
 
   // Outgoing interconnect
   //////////////////////////////////////////////////////////////////////////////
@@ -444,7 +445,7 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
 
   // build route
   function Vector #(7, Bool) route (Bit #(Wd_Addr) addr);
-    Vector #(7, Bool) x = unpack (7'b0000000);
+    Vector #(7, Bool) x = replicate (False);
     if (inRange (soc_map.m_virt_dev_addr_range, addr))
       x[6] = True;
     else if (inRange (soc_map.m_boot_rom_addr_range, addr))
@@ -453,10 +454,11 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
       x[4] = True;
     else if (inRange (soc_map.m_uart_0_addr_range, addr))
       x[3] = True;
-    else if (inRange (soc_map.m_global_bgas_addr_range, addr))
+    else if (  inRange (soc_map.m_global_bgas_addr_range, addr)
+            || inRange (soc_map.m_bgas_router_conf_addr_range, addr) )
       x[2] = True;
-    else if (   inRange (soc_map.m_ddr4_0_uncached_addr_range, addr)
-             || inRange (soc_map.m_ddr4_0_cached_addr_range, addr) )
+    else if (  inRange (soc_map.m_ddr4_0_uncached_addr_range, addr)
+            || inRange (soc_map.m_ddr4_0_cached_addr_range, addr) )
       x[1] = True;
     else if (inRange (soc_map.m_f2h_addr_range, addr))
       x[0] = True;
