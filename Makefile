@@ -32,7 +32,7 @@ export VDIR = $(CURDIR)/cheri-bgas-rtl
 SOFTDIR ?= $(CURDIR)/software
 UBOOTBUILDDIR ?= $(SOFTDIR)/uboot_build
 
-BOOTLOADER ?= $(UBOOTDIR)/uboot-build/u-boot-socfpga/spl/u-boot-spl-dtb.ihex
+BOOTLOADER ?= $(UBOOTBUILDDIR)/u-boot-socfpga/spl/u-boot-spl-dtb.ihex
 
 all: synthesize gen-uboot gen-rbf
 
