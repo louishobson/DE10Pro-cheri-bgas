@@ -1,5 +1,6 @@
 #-
 # Copyright (c) 2021 Alexandre Joannou
+# Copyright (c) 2022 Franz Fuchs
 # All rights reserved.
 #
 # @BERI_LICENSE_HEADER_START@
@@ -28,11 +29,18 @@ VIPBUNDLE = $(VIPBUNDLEDIR)/vipbundle
 QPF = $(CURDIR)/DE10Pro-cheri-bgas.qpf
 export VDIR = $(CURDIR)/cheri-bgas-rtl
 
-BOOTLOADER ?= ../../u-boot-socfpga/spl/u-boot-spl-dtb.ihex
+SOFTDIR ?= $(CURDIR)/software
+UBOOTBUILDDIR ?= $(SOFTDIR)/uboot_build
 
-all: synthesize gen-rbf
+BOOTLOADER ?= $(UBOOTDIR)/uboot-build/u-boot-socfpga/spl/u-boot-spl-dtb.ihex
 
-gen-rbf:
+all: synthesize gen-uboot gen-rbf
+
+gen-uboot:
+	mkdir -p $(UBOOTBUILDDIR)
+	cd $(UBOOTBUILDDIR) && sh $(SOFTDIR)/build_uboot.sh
+
+gen-rbf: gen-uboot
 ifneq ("$(wildcard $(BOOTLOADER))","")
 	$(eval NOW = $(shell date +"%d%m%Y-%H_%M"))
 	$(eval OUTDIR = output_files_$(NOW))
@@ -88,7 +96,7 @@ clean-ip-gen:
 	rm -rf $(CURDIR)/toplevel/
 
 clean: clean-bluespec-rtl clean-bluespec-quartus-ip clean-vipbundle clean-ip-gen
-	rm -rf $(CURDIR)/qdb $(CURDIR)/synth_dumps $(CURDIR)/tmp-clearbox
+	rm -rf $(CURDIR)/qdb $(CURDIR)/synth_dumps $(CURDIR)/tmp-clearbox $(UBOOTBUILDDIR)
 
 mrproper-vipbundle:
 	$(MAKE) -C $(VIPBUNDLEDIR) mrproper
