@@ -336,14 +336,14 @@ ufs:diskid/DISK-20090815198100000s2a
 Once FreeBSD is booted on the ARM HPS system:
 
 - Run RISCV gdb stub from an ARM HPS system FreeBSD prompt. RISCV gdb stub can
-  be cloned from https://github.com/bukinr/RISCV_gdbstub.git and built simply
+  be cloned from https://github.com/CTSRD-CHERI/RISCV_gdbstub.git and built simply
   using `make`.
 - Once a RISCV gdb stub session is running on the ARM HPS system, connect a
   riscv gdb session. This should be done from a machine which has access to:
   * a RISCV bbl bootloader
   * a RISCV FreeBSD kernel
   * a device tree for the RISCV FPGA soft-core system (see
-    https://github.com/gameboo/DE10Pro-softcore-devicetree.git)
+    https://github.com/CTSRD-CHERI/DE10Pro-softcore-devicetree.git)
   Typically, you would run on the same host machine driving the DE10Pro board
   `gdb-multiarch <path to RISCV bbl>` (running gdb-multiarch wih a riscv binary
   as argument will ensure a riscv-gdb session) and connect to the RISCV gdb
@@ -355,7 +355,7 @@ Once FreeBSD is booted on the ARM HPS system:
 From the gdb session to the RISCV FPGA soft-core:
 
 - load the RISCV system's device tree (the one generated from
-  https://github.com/gameboo/DE10Pro-softcore-devicetree.git is wrapped in an
+  https://github.com/CTSRD-CHERI/DE10Pro-softcore-devicetree.git is wrapped in an
   elf container which will load at address `0x80000000`):
   `load <path to the elf container for the RISCV system's device tree>`
 - load the RISCV FreeBSD kernel: `load <path to the RISCV FreeBSD kernel>`
