@@ -140,7 +140,8 @@ module mkCHERI_BGAS_Top_Sim (Empty);
   AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
               , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
               , `DRAM_ARUSER, `DRAM_RUSER )
-    fakeDDRB <- mkAXI4Mem (1073741824, Valid("/tmp/mem.hex"));
+    fakeDDRB <- mkAXI4Mem ( 1073741824
+                          , FilePathEnvVar ("CHERI_BGAS_DDRB_HEX_INIT") );
   mkConnection ( cheri_bgas_top.axm_ddrb
                //, debugAXI4_Slave (fakeDDRB, $format ("ddrb")));
                , fakeDDRB );
@@ -148,7 +149,7 @@ module mkCHERI_BGAS_Top_Sim (Empty);
   AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
               , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
               , `DRAM_ARUSER, `DRAM_RUSER )
-    fakeDDRC <- mkAXI4Mem (4096, Nothing);
+    fakeDDRC <- mkAXI4Mem (4096, UnInit);
   mkConnection ( cheri_bgas_top.axm_ddrc
                //, debugAXI4_Slave (fakeDDRC, $format ("ddrc")));
                , fakeDDRC );
@@ -156,7 +157,7 @@ module mkCHERI_BGAS_Top_Sim (Empty);
   AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
               , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
               , `DRAM_ARUSER, `DRAM_RUSER )
-    fakeDDRD <- mkAXI4Mem (4096, Nothing);
+    fakeDDRD <- mkAXI4Mem (4096, UnInit);
   mkConnection ( cheri_bgas_top.axm_ddrd
                //, debugAXI4_Slave (fakeDDRD, $format ("ddrd")));
                , fakeDDRD );
