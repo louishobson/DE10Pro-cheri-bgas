@@ -1617,7 +1617,7 @@ set_global_assignment -name VERILOG_FILE "DE10Pro-cheri-bgas.v"
 set_global_assignment -name QSYS_FILE toplevel.qsys
 set_global_assignment -name SEARCH_PATH "./cheri-bgas-rtl"
 set_global_assignment -name SEARCH_PATH "\$env(BLUESPECDIR)/Verilog"
-set_global_assignment -name IP_SEARCH_PATHS "./**/*"
+set_global_assignment -name IP_SEARCH_PATHS "./**/*; bluespec/BSVFan/**/*"
 set_global_assignment -name IP_FILE ip/reset_release.ip
 set_global_assignment -name IP_FILE ip/toplevel/reset_in.ip
 set_global_assignment -name IP_FILE ip/toplevel/clock_in.ip
@@ -1629,6 +1629,7 @@ set_global_assignment -name IP_FILE ip/toplevel/ddrb_mm_clock_crossing_bridge.ip
 #set_global_assignment -name IP_FILE ip/toplevel/ddrc_mm_clock_crossing_bridge.ip
 set_global_assignment -name IP_FILE ip/toplevel/ddrd_mm_clock_crossing_bridge.ip
 set_global_assignment -name IP_FILE ip/toplevel/emif_ddrd.ip
+set_global_assignment -name IP_FILE ip/toplevel/fan_controller.ip
 set_global_assignment -name IP_FILE "\$env(BLUESTUFFDIR)/Stratix10ChipID/chipid.ip"
 set_global_assignment -name ENABLE_SIGNALTAP ON
 #set_global_assignment -name USE_SIGNALTAP_FILE ddrb_channel.stp

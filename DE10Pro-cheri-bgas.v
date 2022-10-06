@@ -44,7 +44,6 @@
 //`define ENABLE_QSFP28D
 `define ENABLE_HPS
 
-
 module DE10Pro_cheri_bgas (
   input         CLK_100_B3I
 , input         CLK_50_B2C
@@ -281,6 +280,9 @@ module DE10Pro_cheri_bgas (
   assign SI5340A0_OE_n = 1'b0;
   assign SI5340A1_OE_n = 1'b0;
 
+  wire [3:0] LED_OUT;
+  assign LED = ~LED_OUT;
+
   toplevel soc (
     .reset_reset                                   (~reset_n)
   //, .clk_clk                                       (clk_100)
@@ -417,6 +419,10 @@ module DE10Pro_cheri_bgas (
   , .hps_io_hps_io_phery_emac0_MDIO                 (HPS_EMAC0_MDIO)
   , .hps_io_hps_io_phery_emac0_MDC                  (HPS_EMAC0_MDC)
   `endif // ENABLE_HPS
+  , .fan_controller_fan_i2c_sda                    (FAN_I2C_SDA)
+  , .fan_controller_fan_i2c_scl                    (FAN_I2C_SCL)
+  , .fan_controller_temp_i2c_sda                   (TEMP_I2C_SDA)
+  , .fan_controller_temp_i2c_scl                   (TEMP_I2C_SCL)
+  , .fan_controller_led_led                        (LED_OUT)
   );
-
 endmodule
