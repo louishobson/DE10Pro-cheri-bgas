@@ -25,7 +25,7 @@ _Read the later sections for more details_
 # host machine
 quartus_pgm -m jtag -o P\;cheri-bgas-socfpga-25012022-12_02.hps.rbf@2 && picocom -b 115200 /dev/ttyUSB0
 # DE10Pro's ARM HPS ...
-# u-boot
+# u-boot: do not go into the auto (avoid this by pressing any key)
 fatload mmc 0:1 1000 cheri-bgas-socfpga-25012022-12_02.core.rbf
 fpga load 0 1000 ${filesize}
 bridge enable
