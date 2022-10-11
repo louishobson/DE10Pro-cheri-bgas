@@ -141,10 +141,6 @@ _(At the time of writing)_ We want to boot a FreeBSD "host" setup on the ARM HPS
 
 #>>TODO<<#
 
-_Currently, the ``dtb`` used by the ARM HPS is generated as part of the uboot build (see the `Build an ARM u-boot bootloader`` section further below)_
-
-#>>TODO<<#
-
 ==== Device tree overlay exposing the soft-core system to the ARM HPS
 
 To allow the ARM HPS system to communicate with the RISCV soft-core on the FPGA, we need to expose the various RISCV debug unit, uart, interrupts... to HPS. To do this, we build a device tree overlay as follows:
