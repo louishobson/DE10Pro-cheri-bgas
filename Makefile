@@ -36,12 +36,12 @@ BOOTLOADER ?= $(UBOOTBUILDDIR)/u-boot-socfpga/spl/u-boot-spl-dtb.ihex
 
 all: synthesize gen-uboot gen-rbf
 
-gen-uboot:
+gen-uboot: $(BOOTLOADER)
+$(BOOTLOADER):
 	mkdir -p $(UBOOTBUILDDIR)
 	cd $(UBOOTBUILDDIR) && sh $(SOFTDIR)/build_uboot.sh
 
-gen-rbf: gen-uboot
-ifneq ("$(wildcard $(BOOTLOADER))","")
+gen-rbf: $(BOOTLOADER)
 	$(eval NOW = $(shell date +"%d%m%Y-%H_%M"))
 	$(eval OUTDIR = output_files_$(NOW))
 	$(eval TEMPLATENAME = "cheri-bgas-socfpga")
@@ -49,9 +49,6 @@ ifneq ("$(wildcard $(BOOTLOADER))","")
 	$(eval OUTNAME = "$(OUTDIR)/$(TEMPLATENAME)-$(NOW)")
 	cp -r output_files $(OUTDIR)
 	quartus_pfg -c $(SOF) -o hps=ON -o hps_path=$(BOOTLOADER) $(OUTNAME).rbf
-else
-	@echo "Cannot gen-rbf: $(BOOTLOADER) does not exist"
-endif
 
 synthesize output_files/DE10Pro-cheri-bgas.sof &: gen-ip
 	BLUESTUFFDIR=$(BLUESTUFFDIR) time quartus_sh --flow compile $(QPF)
