@@ -37,11 +37,6 @@
 `define ENABLE_DDR4B
 //`define ENABLE_DDR4C
 `define ENABLE_DDR4D
-//`define ENABLE_SI5340
-`define ENABLE_FAN_I2C
-//`define ENABLE_POWER_MONITOR_I2C
-`define ENABLE_TEMP_I2C
-//`define ENABLE_GPIO
 //`define ENABLE_PCIE
 //`define ENABLE_QSFP28A
 //`define ENABLE_QSFP28B
@@ -60,7 +55,6 @@ module DE10Pro_cheri_bgas (
 , input   [1:0] BUTTON
 , input   [1:0] SW
 , output  [3:0] LED
-`ifdef ENABLE_FLASH
 , output        FLASH_CLK
 , output [27:1] FLASH_A
 , inout  [15:0] FLASH_D
@@ -70,7 +64,6 @@ module DE10Pro_cheri_bgas (
 , output        FLASH_ADV_n
 , output        FLASH_RESET_n
 , input         FLASH_RDY_BSY_n
-`endif // ENABLE_FLASH
 `ifdef ENABLE_DDR4A
 , input         DDR4A_REFCLK_p
 , output [16:0] DDR4A_A
@@ -163,7 +156,6 @@ module DE10Pro_cheri_bgas (
 , inout         DDR4D_SDA
 , input         DDR4D_RZQ
 `endif // ENABLE_DDR4D
-`ifdef ENABLE_SI5340
 , inout         SI5340A0_I2C_SCL
 , inout         SI5340A0_I2C_SDA
 , input         SI5340A0_INTR
@@ -174,25 +166,16 @@ module DE10Pro_cheri_bgas (
 , input         SI5340A1_INTR
 , output        SI5340A1_OE_n
 , output        SI5340A1_RST_n
-`endif // ENABLE_SI5340
-`ifdef ENABLE_FAN_I2C
 , inout         FAN_I2C_SCL
 , inout         FAN_I2C_SDA
 , input         FAN_ALERT_n
-`endif // ENABLE_FAN_I2C
-`ifdef ENABLE_POWER_MONITOR_I2C
 , inout         POWER_MONITOR_I2C_SCL
 , inout         POWER_MONITOR_I2C_SDA
 , input         POWER_MONITOR_ALERT_n
-`endif // ENABLE_POWER_MONITOR_I2C
-`ifdef ENABLE_TEMP_I2C
 , inout         TEMP_I2C_SCL
 , inout         TEMP_I2C_SDA
-`endif // ENABLE_TEMP_I2C
-`ifdef ENABLE_GPIO
 , inout   [1:0] GPIO_CLK
 , inout   [3:0] GPIO_P
-`endif // ENABLE_GPIO
 `ifdef ENABLE_PCIE
 , inout         PCIE_SMBCLK
 , inout         PCIE_SMBDAT
@@ -436,14 +419,10 @@ module DE10Pro_cheri_bgas (
   , .hps_io_hps_io_phery_emac0_MDIO                 (HPS_EMAC0_MDIO)
   , .hps_io_hps_io_phery_emac0_MDC                  (HPS_EMAC0_MDC)
   `endif // ENABLE_HPS
-  `ifdef ENABLE_FAN_I2C
-  `ifdef ENABLE_TEMP_I2C
   , .fan_controller_fan_i2c_sda                    (FAN_I2C_SDA)
   , .fan_controller_fan_i2c_scl                    (FAN_I2C_SCL)
   , .fan_controller_temp_i2c_sda                   (TEMP_I2C_SDA)
   , .fan_controller_temp_i2c_scl                   (TEMP_I2C_SCL)
   , .fan_controller_led_led                        (LED_OUT)
-  `endif // ENABLE_TEMP_I2C
-  `endif // ENABLE_FAN_I2C
   );
 endmodule
