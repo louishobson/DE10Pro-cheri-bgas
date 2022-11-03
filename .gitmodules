@@ -23,6 +23,3 @@
 [submodule "bluespec/sim-utils/forever-splice"]
 	path = bluespec/sim-utils/forever-splice
 	url = https://github.com/CTSRD-CHERI/forever-splice.git
-[submodule "bluespec/BSVFan"]
-	path = bluespec/BSVFan
-	url = https://github.com/POETSII/BSVFan.git
