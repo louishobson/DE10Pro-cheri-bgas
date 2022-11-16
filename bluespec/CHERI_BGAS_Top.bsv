@@ -182,7 +182,8 @@ provisos (
 , NumAlias #(t_sys_axi_sub_1_wuser, 1)
 //, NumAlias #(t_sys_axi_sub_1_wuser, t_global_axi_wuser)
 , NumAlias #(t_sys_axi_sub_1_buser, t_global_axi_buser)
-, NumAlias #(t_sys_axi_sub_1_aruser, t_global_axi_aruser)
+//, NumAlias #(t_sys_axi_sub_1_aruser, t_global_axi_aruser)
+, NumAlias #(t_sys_axi_sub_1_aruser, 1)
 , NumAlias #(t_sys_axi_sub_1_ruser, 1)
 //, NumAlias #(t_sys_axi_sub_1_ruser, t_global_axi_ruser)
   // AXI4 manager ports - outgoing F2H, DDR and global traffic
