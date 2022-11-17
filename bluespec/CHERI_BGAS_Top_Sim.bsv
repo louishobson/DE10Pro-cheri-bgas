@@ -72,7 +72,7 @@ import DE10Pro_bsv_shell :: *;
 
 `define DRAM_ID       8
 `define DRAM_ADDR    32
-`define DRAM_DATA   128
+`define DRAM_DATA   512
 `define DRAM_AWUSER   0
 `define DRAM_WUSER    0
 `define DRAM_BUSER    0
@@ -142,7 +142,7 @@ module mkCHERI_BGAS_Top_Sim (Empty);
               , `DRAM_ARUSER, `DRAM_RUSER )
     fakeDDRB <- mkAXI4Mem ( 1073741824
                           , FilePathEnvVar ("CHERI_BGAS_DDRB_HEX_INIT") );
-  mkConnection ( cheri_bgas_top.axm_ddrb
+  mkConnection ( debugAXI4_Master (cheri_bgas_top.axm_ddrb, $format ("ddr_sim"))
                //, debugAXI4_Slave (fakeDDRB, $format ("ddrb")));
                , fakeDDRB );
   // DDR C channel

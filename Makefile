@@ -48,7 +48,7 @@ ifneq ("$(wildcard $(BOOTLOADER))","")
 	$(eval SOF = "$(OUTDIR)/DE10Pro-cheri-bgas.sof")
 	$(eval OUTNAME = "$(OUTDIR)/$(TEMPLATENAME)-$(NOW)")
 	cp -r output_files $(OUTDIR)
-	quartus_pfg -c $(SOF) -o hps=ON -o hps_path=$(BOOTLOADER) $(OUTNAME).rbf
+	/local/ecad/altera/19.2pro/quartus/bin/quartus_pfg -c $(SOF) -o hps=ON -o hps_path=$(BOOTLOADER) $(OUTNAME).rbf
 else
 	@echo "Cannot gen-rbf: $(BOOTLOADER) does not exist"
 endif

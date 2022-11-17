@@ -117,6 +117,90 @@
       </ipxact:parameters>
     </ipxact:busInterface>
     <ipxact:busInterface>
+      <ipxact:name>pll_locked</ipxact:name>
+      <ipxact:busType vendor="altera" library="altera" name="conduit" version="19.2"></ipxact:busType>
+      <ipxact:abstractionTypes>
+        <ipxact:abstractionType>
+          <ipxact:abstractionRef vendor="altera" library="altera" name="conduit" version="19.2"></ipxact:abstractionRef>
+          <ipxact:portMaps>
+            <ipxact:portMap>
+              <ipxact:logicalPort>
+                <ipxact:name>pll_locked</ipxact:name>
+              </ipxact:logicalPort>
+              <ipxact:physicalPort>
+                <ipxact:name>pll_locked</ipxact:name>
+              </ipxact:physicalPort>
+            </ipxact:portMap>
+          </ipxact:portMaps>
+        </ipxact:abstractionType>
+      </ipxact:abstractionTypes>
+      <ipxact:slave></ipxact:slave>
+      <ipxact:parameters>
+        <ipxact:parameter parameterId="associatedClock" type="string">
+          <ipxact:name>associatedClock</ipxact:name>
+          <ipxact:displayName>associatedClock</ipxact:displayName>
+          <ipxact:value></ipxact:value>
+        </ipxact:parameter>
+        <ipxact:parameter parameterId="associatedReset" type="string">
+          <ipxact:name>associatedReset</ipxact:name>
+          <ipxact:displayName>associatedReset</ipxact:displayName>
+          <ipxact:value></ipxact:value>
+        </ipxact:parameter>
+        <ipxact:parameter parameterId="prSafe" type="bit">
+          <ipxact:name>prSafe</ipxact:name>
+          <ipxact:displayName>Partial Reconfiguration Safe</ipxact:displayName>
+          <ipxact:value>false</ipxact:value>
+        </ipxact:parameter>
+      </ipxact:parameters>
+    </ipxact:busInterface>
+    <ipxact:busInterface>
+      <ipxact:name>pll_extra_clk_0</ipxact:name>
+      <ipxact:busType vendor="altera" library="altera" name="clock" version="19.2"></ipxact:busType>
+      <ipxact:abstractionTypes>
+        <ipxact:abstractionType>
+          <ipxact:abstractionRef vendor="altera" library="altera" name="clock" version="19.2"></ipxact:abstractionRef>
+          <ipxact:portMaps>
+            <ipxact:portMap>
+              <ipxact:logicalPort>
+                <ipxact:name>clk</ipxact:name>
+              </ipxact:logicalPort>
+              <ipxact:physicalPort>
+                <ipxact:name>pll_extra_clk_0</ipxact:name>
+              </ipxact:physicalPort>
+            </ipxact:portMap>
+          </ipxact:portMaps>
+        </ipxact:abstractionType>
+      </ipxact:abstractionTypes>
+      <ipxact:master></ipxact:master>
+      <ipxact:parameters>
+        <ipxact:parameter parameterId="associatedDirectClock" type="string">
+          <ipxact:name>associatedDirectClock</ipxact:name>
+          <ipxact:displayName>Associated direct clock</ipxact:displayName>
+          <ipxact:value></ipxact:value>
+        </ipxact:parameter>
+        <ipxact:parameter parameterId="clockRate" type="longint">
+          <ipxact:name>clockRate</ipxact:name>
+          <ipxact:displayName>Clock rate</ipxact:displayName>
+          <ipxact:value>0</ipxact:value>
+        </ipxact:parameter>
+        <ipxact:parameter parameterId="clockRateKnown" type="bit">
+          <ipxact:name>clockRateKnown</ipxact:name>
+          <ipxact:displayName>Clock rate known</ipxact:displayName>
+          <ipxact:value>false</ipxact:value>
+        </ipxact:parameter>
+        <ipxact:parameter parameterId="externallyDriven" type="bit">
+          <ipxact:name>externallyDriven</ipxact:name>
+          <ipxact:displayName>Externally driven</ipxact:displayName>
+          <ipxact:value>false</ipxact:value>
+        </ipxact:parameter>
+        <ipxact:parameter parameterId="ptfSchematicName" type="string">
+          <ipxact:name>ptfSchematicName</ipxact:name>
+          <ipxact:displayName>PTF schematic name</ipxact:displayName>
+          <ipxact:value></ipxact:value>
+        </ipxact:parameter>
+      </ipxact:parameters>
+    </ipxact:busInterface>
+    <ipxact:busInterface>
       <ipxact:name>oct</ipxact:name>
       <ipxact:busType vendor="altera" library="altera" name="conduit" version="19.2"></ipxact:busType>
       <ipxact:abstractionTypes>
@@ -854,6 +938,32 @@
         </ipxact:wire>
       </ipxact:port>
       <ipxact:port>
+        <ipxact:name>pll_locked</ipxact:name>
+        <ipxact:wire>
+          <ipxact:direction>out</ipxact:direction>
+          <ipxact:vectors></ipxact:vectors>
+          <ipxact:wireTypeDefs>
+            <ipxact:wireTypeDef>
+              <ipxact:typeName>STD_LOGIC</ipxact:typeName>
+              <ipxact:viewRef>QUARTUS_SYNTH</ipxact:viewRef>
+            </ipxact:wireTypeDef>
+          </ipxact:wireTypeDefs>
+        </ipxact:wire>
+      </ipxact:port>
+      <ipxact:port>
+        <ipxact:name>pll_extra_clk_0</ipxact:name>
+        <ipxact:wire>
+          <ipxact:direction>out</ipxact:direction>
+          <ipxact:vectors></ipxact:vectors>
+          <ipxact:wireTypeDefs>
+            <ipxact:wireTypeDef>
+              <ipxact:typeName>STD_LOGIC</ipxact:typeName>
+              <ipxact:viewRef>QUARTUS_SYNTH</ipxact:viewRef>
+            </ipxact:wireTypeDef>
+          </ipxact:wireTypeDefs>
+        </ipxact:wire>
+      </ipxact:port>
+      <ipxact:port>
         <ipxact:name>oct_rzqin</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>in</ipxact:direction>
@@ -1545,12 +1655,12 @@
         <ipxact:parameter parameterId="PLL_ADD_EXTRA_CLKS" type="bit">
           <ipxact:name>PLL_ADD_EXTRA_CLKS</ipxact:name>
           <ipxact:displayName>Specify additional core clocks based on existing PLL</ipxact:displayName>
-          <ipxact:value>false</ipxact:value>
+          <ipxact:value>true</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="PLL_USER_NUM_OF_EXTRA_CLKS" type="int">
           <ipxact:name>PLL_USER_NUM_OF_EXTRA_CLKS</ipxact:name>
           <ipxact:displayName>Number of additional core clocks</ipxact:displayName>
-          <ipxact:value>0</ipxact:value>
+          <ipxact:value>1</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="PLL_EXTRA_CLK_ACTUAL_FREQ_MHZ_GUI_0" type="real">
           <ipxact:name>PLL_EXTRA_CLK_ACTUAL_FREQ_MHZ_GUI_0</ipxact:name>
@@ -1780,7 +1890,7 @@
         <ipxact:parameter parameterId="PLL_EXTRA_CLK_ACTUAL_FREQ_MHZ_GUI_5" type="real">
           <ipxact:name>PLL_EXTRA_CLK_ACTUAL_FREQ_MHZ_GUI_5</ipxact:name>
           <ipxact:displayName>Frequency</ipxact:displayName>
-          <ipxact:value>0.0</ipxact:value>
+          <ipxact:value>45.977</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="PLL_EXTRA_CLK_ACTUAL_PHASE_PS_GUI_5" type="real">
           <ipxact:name>PLL_EXTRA_CLK_ACTUAL_PHASE_PS_GUI_5</ipxact:name>
@@ -1965,7 +2075,7 @@
         <ipxact:parameter parameterId="PLL_NUM_OF_EXTRA_CLKS" type="int">
           <ipxact:name>PLL_NUM_OF_EXTRA_CLKS</ipxact:name>
           <ipxact:displayName>PARAM_PLL_NUM_OF_EXTRA_CLKS_NAME</ipxact:displayName>
-          <ipxact:value>0</ipxact:value>
+          <ipxact:value>1</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="PLL_EXTRA_CLK_ACTUAL_FREQ_MHZ_0" type="real">
           <ipxact:name>PLL_EXTRA_CLK_ACTUAL_FREQ_MHZ_0</ipxact:name>
@@ -2020,7 +2130,7 @@
         <ipxact:parameter parameterId="PLL_EXTRA_CLK_ACTUAL_FREQ_MHZ_5" type="real">
           <ipxact:name>PLL_EXTRA_CLK_ACTUAL_FREQ_MHZ_5</ipxact:name>
           <ipxact:displayName>PARAM_PLL_EXTRA_CLK_ACTUAL_FREQ_MHZ_5_NAME</ipxact:displayName>
-          <ipxact:value>1333.333</ipxact:value>
+          <ipxact:value>45.977</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="PLL_EXTRA_CLK_ACTUAL_PHASE_PS_5" type="real">
           <ipxact:name>PLL_EXTRA_CLK_ACTUAL_PHASE_PS_5</ipxact:name>
@@ -8565,7 +8675,7 @@
         <ipxact:parameter parameterId="DIAG_FAST_SIM" type="bit">
           <ipxact:name>DIAG_FAST_SIM</ipxact:name>
           <ipxact:displayName>PARAM_DIAG_FAST_SIM_NAME</ipxact:displayName>
-          <ipxact:value>true</ipxact:value>
+          <ipxact:value>false</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="DIAG_USE_TG_AVL_2" type="bit">
           <ipxact:name>DIAG_USE_TG_AVL_2</ipxact:name>
@@ -10118,6 +10228,78 @@
             &lt;/parameters&gt;
         &lt;/interface&gt;
         &lt;interface&gt;
+            &lt;name&gt;pll_locked&lt;/name&gt;
+            &lt;type&gt;conduit&lt;/type&gt;
+            &lt;isStart&gt;false&lt;/isStart&gt;
+            &lt;ports&gt;
+                &lt;port&gt;
+                    &lt;name&gt;pll_locked&lt;/name&gt;
+                    &lt;role&gt;pll_locked&lt;/role&gt;
+                    &lt;direction&gt;Output&lt;/direction&gt;
+                    &lt;width&gt;1&lt;/width&gt;
+                    &lt;lowerBound&gt;0&lt;/lowerBound&gt;
+                    &lt;vhdlType&gt;STD_LOGIC&lt;/vhdlType&gt;
+                &lt;/port&gt;
+            &lt;/ports&gt;
+            &lt;assignments&gt;
+                &lt;assignmentValueMap/&gt;
+            &lt;/assignments&gt;
+            &lt;parameters&gt;
+                &lt;parameterValueMap&gt;
+                    &lt;entry&gt;
+                        &lt;key&gt;associatedClock&lt;/key&gt;
+                    &lt;/entry&gt;
+                    &lt;entry&gt;
+                        &lt;key&gt;associatedReset&lt;/key&gt;
+                    &lt;/entry&gt;
+                    &lt;entry&gt;
+                        &lt;key&gt;prSafe&lt;/key&gt;
+                        &lt;value&gt;false&lt;/value&gt;
+                    &lt;/entry&gt;
+                &lt;/parameterValueMap&gt;
+            &lt;/parameters&gt;
+        &lt;/interface&gt;
+        &lt;interface&gt;
+            &lt;name&gt;pll_extra_clk_0&lt;/name&gt;
+            &lt;type&gt;clock&lt;/type&gt;
+            &lt;isStart&gt;true&lt;/isStart&gt;
+            &lt;ports&gt;
+                &lt;port&gt;
+                    &lt;name&gt;pll_extra_clk_0&lt;/name&gt;
+                    &lt;role&gt;clk&lt;/role&gt;
+                    &lt;direction&gt;Output&lt;/direction&gt;
+                    &lt;width&gt;1&lt;/width&gt;
+                    &lt;lowerBound&gt;0&lt;/lowerBound&gt;
+                    &lt;vhdlType&gt;STD_LOGIC&lt;/vhdlType&gt;
+                &lt;/port&gt;
+            &lt;/ports&gt;
+            &lt;assignments&gt;
+                &lt;assignmentValueMap/&gt;
+            &lt;/assignments&gt;
+            &lt;parameters&gt;
+                &lt;parameterValueMap&gt;
+                    &lt;entry&gt;
+                        &lt;key&gt;associatedDirectClock&lt;/key&gt;
+                    &lt;/entry&gt;
+                    &lt;entry&gt;
+                        &lt;key&gt;clockRate&lt;/key&gt;
+                        &lt;value&gt;0&lt;/value&gt;
+                    &lt;/entry&gt;
+                    &lt;entry&gt;
+                        &lt;key&gt;clockRateKnown&lt;/key&gt;
+                        &lt;value&gt;false&lt;/value&gt;
+                    &lt;/entry&gt;
+                    &lt;entry&gt;
+                        &lt;key&gt;externallyDriven&lt;/key&gt;
+                        &lt;value&gt;false&lt;/value&gt;
+                    &lt;/entry&gt;
+                    &lt;entry&gt;
+                        &lt;key&gt;ptfSchematicName&lt;/key&gt;
+                    &lt;/entry&gt;
+                &lt;/parameterValueMap&gt;
+            &lt;/parameters&gt;
+        &lt;/interface&gt;
+        &lt;interface&gt;
             &lt;name&gt;oct&lt;/name&gt;
             &lt;type&gt;conduit&lt;/type&gt;
             &lt;isStart&gt;false&lt;/isStart&gt;
@@ -10757,6 +10939,19 @@
                 &lt;/consumedSystemInfos&gt;
             &lt;/value&gt;
         &lt;/entry&gt;
+        &lt;entry&gt;
+            &lt;key&gt;pll_extra_clk_0&lt;/key&gt;
+            &lt;value&gt;
+                &lt;connectionPointName&gt;pll_extra_clk_0&lt;/connectionPointName&gt;
+                &lt;suppliedSystemInfos/&gt;
+                &lt;consumedSystemInfos&gt;
+                    &lt;entry&gt;
+                        &lt;key&gt;CLOCK_RATE&lt;/key&gt;
+                        &lt;value&gt;0&lt;/value&gt;
+                    &lt;/entry&gt;
+                &lt;/consumedSystemInfos&gt;
+            &lt;/value&gt;
+        &lt;/entry&gt;
     &lt;/connPtSystemInfos&gt;
 &lt;/systemInfosDefinition&gt;</ipxact:value>
         </ipxact:parameter>
@@ -10809,6 +11004,12 @@
       </altera:interface_mapping>
       <altera:interface_mapping altera:name="oct" altera:internal="emif_ddrb.oct" altera:type="conduit" altera:dir="end">
         <altera:port_mapping altera:name="oct_rzqin" altera:internal="oct_rzqin"></altera:port_mapping>
+      </altera:interface_mapping>
+      <altera:interface_mapping altera:name="pll_extra_clk_0" altera:internal="emif_ddrb.pll_extra_clk_0" altera:type="clock" altera:dir="start">
+        <altera:port_mapping altera:name="pll_extra_clk_0" altera:internal="pll_extra_clk_0"></altera:port_mapping>
+      </altera:interface_mapping>
+      <altera:interface_mapping altera:name="pll_locked" altera:internal="emif_ddrb.pll_locked" altera:type="conduit" altera:dir="end">
+        <altera:port_mapping altera:name="pll_locked" altera:internal="pll_locked"></altera:port_mapping>
       </altera:interface_mapping>
       <altera:interface_mapping altera:name="pll_ref_clk" altera:internal="emif_ddrb.pll_ref_clk" altera:type="clock" altera:dir="end">
         <altera:port_mapping altera:name="pll_ref_clk" altera:internal="pll_ref_clk"></altera:port_mapping>

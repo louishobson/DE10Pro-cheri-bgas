@@ -36,7 +36,7 @@
 `define ENABLE_DDR4A
 `define ENABLE_DDR4B
 //`define ENABLE_DDR4C
-`define ENABLE_DDR4D
+//`define ENABLE_DDR4D
 //`define ENABLE_PCIE
 //`define ENABLE_QSFP28A
 //`define ENABLE_QSFP28B

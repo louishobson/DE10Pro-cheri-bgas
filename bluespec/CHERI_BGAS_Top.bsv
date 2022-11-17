@@ -88,7 +88,7 @@ Integer nbCheriBgasSystems = valueOf (NBCheriBgasSystems);
 
 `define DRAM_ID       8
 `define DRAM_ADDR    32
-`define DRAM_DATA   128
+`define DRAM_DATA   512
 `define DRAM_AWUSER   0
 `define DRAM_WUSER    0
 `define DRAM_BUSER    0
@@ -179,14 +179,14 @@ provisos (
 , NumAlias #(t_sys_axi_sub_1_addr, t_global_axi_addr)
 , NumAlias #(t_sys_axi_sub_1_data, t_global_axi_data)
 , NumAlias #(t_sys_axi_sub_1_awuser, t_global_axi_awuser)
-, NumAlias #(t_sys_axi_sub_1_wuser, 1)
+, NumAlias #(t_sys_axi_sub_1_wuser, 0)
 //, NumAlias #(t_sys_axi_sub_1_wuser, t_global_axi_wuser)
 , NumAlias #(t_sys_axi_sub_1_buser, t_global_axi_buser)
 , NumAlias #(t_sys_axi_sub_1_aruser, t_global_axi_aruser)
-, NumAlias #(t_sys_axi_sub_1_ruser, 1)
+, NumAlias #(t_sys_axi_sub_1_ruser, 0)
 //, NumAlias #(t_sys_axi_sub_1_ruser, t_global_axi_ruser)
   // AXI4 manager ports - outgoing F2H, DDR and global traffic
-, NumAlias #(t_sys_axi_mngr_id, 8)
+, NumAlias #(t_sys_axi_mngr_id, 7)
 , NumAlias #(t_sys_axi_mngr_addr, 64)
 , NumAlias #(t_sys_axi_mngr_data, 64)
 , NumAlias #(t_sys_axi_mngr_awuser, 0)
@@ -280,6 +280,14 @@ provisos (
       t_sys_axi_mngr_id, t_sys_axi_mngr_addr, t_sys_axi_mngr_data
     , t_sys_axi_mngr_awuser, t_sys_axi_mngr_wuser, t_sys_axi_mngr_buser
     , t_sys_axi_mngr_aruser, t_sys_axi_mngr_ruser ))
+, Alias #( t_sys_axi_ddr, AXI4_Master #(
+      TAdd#(t_sys_axi_mngr_id,1), t_sys_axi_mngr_addr, TMul#(t_sys_axi_mngr_data,8)
+    , t_sys_axi_mngr_awuser, t_sys_axi_mngr_wuser, t_sys_axi_mngr_buser
+    , t_sys_axi_mngr_aruser, t_sys_axi_mngr_ruser ))
+, Alias #( t_sys_ddr_shim, AXI4_Shim #(
+      TAdd#(t_sys_axi_mngr_id,1), t_sys_axi_mngr_addr, TMul#(t_sys_axi_mngr_data,8)
+    , t_sys_axi_mngr_awuser, t_sys_axi_mngr_wuser, t_sys_axi_mngr_buser
+    , t_sys_axi_mngr_aruser, t_sys_axi_mngr_ruser ))
 , Alias #( t_global_mngr, AXI4_Master #(
       t_global_axi_id, t_global_axi_addr, t_global_axi_data
     , t_global_axi_awuser, t_global_axi_wuser, t_global_axi_buser
@@ -323,10 +331,10 @@ provisos (
   let newRst <- mkReset (0, True, clk, reset_by rst);
   Vector #(NBCheriBgasSystems, t_cheri_bgas_sys)
     sys <- replicateM (mkCHERI_BGAS_System (reset_by newRst.new_rst));
-  Vector #(NBCheriBgasSystems, t_router_ifc) router;
-  Maybe #(t_router_id) initRouterId = Invalid;
-  for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1)
-    router[i] <- mkCHERI_BGAS_Router (initRouterId, reset_by newRst.new_rst);
+  //Vector #(NBCheriBgasSystems, t_router_ifc) router;
+  ///Maybe #(t_router_id) initRouterId = Invalid;
+  //for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1)
+    //router[i] <- mkCHERI_BGAS_Router (initRouterId, reset_by newRst.new_rst);
   Vector #(NBCheriBgasSystems, t_global_mngr)
     globalMngr = replicate (?);
   Vector #(NBCheriBgasSystems, t_sys_global_sub)
@@ -343,7 +351,7 @@ provisos (
   function t_sys_axi_sub_0 getH2FSub (t_cheri_bgas_sys ifc) = ifc.axi_sub_0;
   function t_sys_axi_sub_1 getGlobalSub (t_cheri_bgas_sys ifc) = ifc.axi_sub_1;
   function t_sys_axi_mngr getF2HMngr (t_cheri_bgas_sys ifc) = ifc.axi_mngr_0;
-  function t_sys_axi_mngr getDDRMngr (t_cheri_bgas_sys ifc) = ifc.axi_mngr_1;
+  function t_sys_axi_ddr  getDDRMngr (t_cheri_bgas_sys ifc) = debugAXI4_Master(ifc.axi_mngr_1, $format("ddr_top"));
   function t_sys_axi_mngr getGlobalMngr (t_cheri_bgas_sys ifc) = ifc.axi_mngr_2;
   function t_irqs getIRQs (t_cheri_bgas_sys s) = s.irqs;
 
@@ -354,7 +362,7 @@ provisos (
   // XXX controller. It should eventually be moved nearer the ddr and the user
   // XXX field should be exported.
   // connect up global router's local manager and subordinate ports as well as
-  // management subordinate port
+  /* management subordinate port
   for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1) begin
     // incoming traffic
     t_sys_global_sub sub =
@@ -378,10 +386,10 @@ provisos (
     mkAXI4Bus ( route_to_router, cons (mngr, nil), subs
               , reset_by newRst.new_rst );
   end
-
+  */
   // connect the CHERI BGAS systems together and aggregate their remaining ports
   //////////////////////////////////////////////////////////////////////////////
-  // for the single system case:
+  /* for the single system case:
   Global_Port #(t_global_flit)  tileWestPort = router[0].westPort;
   Global_Port #(t_global_flit) tileSouthPort = router[0].southPort;
   Global_Port #(t_global_flit)  tileEastPort = router[0].eastPort;
@@ -420,7 +428,7 @@ provisos (
       mkConnection (router[2].northPort, noRouteNorth2);
     end
   endcase
-
+*/
   // aggregate AXI Lite control traffic
   //////////////////////////////////////////////////////////////////////////////
   // Allocate 16 bits of address space per system, route to a system based on
@@ -474,7 +482,7 @@ provisos (
             , cons (h2fShim.master, nil)
             , map (getH2FSub, sys)
             , reset_by newRst.new_rst );
-  NumProxy #(16) proxyH2FTableSz = ?;
+  NumProxy #(8) proxyH2FTableSz = ?;
   NumProxy #(8)  proxyH2FMaxSameId = ?;
   t_h2f_sub h2fShimSlave <-
     change_AXI4_Slave_Id ( proxyH2FTableSz, proxyH2FMaxSameId, h2fShim.slave
@@ -503,16 +511,11 @@ provisos (
   //////////////////////////////////////////////////////////////////////////////
   Vector #(3, t_ddr_mngr) ddr = replicate (culDeSac);
   for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1) begin
-    t_sys_axi_shim ddrDeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
-    mkConnection (ddrDeBurst.slave, getDDRMngr (sys[i]), reset_by newRst.new_rst);
-    let ddrTmp <-
-      toWider_AXI4_Master ( truncate_AXI4_Master_addr (ddrDeBurst.master)
-                          , reset_by newRst.new_rst );
     NumProxy #(16) proxyDDRTableSz = ?;
     NumProxy #(8)  proxyDDRMaxSameId = ?;
     ddr[i] <- change_AXI4_Master_Id ( proxyDDRTableSz
                                     , proxyDDRMaxSameId
-                                    , ddrTmp
+                                    , truncate_AXI4_Master_addr (getDDRMngr (sys[i]))
                                     , reset_by newRst.new_rst );
   end
 
@@ -538,17 +541,17 @@ provisos (
   // XXX Only support 2 systems at most for now, and force system 2 to use ddrd
   //     due to a currently unresolved quartus fitter issue
   interface axm_ddrb = ddr[0];
-  interface axm_ddrc = culDeSac;
-  interface axm_ddrd = ddr[1];
+  interface axm_ddrc = ?;//culDeSac;
+  interface axm_ddrd = ?;//ddr[1];
   // XXX
-  interface tx_north = tileNorthPort.tx;
-  interface rx_north = tileNorthPort.rx;
-  interface  tx_east = tileEastPort.tx;
-  interface  rx_east = tileEastPort.rx;
-  interface tx_south = tileSouthPort.tx;
-  interface rx_south = tileSouthPort.rx;
-  interface  tx_west = tileWestPort.tx;
-  interface  rx_west = tileWestPort.rx;
+  interface tx_north = ?;//tileNorthPort.tx;
+  interface rx_north = ?;//tileNorthPort.rx;
+  interface  tx_east = ?;//tileEastPort.tx;
+  interface  rx_east = ?;//tileEastPort.rx;
+  interface tx_south = ?;//tileSouthPort.tx;
+  interface rx_south = ?;//tileSouthPort.rx;
+  interface  tx_west = ?;//tileWestPort.tx;
+  interface  rx_west = ?;//tileWestPort.rx;
   interface     irqs = allIrqs;
 endmodule
 

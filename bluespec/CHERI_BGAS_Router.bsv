@@ -524,7 +524,9 @@ module mkCHERI_BGAS_Router #(Maybe #(RouterId #(t_x_sz, t_y_sz)) initRouterId)
   , Mul #(TDiv #(t_mngnt_data, 8), 8, t_mngnt_data)
   , Bits #(t_global_axi_flit, t_global_axi_flit_sz)
   , Bits #(t_global_flit_container, t_global_flit_container_sz)
-  , Add #(_, TAdd #(t_global_axi_flit_sz, 5), t_global_flit_container_sz) );
+  , Add #(_, TAdd #(t_global_axi_flit_sz, 5), t_global_flit_container_sz)
+  , Add#(d__, 4, t_m_id)
+  );
 
   // CHERI BGAS router management
   let mngntShim <- mkAXI4Shim;
