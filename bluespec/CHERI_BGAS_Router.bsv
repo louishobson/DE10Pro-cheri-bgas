@@ -516,10 +516,12 @@ module mkCHERI_BGAS_Router #(Maybe #(RouterId #(t_x_sz, t_y_sz)) initRouterId)
   , Alias #( t_global_axi_flit
            , Tuple5 #( Maybe# (t_aw_flit), Maybe# (t_w_flit), Maybe# (t_b_flit)
                      , Maybe# (t_ar_flit), Maybe# (t_r_flit) ) )
+  , NumAlias #(nbIdRegistrations, 8)
     // constraints
   , Add #(a__, t_router_id_sz, t_id)
   , Add #(b__, t_router_id_sz, t_addr)
   , Add #(c__, t_router_id_sz, t_mngnt_data)
+  , Add #(d__, TLog #(nbIdRegistrations), t_m_id)
     // XXX t_mngnt_data is a multiple of 8
   , Mul #(TDiv #(t_mngnt_data, 8), 8, t_mngnt_data)
   , Bits #(t_global_axi_flit, t_global_axi_flit_sz)
@@ -588,7 +590,7 @@ module mkCHERI_BGAS_Router #(Maybe #(RouterId #(t_x_sz, t_y_sz)) initRouterId)
                      , !isValid (routerId) );
   // create the incoming global -> local ID conversion
   // (ID realocation)
-  NumProxy #(16) proxyTableSz = ?;
+  NumProxy #(nbIdRegistrations) proxyTableSz = ?;
   NumProxy #(8)  proxyMaxSameId = ?;
   let localMngr <- change_AXI4_Master_Id ( proxyTableSz, proxyMaxSameId
                                          , localRouterPort.manager );

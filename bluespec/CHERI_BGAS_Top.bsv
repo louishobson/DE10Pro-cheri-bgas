@@ -475,7 +475,7 @@ provisos (
             , cons (h2fShim.master, nil)
             , map (getH2FSub, sys)
             , reset_by newRst.new_rst );
-  NumProxy #(16) proxyH2FTableSz = ?;
+  NumProxy #(8) proxyH2FTableSz = ?;
   NumProxy #(8)  proxyH2FMaxSameId = ?;
   t_h2f_sub h2fShimSlave <-
     change_AXI4_Slave_Id ( proxyH2FTableSz, proxyH2FMaxSameId, h2fShim.slave
@@ -494,7 +494,7 @@ provisos (
   let f2hShimMasterTmp <-
     toWider_AXI4_Master ( truncate_AXI4_Master_addr (f2hShim.master)
                         , reset_by newRst.new_rst);
-  NumProxy #(16) proxyF2HTableSz = ?;
+  NumProxy #(8) proxyF2HTableSz = ?;
   NumProxy #(8)  proxyF2HMaxSameId = ?;
   t_f2h_mngr f2hShimMaster <-
     change_AXI4_Master_Id ( proxyF2HTableSz, proxyF2HMaxSameId, f2hShimMasterTmp
@@ -509,7 +509,7 @@ provisos (
     let ddrTmp <-
       toWider_AXI4_Master ( truncate_AXI4_Master_addr (ddrDeBurst.master)
                           , reset_by newRst.new_rst );
-    NumProxy #(16) proxyDDRTableSz = ?;
+    NumProxy #(8) proxyDDRTableSz = ?;
     NumProxy #(8)  proxyDDRMaxSameId = ?;
     ddr[i] <- change_AXI4_Master_Id ( proxyDDRTableSz
                                     , proxyDDRMaxSameId
