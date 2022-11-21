@@ -72,7 +72,7 @@ import DE10Pro_bsv_shell :: *;
 
 `define DRAM_ID       8
 `define DRAM_ADDR    32
-`define DRAM_DATA   128
+`define DRAM_DATA   512
 `define DRAM_AWUSER   0
 `define DRAM_WUSER    0
 `define DRAM_BUSER    0

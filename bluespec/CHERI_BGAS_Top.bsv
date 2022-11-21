@@ -88,7 +88,7 @@ Integer nbCheriBgasSystems = valueOf (NBCheriBgasSystems);
 
 `define DRAM_ID       8
 `define DRAM_ADDR    32
-`define DRAM_DATA   128
+`define DRAM_DATA   512
 `define DRAM_AWUSER   0
 `define DRAM_WUSER    0
 `define DRAM_BUSER    0
@@ -179,28 +179,47 @@ provisos (
 , NumAlias #(t_sys_axi_sub_1_addr, t_global_axi_addr)
 , NumAlias #(t_sys_axi_sub_1_data, t_global_axi_data)
 , NumAlias #(t_sys_axi_sub_1_awuser, t_global_axi_awuser)
-, NumAlias #(t_sys_axi_sub_1_wuser, 1)
-//, NumAlias #(t_sys_axi_sub_1_wuser, t_global_axi_wuser)
+//, NumAlias #(t_sys_axi_sub_1_wuser, 1)
+, NumAlias #(t_sys_axi_sub_1_wuser, t_global_axi_wuser)
 , NumAlias #(t_sys_axi_sub_1_buser, t_global_axi_buser)
-//, NumAlias #(t_sys_axi_sub_1_aruser, t_global_axi_aruser)
-, NumAlias #(t_sys_axi_sub_1_aruser, 1)
-, NumAlias #(t_sys_axi_sub_1_ruser, 1)
+//, NumAlias #(t_sys_axi_sub_1_aruser, 1)
+, NumAlias #(t_sys_axi_sub_1_aruser, t_global_axi_aruser)
+//, NumAlias #(t_sys_axi_sub_1_ruser, 1)
+, NumAlias #(t_sys_axi_sub_1_ruser, t_global_axi_ruser)
 //, NumAlias #(t_sys_axi_sub_1_ruser, t_global_axi_ruser)
-  // AXI4 manager ports - outgoing F2H, DDR and global traffic
-, NumAlias #(t_sys_axi_mngr_id, 8)
-, NumAlias #(t_sys_axi_mngr_addr, 64)
-, NumAlias #(t_sys_axi_mngr_data, 64)
-, NumAlias #(t_sys_axi_mngr_awuser, 0)
-, NumAlias #(t_sys_axi_mngr_wuser, 0)
-, NumAlias #(t_sys_axi_mngr_buser, 0)
-, NumAlias #(t_sys_axi_mngr_aruser, 0)
-, NumAlias #(t_sys_axi_mngr_ruser, 0)
+  // AXI4 manager port 0 for CHERI_BGAS_System - outgoing F2H
+, NumAlias #(t_sys_axi_mngr0_id, 7)
+, NumAlias #(t_sys_axi_mngr0_addr, 64)
+, NumAlias #(t_sys_axi_mngr0_data, 64)
+, NumAlias #(t_sys_axi_mngr0_awuser, 0)
+, NumAlias #(t_sys_axi_mngr0_wuser, 0)
+, NumAlias #(t_sys_axi_mngr0_buser, 0)
+, NumAlias #(t_sys_axi_mngr0_aruser, 0)
+, NumAlias #(t_sys_axi_mngr0_ruser, 0)
+  // AXI4 manager port 1 for CHERI_BGAS_System - DDR
+, NumAlias #(t_sys_axi_mngr1_id, 8)
+, NumAlias #(t_sys_axi_mngr1_addr, 64)
+, NumAlias #(t_sys_axi_mngr1_data, 512)
+, NumAlias #(t_sys_axi_mngr1_awuser, 0)
+, NumAlias #(t_sys_axi_mngr1_wuser, 0)
+, NumAlias #(t_sys_axi_mngr1_buser, 0)
+, NumAlias #(t_sys_axi_mngr1_aruser, 0)
+, NumAlias #(t_sys_axi_mngr1_ruser, 0)
+  // AXI4 manager port 2 for CHERI_BGAS_System - global traffic
+, NumAlias #(t_sys_axi_mngr2_id, 7)
+, NumAlias #(t_sys_axi_mngr2_addr, 64)
+, NumAlias #(t_sys_axi_mngr2_data, 64)
+, NumAlias #(t_sys_axi_mngr2_awuser, 0)
+, NumAlias #(t_sys_axi_mngr2_wuser, 0)
+, NumAlias #(t_sys_axi_mngr2_buser, 0)
+, NumAlias #(t_sys_axi_mngr2_aruser, 0)
+, NumAlias #(t_sys_axi_mngr2_ruser, 0)
   //////////////////////////////////////////////////////////////////////////////
 , Alias #(t_global_flit_container, Bit #(512))
   //////////////////////////////////////////////////////////////////////////////
   // aliases for the CHERI-BGAS toplevel module
   // AXI4 global traffic ports
-, NumAlias #(t_global_axi_id, t_sys_axi_mngr_id)
+, NumAlias #(t_global_axi_id, t_sys_axi_mngr2_id)
 , NumAlias #(t_global_axi_addr, 64)
 , NumAlias #(t_global_axi_data, 64)
 , NumAlias #(t_global_axi_awuser, 0)
@@ -239,10 +258,18 @@ provisos (
     , t_sys_axi_sub_1_id, t_sys_axi_sub_1_addr, t_sys_axi_sub_1_data
     , t_sys_axi_sub_1_awuser, t_sys_axi_sub_1_wuser, t_sys_axi_sub_1_buser
     , t_sys_axi_sub_1_aruser, t_sys_axi_sub_1_ruser
-    // AXI4 manager ports
-    , t_sys_axi_mngr_id, t_sys_axi_mngr_addr, t_sys_axi_mngr_data
-    , t_sys_axi_mngr_awuser, t_sys_axi_mngr_wuser, t_sys_axi_mngr_buser
-    , t_sys_axi_mngr_aruser, t_sys_axi_mngr_ruser ) )
+    // AXI4 manager 0 port
+    , t_sys_axi_mngr0_id, t_sys_axi_mngr0_addr, t_sys_axi_mngr0_data
+    , t_sys_axi_mngr0_awuser, t_sys_axi_mngr0_wuser, t_sys_axi_mngr0_buser
+    , t_sys_axi_mngr0_aruser, t_sys_axi_mngr0_ruser
+    // AXI4 manager 1 port
+    , t_sys_axi_mngr1_id, t_sys_axi_mngr1_addr, t_sys_axi_mngr1_data
+    , t_sys_axi_mngr1_awuser, t_sys_axi_mngr1_wuser, t_sys_axi_mngr1_buser
+    , t_sys_axi_mngr1_aruser, t_sys_axi_mngr1_ruser
+    // AXI4 manager 2 port
+    , t_sys_axi_mngr2_id, t_sys_axi_mngr2_addr, t_sys_axi_mngr2_data
+    , t_sys_axi_mngr2_awuser, t_sys_axi_mngr2_wuser, t_sys_axi_mngr2_buser
+    , t_sys_axi_mngr2_aruser, t_sys_axi_mngr2_ruser ) )
   //////////////////////////////////////////////////////////////////////////////
 
 , Alias #( t_global_flit, Bit #(512) )
@@ -253,10 +280,10 @@ provisos (
              , t_global_axi_aruser, t_global_axi_ruser ) )
 , Alias #( t_router_ifc
          , CHERI_BGAS_Router_Ifc #(
-               t_sys_axi_mngr_id, t_global_axi_addr, t_global_axi_data
+               t_sys_axi_mngr2_id, t_global_axi_addr, t_global_axi_data
              , t_global_axi_awuser, t_global_axi_wuser, t_global_axi_buser
              , t_global_axi_aruser, t_global_axi_ruser
-             , t_sys_axi_mngr_id, t_sys_axi_sub_1_id
+             , t_sys_axi_mngr2_id, t_sys_axi_sub_1_id
              , t_global_axi_addr, t_global_axi_data
              , t_global_axi_awuser, t_global_axi_wuser, t_global_axi_buser
              , t_global_axi_aruser, t_global_axi_ruser
@@ -273,14 +300,22 @@ provisos (
       t_sys_axi_sub_1_id, t_sys_axi_sub_1_addr, t_sys_axi_sub_1_data
     , t_sys_axi_sub_1_awuser, t_sys_axi_sub_1_wuser, t_sys_axi_sub_1_buser
     , t_sys_axi_sub_1_aruser, t_sys_axi_sub_1_ruser ))
-, Alias #( t_sys_axi_mngr, AXI4_Master #(
-      t_sys_axi_mngr_id, t_sys_axi_mngr_addr, t_sys_axi_mngr_data
-    , t_sys_axi_mngr_awuser, t_sys_axi_mngr_wuser, t_sys_axi_mngr_buser
-    , t_sys_axi_mngr_aruser, t_sys_axi_mngr_ruser ))
-, Alias #( t_sys_axi_shim, AXI4_Shim #(
-      t_sys_axi_mngr_id, t_sys_axi_mngr_addr, t_sys_axi_mngr_data
-    , t_sys_axi_mngr_awuser, t_sys_axi_mngr_wuser, t_sys_axi_mngr_buser
-    , t_sys_axi_mngr_aruser, t_sys_axi_mngr_ruser ))
+, Alias #( t_sys_axi_mngr0, AXI4_Master #(
+      t_sys_axi_mngr0_id, t_sys_axi_mngr0_addr, t_sys_axi_mngr0_data
+    , t_sys_axi_mngr0_awuser, t_sys_axi_mngr0_wuser, t_sys_axi_mngr0_buser
+    , t_sys_axi_mngr0_aruser, t_sys_axi_mngr0_ruser ))
+, Alias #( t_sys_axi_mngr1, AXI4_Master #(
+      t_sys_axi_mngr1_id, t_sys_axi_mngr1_addr, t_sys_axi_mngr1_data
+    , t_sys_axi_mngr1_awuser, t_sys_axi_mngr1_wuser, t_sys_axi_mngr1_buser
+    , t_sys_axi_mngr1_aruser, t_sys_axi_mngr1_ruser ))
+, Alias #( t_sys_axi_mngr2, AXI4_Master #(
+      t_sys_axi_mngr2_id, t_sys_axi_mngr2_addr, t_sys_axi_mngr2_data
+    , t_sys_axi_mngr2_awuser, t_sys_axi_mngr2_wuser, t_sys_axi_mngr2_buser
+    , t_sys_axi_mngr2_aruser, t_sys_axi_mngr2_ruser ))
+, Alias #( t_sys_axi_shim1, AXI4_Shim #(
+      t_sys_axi_mngr1_id, t_sys_axi_mngr1_addr, t_sys_axi_mngr1_data
+    , t_sys_axi_mngr1_awuser, t_sys_axi_mngr1_wuser, t_sys_axi_mngr1_buser
+    , t_sys_axi_mngr1_aruser, t_sys_axi_mngr1_ruser ))
 , Alias #( t_global_mngr, AXI4_Master #(
       t_global_axi_id, t_global_axi_addr, t_global_axi_data
     , t_global_axi_awuser, t_global_axi_wuser, t_global_axi_buser
@@ -343,9 +378,9 @@ provisos (
   function t_ctrl_sub getH2FLWSub (t_cheri_bgas_sys ifc) = ifc.axil_sub;
   function t_sys_axi_sub_0 getH2FSub (t_cheri_bgas_sys ifc) = ifc.axi_sub_0;
   function t_sys_axi_sub_1 getGlobalSub (t_cheri_bgas_sys ifc) = ifc.axi_sub_1;
-  function t_sys_axi_mngr getF2HMngr (t_cheri_bgas_sys ifc) = ifc.axi_mngr_0;
-  function t_sys_axi_mngr getDDRMngr (t_cheri_bgas_sys ifc) = ifc.axi_mngr_1;
-  function t_sys_axi_mngr getGlobalMngr (t_cheri_bgas_sys ifc) = ifc.axi_mngr_2;
+  function t_sys_axi_mngr0 getF2HMngr (t_cheri_bgas_sys ifc) = ifc.axi_mngr_0;
+  function t_sys_axi_mngr1 getDDRMngr (t_cheri_bgas_sys ifc) = ifc.axi_mngr_1;
+  function t_sys_axi_mngr2 getGlobalMngr (t_cheri_bgas_sys ifc) = ifc.axi_mngr_2;
   function t_irqs getIRQs (t_cheri_bgas_sys s) = s.irqs;
 
   // global network connections
@@ -504,11 +539,9 @@ provisos (
   //////////////////////////////////////////////////////////////////////////////
   Vector #(3, t_ddr_mngr) ddr = replicate (culDeSac);
   for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1) begin
-    t_sys_axi_shim ddrDeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
+    t_sys_axi_shim1 ddrDeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
     mkConnection (ddrDeBurst.slave, getDDRMngr (sys[i]), reset_by newRst.new_rst);
-    let ddrTmp <-
-      toWider_AXI4_Master ( truncate_AXI4_Master_addr (ddrDeBurst.master)
-                          , reset_by newRst.new_rst );
+    let ddrTmp = truncate_AXI4_Master_addr (ddrDeBurst.master);
     NumProxy #(8) proxyDDRTableSz = ?;
     NumProxy #(8)  proxyDDRMaxSameId = ?;
     ddr[i] <- change_AXI4_Master_Id ( proxyDDRTableSz
