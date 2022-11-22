@@ -465,7 +465,8 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   // build route
   function Vector #(1, Bool) bus0_route (Bit #(Wd_Addr) addr);
     Vector #(1, Bool) x = replicate (False);
-    if (inRange (soc_map.m_ddr4_0_cached_addr_range, addr))
+    if (   inRange (soc_map.m_ddr4_0_cached_addr_range, addr)
+        || inRange (soc_map.m_ddr4_0_uncached_addr_range, addr) )
       x[0] = True;
     return x;
   endfunction
