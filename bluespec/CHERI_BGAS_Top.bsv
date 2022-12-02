@@ -539,15 +539,16 @@ provisos (
   //////////////////////////////////////////////////////////////////////////////
   Vector #(3, t_ddr_mngr) ddr = replicate (culDeSac);
   for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1) begin
-    t_sys_axi_shim1 ddrDeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
-    mkConnection (ddrDeBurst.slave, getDDRMngr (sys[i]), reset_by newRst.new_rst);
-    let ddrTmp = truncate_AXI4_Master_addr (ddrDeBurst.master);
-    NumProxy #(8) proxyDDRTableSz = ?;
-    NumProxy #(8)  proxyDDRMaxSameId = ?;
-    ddr[i] <- change_AXI4_Master_Id ( proxyDDRTableSz
-                                    , proxyDDRMaxSameId
-                                    , ddrTmp
-                                    , reset_by newRst.new_rst );
+    //t_sys_axi_shim1 ddrDeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
+    //mkConnection (ddrDeBurst.slave, getDDRMngr (sys[i]), reset_by newRst.new_rst);
+    //let ddrTmp = truncate_AXI4_Master_addr (ddrDeBurst.master);
+    //NumProxy #(8) proxyDDRTableSz = ?;
+    //NumProxy #(8)  proxyDDRMaxSameId = ?;
+    //ddr[i] <- change_AXI4_Master_Id ( proxyDDRTableSz
+    //                                , proxyDDRMaxSameId
+    //                                , ddrTmp
+    //                                , reset_by newRst.new_rst );
+    ddr[i] = truncate_AXI4_Master_addr (getDDRMngr (sys[i]));
   end
 
   // dispatch IRQs
