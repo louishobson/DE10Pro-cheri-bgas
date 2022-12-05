@@ -441,7 +441,7 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
 
   // gather all subordinates
   Vector #(7, t_bus_sub) ss = replicate(?);
-  ss[0] = mngrShim[0].slave; // f2h accesses
+  //ss[0] = mngrShim[0].slave; // f2h accesses
   ss[1] = mngrShim[1].slave; // ddr accesses
   //ss[2] = mngrShim[2].slave; // global accesses
   ss[3] = uart0_s;
@@ -499,7 +499,7 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   
   // Shims for
   //   - incoming H2F traffic
-  /*   - incoming global traffic
+  //   - incoming global traffic
   Vector #(2, t_core_sub_shim)
     subShim <- replicateM (mkAXI4ShimFF (reset_by newRst.new_rst));
 
@@ -513,7 +513,7 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   mkAXI4Bus ( constFn (cons (True, nil))
             , cons (subShim[0].master, cons (subShim[1].master, nil))
             , cons (core.subordinate_0, nil)
-            , reset_by newRst.new_rst );*/
+            , reset_by newRst.new_rst );
   
   // DDR interconnect
   //////////////////////////////////////////////////////////////////////////////
@@ -534,8 +534,8 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   //////////////////////////////////////////////////////////////////////////////
 
   interface axil_sub = core.control_subordinate; // incoming control traffic
-  interface axi_sub_0 = ?;//h2fSub;                  // incoming H2F traffic
-  interface axi_sub_1 = ?;//subShim[1].slave;        // incoming global traffic
+  interface axi_sub_0 = h2fSub;                  // incoming H2F traffic
+  interface axi_sub_1 = subShim[1].slave;        // incoming global traffic
   interface axi_mngr_0 = mngrShim[0].master;     // outgoing F2H traffic
   interface axi_mngr_1 = debugAXI4_Master(ddrShim.master, $format("ddr_system"));         // outgoing ddr traffic
   interface axi_mngr_2 = mngrShim[2].master;     // outgoing global traffic
