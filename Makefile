@@ -101,5 +101,5 @@ mrproper-vipbundle:
 mrproper-bluespec-rtl:
 	$(MAKE) -C $(BSVSRCDIR) mrproper
 
-mrproper: clean mrproper-bluespec-rtl #mrproper-vipbundle
+mrproper: clean mrproper-bluespec-rtl mrproper-vipbundle
 	rm -rf $(CURDIR)/output_files
