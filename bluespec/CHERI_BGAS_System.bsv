@@ -514,14 +514,13 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
                , reset_by newRst.new_rst );
 
   // prepare bridge to bus0
-  /* TODO: Implement mkAXI4DataWidthShim_NarrowToWide
   NumProxy #(2)  proxyBuffInDepth = ?;
   NumProxy #(4) proxyBuffOutDepth = ?;
   match {.bus0BridgeSub, .bus0BridgeMngr} <-
     mkAXI4DataWidthShim_NarrowToWide ( proxyBuffInDepth
                                      , proxyBuffOutDepth
                                      , reset_by newRst.new_rst );
-  */
+ /*
   t_bus1_subshim bus0BridgeShim <- mkAXI4ShimFF (reset_by newRst.new_rst);
   AXI4_Master #(t_core_mid, Wd_Addr, TMul #(Wd_Data_Periph, 2), 0, 0, 0, 0, 0)
     m_wide_a <- toWider_AXI4_Master ( bus0BridgeShim.master
@@ -531,6 +530,7 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   t_bus0_mngr bus0BridgeMngr <- toWider_AXI4_Master ( m_wide_b
                                                     , reset_by newRst.new_rst );
   t_bus1_sub bus0BridgeSub = bus0BridgeShim.slave;
+  */
 
   //bus0_ms[1] = debugAXI4_Master (bus0BridgeMngr, $format ("bus0BridgeMngr"));
   bus0_ms[1] = bus0BridgeMngr;
