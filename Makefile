@@ -93,7 +93,7 @@ clean-ip-gen:
 	rm -rf $(CURDIR)/toplevel/
 
 clean: clean-bluespec-rtl clean-bluespec-quartus-ip clean-vipbundle clean-ip-gen
-	rm -rf $(CURDIR)/qdb $(CURDIR)/synth_dumps $(CURDIR)/tmp-clearbox $(UBOOTBUILDDIR)
+	rm -rf $(CURDIR)/synth_dumps $(CURDIR)/tmp-clearbox $(UBOOTBUILDDIR)
 
 mrproper-vipbundle:
 	$(MAKE) -C $(VIPBUNDLEDIR) mrproper
@@ -102,4 +102,4 @@ mrproper-bluespec-rtl:
 	$(MAKE) -C $(BSVSRCDIR) mrproper
 
 mrproper: clean mrproper-bluespec-rtl mrproper-vipbundle
-	rm -rf $(CURDIR)/output_files
+	rm -rf $(CURDIR)/qdb $(CURDIR)/output_files

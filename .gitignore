@@ -1,0 +1,7 @@
+output_files*/
+qdb/
+software/uboot_build/
+bluespec/build/
+bluespec/.depends.mk
+cheri-bgas-rtl/
+.qsys_edit/
