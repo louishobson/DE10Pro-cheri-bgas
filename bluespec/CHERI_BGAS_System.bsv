@@ -49,37 +49,49 @@ import VirtualDevice :: *;
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-// A straight forward axi lite subordinate to provide a banking mechanism for
+// A straightforward axi lite subordinate to provide a banking mechanism for
 // the h2f window into the core's memory map
-module mkH2FAddrCtrl #(Bit #(t_h2f_lw_data) dfltUpperBits)
+module mkH2FAddrCtrl #(Bit #(t_h2f_addr) dfltAddrBits)
   (Tuple2 #( AXI4Lite_Slave #( t_h2f_lw_addr, t_h2f_lw_data
                              , t_h2f_lw_awuser, t_h2f_lw_wuser, t_h2f_lw_buser
                              , t_h2f_lw_aruser, t_h2f_lw_ruser)
-           , ReadOnly #(Bit #(t_h2f_lw_data)) ));
+           , ReadOnly #(Bit #(t_h2f_addr)) ))
+  provisos (
+    NumAlias #( t_dats_per_addr, TDiv#(t_h2f_addr,t_h2f_lw_data))
+  , NumAlias #( t_dat_select, TLog#(t_dats_per_addr))
+  , Add#(a__, t_dat_select, t_h2f_lw_addr)
+  , Mul#(TDiv#(t_h2f_addr, t_h2f_lw_data), t_h2f_lw_data, t_h2f_addr) // Evenly divisible
+  );
 
   // internal state and signals
-  let addrUpperBits <- mkReg (dfltUpperBits);
+  Reg#(Vector#(t_dats_per_addr,Bit#(t_h2f_lw_data))) addrBits <- mkReg (unpack(dfltAddrBits));
   let axiShim <- mkAXI4LiteShimFF;
 
   // read requests handling (always answer with upper bits)
   rule read_req;
-    axiShim.master.ar.drop;
-    axiShim.master.r.put (AXI4Lite_RFlit { rdata: addrUpperBits
+    let ar <- get (axiShim.master.ar);
+    Bit#(t_dat_select) i = truncate(ar.araddr);
+    axiShim.master.r.put (AXI4Lite_RFlit { rdata: addrBits[i]
                                          , rresp: OKAY
                                          , ruser: ? });
   endrule
 
-  // write requests handling (always update addrUpperBits)
+  // write requests handling (update the appropriate word of addrBits)
   rule write_req;
-    axiShim.master.aw.drop;
+    let aw <- get (axiShim.master.aw);
+    Bit#(t_dat_select) i = truncate(aw.awaddr);
     let w <- get (axiShim.master.w);
-    addrUpperBits <= w.wdata;
+    addrBits[i] <= w.wdata;
     axiShim.master.b.put (AXI4Lite_BFlit { bresp: OKAY
                                          , buser: ? });
   endrule
 
-  // return the subordinate port and a ReadOnly interface to addrUpperBits
-  return tuple2 (axiShim.slave, regToReadOnly (addrUpperBits));
+  let readAddrBits = interface ReadOnly;
+    method _read = pack(addrBits);
+  endinterface;
+
+  // return the subordinate port and a ReadOnly interface to addrBits
+  return tuple2 (axiShim.slave, readAddrBits);// regToReadOnly (pack(dataBits));//addrBits));
 
 endmodule
 
@@ -401,7 +413,7 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   // h2f address upper 32-bits banking register
   // (h2f port only has 32-bit addresses, this mechanism is intended to enable
   // control over a full 64-bit address)
-  Tuple2 #(t_axil_sub, ReadOnly #(Bit #(t_axil_sub_data)))
+  Tuple2 #(t_axil_sub, ReadOnly #(Bit #(Wd_Addr)))
     h2fCtrlIfcs <- mkH2FAddrCtrl (0, reset_by newRst.new_rst);
   match {.h2fAddrCtrlSub, .h2fAddrCtrlRO} = h2fCtrlIfcs;
   // ctrl sub entry
@@ -586,9 +598,10 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   // H2F interface wrapping (extra address bits & data size shim)
   t_h2f_sub h2fSub <- toWider_AXI4_Slave (
                         zero_AXI4_Slave_user (
-                          prepend_AXI4_Slave_addr ( h2fAddrCtrlRO
-                                                  , subShim[0].slave))
-                                         , reset_by newRst.new_rst );
+                          prepend_AXI4_Slave_addr ( 32'b0
+                                                  , or_AXI4_Slave_addr ( h2fAddrCtrlRO
+                                                                       , subShim[0].slave)))
+                      , reset_by newRst.new_rst );
 
   mkAXI4Bus ( constFn (cons (True, nil))
             , cons (subShim[0].master, cons (subShim[1].master, nil))
