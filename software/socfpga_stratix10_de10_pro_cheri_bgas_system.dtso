@@ -1,0 +1,85 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+    compatible = "altr,socfpga-stratix10";
+};
+
+&{/soc} {
+    fmem_h2f_sys_sel@f9030000 {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        compatible = "cheri,fmem";
+        reg = <0xf9030000 0x1000>;
+        status = "okay";
+        selector {
+            reg = <0x0 0x1000>;
+        };
+    };
+    fmem_sys0@f9000000 {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        compatible = "cheri,fmem";
+        reg = <0xf9000000 0x3000>;
+        status = "okay";
+        sys0_debug_unit {
+            reg = <0x0 0x1000>;
+        };
+        sys0_interrupts {
+            reg = <0x1000 0x1000>;
+        };
+        sys0_misc {
+            reg = <0x2000 0x1000>;
+        };
+    };
+        /*
+        sys0_uart {
+            reg = <0x3000 0x1000>;
+        };
+        */
+    uart0@f9003000 {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        current-speed = <115200>;
+        compatible = "ns16550a";
+        interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+        reg = <0xf9003000 0x1000>;
+        clock-frequency = <50000000>;
+        reg-shift = <2>;
+    };
+    fmem_sys0_h2f_addr_ctrl@f9005000 {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        compatible = "cheri,fmem";
+        reg = <0xf9005000 0x1000>;
+        status = "okay";
+        sys0_h2f_addr_ctrl {
+            reg = <0x0000 0x1000>;
+        };
+    };
+    fmem_sys0c@f9008000 {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        compatible = "cheri,fmem";
+        reg = <0xf9008000 0x4000>;
+        status = "okay";
+        sys0_virtual_device {
+          reg = <0x0 0x4000>;
+        };
+    };
+    fmem_h2f_dflt@80000000 {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        compatible = "cheri,fmem";
+        reg = <0x80000000 0x60000000>;
+        status = "okay";
+        h2f_dflt_1G {
+            reg = <0x0 0x40000000>;
+        };
+        h2f_dflt_512M {
+            reg = <0x40000000 0x20000000>;
+        };
+    };
+};
