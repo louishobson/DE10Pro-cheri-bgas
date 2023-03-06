@@ -50,6 +50,11 @@ gen-rbf: $(BOOTLOADER)
 	cp -r output_files $(OUTDIR)
 	quartus_pfg -c $(SOF) -o hps=ON -o hps_path=$(BOOTLOADER) $(OUTNAME).rbf
 
+ci-gen-rbf: $(BOOTLOADER)
+	$(eval SOF = "output_files/DE10Pro-cheri-bgas.sof")
+	$(eval OUTNAME = "output_files/cheri-bgas-socfpga")
+	quartus_pfg -c $(SOF) -o hps=ON -o hps_path=$(BOOTLOADER) $(OUTNAME).rbf
+
 synthesize output_files/DE10Pro-cheri-bgas.sof &: gen-ip
 	BLUESTUFFDIR=$(BLUESTUFFDIR) time quartus_sh --flow compile $(QPF)
 
