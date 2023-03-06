@@ -34,6 +34,7 @@ import Vector :: *;
 import Clocks :: *;
 import Connectable :: *;
 import BlueAXI4 :: *;
+import BlueBasics :: *;
 import AXI4_Fake_16550 :: *;
 import Routable :: *;
 import SourceSink :: *;
@@ -48,37 +49,49 @@ import VirtualDevice :: *;
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-// A straight forward axi lite subordinate to provide a banking mechanism for
+// A straightforward axi lite subordinate to provide a banking mechanism for
 // the h2f window into the core's memory map
-module mkH2FAddrCtrl #(Bit #(t_h2f_lw_data) dfltUpperBits)
+module mkH2FAddrCtrl #(Bit #(t_h2f_addr) dfltAddrBits)
   (Tuple2 #( AXI4Lite_Slave #( t_h2f_lw_addr, t_h2f_lw_data
                              , t_h2f_lw_awuser, t_h2f_lw_wuser, t_h2f_lw_buser
                              , t_h2f_lw_aruser, t_h2f_lw_ruser)
-           , ReadOnly #(Bit #(t_h2f_lw_data)) ));
+           , ReadOnly #(Bit #(t_h2f_addr)) ))
+  provisos (
+    NumAlias #( t_dats_per_addr, TDiv#(t_h2f_addr,t_h2f_lw_data))
+  , NumAlias #( t_dat_select, TLog#(t_dats_per_addr))
+  , Add#(a__, t_dat_select, t_h2f_lw_addr)
+  , Mul#(TDiv#(t_h2f_addr, t_h2f_lw_data), t_h2f_lw_data, t_h2f_addr) // Evenly divisible
+  );
 
   // internal state and signals
-  let addrUpperBits <- mkReg (dfltUpperBits);
+  Reg#(Vector#(t_dats_per_addr,Bit#(t_h2f_lw_data))) addrBits <- mkReg (unpack(dfltAddrBits));
   let axiShim <- mkAXI4LiteShimFF;
 
   // read requests handling (always answer with upper bits)
   rule read_req;
-    axiShim.master.ar.drop;
-    axiShim.master.r.put (AXI4Lite_RFlit { rdata: addrUpperBits
+    let ar <- get (axiShim.master.ar);
+    Bit#(t_dat_select) i = truncate(ar.araddr);
+    axiShim.master.r.put (AXI4Lite_RFlit { rdata: addrBits[i]
                                          , rresp: OKAY
                                          , ruser: ? });
   endrule
 
-  // write requests handling (always update addrUpperBits)
+  // write requests handling (update the appropriate word of addrBits)
   rule write_req;
-    axiShim.master.aw.drop;
+    let aw <- get (axiShim.master.aw);
+    Bit#(t_dat_select) i = truncate(aw.awaddr);
     let w <- get (axiShim.master.w);
-    addrUpperBits <= w.wdata;
+    addrBits[i] <= w.wdata;
     axiShim.master.b.put (AXI4Lite_BFlit { bresp: OKAY
                                          , buser: ? });
   endrule
 
-  // return the subordinate port and a ReadOnly interface to addrUpperBits
-  return tuple2 (axiShim.slave, regToReadOnly (addrUpperBits));
+  let readAddrBits = interface ReadOnly;
+    method _read = pack(addrBits);
+  endinterface;
+
+  // return the subordinate port and a ReadOnly interface to addrBits
+  return tuple2 (axiShim.slave, readAddrBits);// regToReadOnly (pack(dataBits));//addrBits));
 
 endmodule
 
@@ -113,15 +126,33 @@ interface CHERI_BGAS_System_Ifc #(
 , numeric type t_axi_sub_1_buser
 , numeric type t_axi_sub_1_aruser
 , numeric type t_axi_sub_1_ruser
-// AXI4 manager ports
-, numeric type t_axi_mngr_id
-, numeric type t_axi_mngr_addr
-, numeric type t_axi_mngr_data
-, numeric type t_axi_mngr_awuser
-, numeric type t_axi_mngr_wuser
-, numeric type t_axi_mngr_buser
-, numeric type t_axi_mngr_aruser
-, numeric type t_axi_mngr_ruser
+// AXI4 manager 0 port
+, numeric type t_axi_mngr0_id
+, numeric type t_axi_mngr0_addr
+, numeric type t_axi_mngr0_data
+, numeric type t_axi_mngr0_awuser
+, numeric type t_axi_mngr0_wuser
+, numeric type t_axi_mngr0_buser
+, numeric type t_axi_mngr0_aruser
+, numeric type t_axi_mngr0_ruser
+// AXI4 manager 1 port
+, numeric type t_axi_mngr1_id
+, numeric type t_axi_mngr1_addr
+, numeric type t_axi_mngr1_data
+, numeric type t_axi_mngr1_awuser
+, numeric type t_axi_mngr1_wuser
+, numeric type t_axi_mngr1_buser
+, numeric type t_axi_mngr1_aruser
+, numeric type t_axi_mngr1_ruser
+// AXI4 manager 2 port
+, numeric type t_axi_mngr2_id
+, numeric type t_axi_mngr2_addr
+, numeric type t_axi_mngr2_data
+, numeric type t_axi_mngr2_awuser
+, numeric type t_axi_mngr2_wuser
+, numeric type t_axi_mngr2_buser
+, numeric type t_axi_mngr2_aruser
+, numeric type t_axi_mngr2_ruser
 );
   // AXI4Lite subordinate port
   // -------------------------
@@ -152,30 +183,30 @@ interface CHERI_BGAS_System_Ifc #(
                         , t_axi_sub_1_ruser ) axi_sub_1;
   // AXI4 manager ports
   // ------------------
-  interface AXI4_Master #( t_axi_mngr_id
-                         , t_axi_mngr_addr
-                         , t_axi_mngr_data
-                         , t_axi_mngr_awuser
-                         , t_axi_mngr_wuser
-                         , t_axi_mngr_buser
-                         , t_axi_mngr_aruser
-                         , t_axi_mngr_ruser ) axi_mngr_0;
-  interface AXI4_Master #( t_axi_mngr_id
-                         , t_axi_mngr_addr
-                         , t_axi_mngr_data
-                         , t_axi_mngr_awuser
-                         , t_axi_mngr_wuser
-                         , t_axi_mngr_buser
-                         , t_axi_mngr_aruser
-                         , t_axi_mngr_ruser ) axi_mngr_1;
-  interface AXI4_Master #( t_axi_mngr_id
-                         , t_axi_mngr_addr
-                         , t_axi_mngr_data
-                         , t_axi_mngr_awuser
-                         , t_axi_mngr_wuser
-                         , t_axi_mngr_buser
-                         , t_axi_mngr_aruser
-                         , t_axi_mngr_ruser ) axi_mngr_2;
+  interface AXI4_Master #( t_axi_mngr0_id
+                         , t_axi_mngr0_addr
+                         , t_axi_mngr0_data
+                         , t_axi_mngr0_awuser
+                         , t_axi_mngr0_wuser
+                         , t_axi_mngr0_buser
+                         , t_axi_mngr0_aruser
+                         , t_axi_mngr0_ruser ) axi_mngr_0;
+  interface AXI4_Master #( t_axi_mngr1_id
+                         , t_axi_mngr1_addr
+                         , t_axi_mngr1_data
+                         , t_axi_mngr1_awuser
+                         , t_axi_mngr1_wuser
+                         , t_axi_mngr1_buser
+                         , t_axi_mngr1_aruser
+                         , t_axi_mngr1_ruser ) axi_mngr_1;
+  interface AXI4_Master #( t_axi_mngr2_id
+                         , t_axi_mngr2_addr
+                         , t_axi_mngr2_data
+                         , t_axi_mngr2_awuser
+                         , t_axi_mngr2_wuser
+                         , t_axi_mngr2_buser
+                         , t_axi_mngr2_aruser
+                         , t_axi_mngr2_ruser ) axi_mngr_2;
   // Interrupt sender interface
   // --------------------------
   interface Vector #(32, Irq) irqs;
@@ -213,15 +244,33 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   , t_axi_sub_1_buser
   , t_axi_sub_1_aruser
   , t_axi_sub_1_ruser
-  // AXI4 manager ports
-  , t_axi_mngr_id
-  , t_axi_mngr_addr
-  , t_axi_mngr_data
-  , t_axi_mngr_awuser
-  , t_axi_mngr_wuser
-  , t_axi_mngr_buser
-  , t_axi_mngr_aruser
-  , t_axi_mngr_ruser
+  // AXI4 manager 0 port
+  , t_axi_mngr0_id
+  , t_axi_mngr0_addr
+  , t_axi_mngr0_data
+  , t_axi_mngr0_awuser
+  , t_axi_mngr0_wuser
+  , t_axi_mngr0_buser
+  , t_axi_mngr0_aruser
+  , t_axi_mngr0_ruser
+  // AXI4 manager 1 port
+  , t_axi_mngr1_id
+  , t_axi_mngr1_addr
+  , t_axi_mngr1_data
+  , t_axi_mngr1_awuser
+  , t_axi_mngr1_wuser
+  , t_axi_mngr1_buser
+  , t_axi_mngr1_aruser
+  , t_axi_mngr1_ruser
+  // AXI4 manager 2 port
+  , t_axi_mngr2_id
+  , t_axi_mngr2_addr
+  , t_axi_mngr2_data
+  , t_axi_mngr2_awuser
+  , t_axi_mngr2_wuser
+  , t_axi_mngr2_buser
+  , t_axi_mngr2_aruser
+  , t_axi_mngr2_ruser
   )) provisos (
     // type aliases
     ////////////////////////////////////////////////////////////////////////////
@@ -231,31 +280,28 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
                t_axil_sub_addr, t_axil_sub_data
              , t_axil_sub_awuser, t_axil_sub_wuser, t_axil_sub_buser
              , t_axil_sub_aruser, t_axil_sub_ruser ))
-  , Alias #( t_axil_virt_dev_mngr
-           , AXI4_Master #(
-               t_bus_sid, t_axil_sub_addr, TMul#(t_axil_sub_data,2)
-             , t_axil_sub_awuser, t_axil_sub_wuser, t_axil_sub_buser
-             , t_axil_sub_aruser, t_axil_sub_ruser ))
-  , Alias #( t_axil_full_shim
-           , AXI4_Shim #(
-               t_bus_sid, t_axil_sub_addr, t_axil_sub_data
-             , t_axil_sub_awuser, t_axil_sub_wuser, t_axil_sub_buser
-             , t_axil_sub_aruser, t_axil_sub_ruser ))
     // outgoing traffic
-  , NumAlias #(t_bus_mid, TAdd #(Wd_MId, 1)) // id width out of the core
-  , NumAlias #(t_bus_sid, TAdd #(Wd_MId, 2)) // cope with 2 masters only
-  , Alias #(t_bus_mngr, AXI4_Master #( t_bus_mid, Wd_Addr, Wd_Data
-                                     , 0, 0, 0, 0, 0))
-  , Alias #(t_bus_sub, AXI4_Slave #( t_bus_sid, Wd_Addr, Wd_Data
-                                   , 0, 0, 0, 0, 0))
-  , Alias #(t_bus_subshim, AXI4_Shim #( t_bus_sid, Wd_Addr, Wd_Data
+  , NumAlias #(t_core_mid, TAdd #(Wd_MId, 1)) // id width out of the core
+  , NumAlias #(t_bus0_sid, TAdd #(t_core_mid, 1)) // cope with 2 masters only
+  , Alias #(t_bus0_mngr, AXI4_Master #( t_core_mid, Wd_Addr, Wd_Data
                                       , 0, 0, 0, 0, 0))
+  , Alias #(t_bus0_sub, AXI4_Slave #( t_bus0_sid, Wd_Addr, Wd_Data
+                                    , 0, 0, 0, 0, 0))
+  , Alias #(t_bus0_subshim, AXI4_Shim #( t_bus0_sid, Wd_Addr, Wd_Data
+                                       , 0, 0, 0, 0, 0))
+  , NumAlias #(t_bus1_sid, t_core_mid) // cope with 1 master only
+  , Alias #(t_bus1_mngr, AXI4_Master #( t_core_mid, Wd_Addr, Wd_Data_Periph
+                                      , 0, 0, 0, 0, 0))
+  , Alias #(t_bus1_sub, AXI4_Slave #( t_bus1_sid, Wd_Addr, Wd_Data_Periph
+                                    , 0, 0, 0, 0, 0))
+  , Alias #(t_bus1_subshim, AXI4_Shim #( t_bus1_sid, Wd_Addr, Wd_Data_Periph
+                                       , 0, 0, 0, 0, 0))
     // incoming traffic
   , Add #(1, t_incoming_id, Wd_CoreW_Bus_MId)
   , Alias #( t_core_sub_shim
-           , AXI4_Shim #( t_incoming_id, Wd_Addr, Wd_Data
-                        , Wd_AW_User, Wd_W_User, Wd_B_User
-                        , Wd_AR_User, Wd_R_User))
+           , AXI4_Shim #( t_incoming_id, Wd_Addr, Wd_Data_Periph
+                        , Wd_AW_User_Periph, Wd_W_User_Periph, Wd_B_User_Periph
+                        , Wd_AR_User_Periph, Wd_R_User_Periph))
   , Alias #( t_h2f_sub
            , AXI4_Slave #(
                t_incoming_id, t_axi_sub_0_addr, t_axi_sub_0_data
@@ -278,21 +324,39 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
     // AXI4 subordinate 1 port
   , Add #(0, t_incoming_id, t_axi_sub_1_id)
   , Add #(0, Wd_Addr, t_axi_sub_1_addr)
-  , Add #(0, Wd_Data, t_axi_sub_1_data)
-  , Add #(0, Wd_AW_User, t_axi_sub_1_awuser)
-  , Add #(0, Wd_W_User, t_axi_sub_1_wuser)
-  , Add #(0, Wd_B_User, t_axi_sub_1_buser)
-  , Add #(0, Wd_AR_User, t_axi_sub_1_aruser)
-  , Add #(0, Wd_R_User, t_axi_sub_1_ruser)
-    // AXI4 manager ports
-  , Add #(0, t_bus_sid, t_axi_mngr_id)
-  , Add #(0, Wd_Addr, t_axi_mngr_addr)
-  , Add #(0, Wd_Data, t_axi_mngr_data)
-  , Add #(0, 0, t_axi_mngr_awuser)
-  , Add #(0, 0, t_axi_mngr_wuser)
-  , Add #(0, 0, t_axi_mngr_buser)
-  , Add #(0, 0, t_axi_mngr_aruser)
-  , Add #(0, 0, t_axi_mngr_ruser)
+  , Add #(0, Wd_Data_Periph, t_axi_sub_1_data)
+  , Add #(0, Wd_AW_User_Periph, t_axi_sub_1_awuser)
+  , Add #(0, Wd_W_User_Periph, t_axi_sub_1_wuser)
+  , Add #(0, Wd_B_User_Periph, t_axi_sub_1_buser)
+  , Add #(0, Wd_AR_User_Periph, t_axi_sub_1_aruser)
+  , Add #(0, Wd_R_User_Periph, t_axi_sub_1_ruser)
+    // AXI4 manager 0 port -- used for F2H traffic
+  , Add #(0, t_bus1_sid, t_axi_mngr0_id)
+  , Add #(0, Wd_Addr, t_axi_mngr0_addr)
+  , Add #(0, Wd_Data_Periph, t_axi_mngr0_data)
+  , Add #(0, 0, t_axi_mngr0_awuser)
+  , Add #(0, 0, t_axi_mngr0_wuser)
+  , Add #(0, 0, t_axi_mngr0_buser)
+  , Add #(0, 0, t_axi_mngr0_aruser)
+  , Add #(0, 0, t_axi_mngr0_ruser)
+    // AXI4 manager 1 port -- used for DDR traffic
+  , Add #(0, t_bus0_sid, t_axi_mngr1_id)
+  , Add #(0, Wd_Addr, t_axi_mngr1_addr)
+  , Add #(0, Wd_Data, t_axi_mngr1_data)
+  , Add #(0, 0, t_axi_mngr1_awuser)
+  , Add #(0, 0, t_axi_mngr1_wuser)
+  , Add #(0, 0, t_axi_mngr1_buser)
+  , Add #(0, 0, t_axi_mngr1_aruser)
+  , Add #(0, 0, t_axi_mngr1_ruser)
+    // AXI4 manager 2 port -- used for global traffic
+  , Add #(0, t_bus1_sid, t_axi_mngr2_id)
+  , Add #(0, Wd_Addr, t_axi_mngr2_addr)
+  , Add #(0, Wd_Data_Periph, t_axi_mngr2_data)
+  , Add #(0, 0, t_axi_mngr2_awuser)
+  , Add #(0, 0, t_axi_mngr2_wuser)
+  , Add #(0, 0, t_axi_mngr2_buser)
+  , Add #(0, 0, t_axi_mngr2_aruser)
+  , Add #(0, 0, t_axi_mngr2_ruser)
   );
 
   // declare cpu core with WindCoreMid interface
@@ -303,7 +367,7 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   Reset rst <- exposeCurrentReset;
   let newRst <- mkReset (0, True, clk, reset_by rst);
   Tuple2 #( PulseWire
-          , CoreW_IFC#(N_External_Interrupt_Sources)) both
+          , CoreW_IFC #(N_External_Interrupt_Sources)) both
     <- mkCoreW_reset (rst, reset_by newRst.new_rst);
   match {.otherRst, .midCore} = both;
   rule rl_forward_debug_reset (otherRst);
@@ -349,7 +413,7 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   // h2f address upper 32-bits banking register
   // (h2f port only has 32-bit addresses, this mechanism is intended to enable
   // control over a full 64-bit address)
-  Tuple2 #(t_axil_sub, ReadOnly #(Bit #(t_axil_sub_data)))
+  Tuple2 #(t_axil_sub, ReadOnly #(Bit #(Wd_Addr)))
     h2fCtrlIfcs <- mkH2FAddrCtrl (0, reset_by newRst.new_rst);
   match {.h2fAddrCtrlSub, .h2fAddrCtrlRO} = h2fCtrlIfcs;
   // ctrl sub entry
@@ -360,19 +424,16 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   // (Has both a control interface and a virtualised interface;
   // The control interface for AXI4 lite, and virtualised for Toooba MMIO.
   // The virtual device does not support bursts.)
-  VirtualDeviceIfc #( t_bus_sid, t_axil_sub_addr, t_axil_sub_data
-                    , t_bus_sid, Wd_Addr, Wd_Data )
+  VirtualDeviceIfc #( t_bus1_sid, t_axil_sub_addr, t_axil_sub_data
+                    , t_bus1_sid, Wd_Addr, Wd_Data_Periph )
     virtDev <- mkVirtualDevice (reset_by newRst.new_rst);
   let ctrSubVirtDevCtrl =
     tuple2 ( fromAXI4ToAXI4Lite_Slave (virtDev.mngt)
            , Range { base: 'h0000_8000, size: 'h0000_4000 } );
 
-  // Outgoing interconnect
+  // Prepare Wind Core
   //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
-
-  // prepare AXI4 managers
-  ////////////////////////
   // re-wrap wind core:
   // - convert mid core to hi core
   // - add outside-world-facing AXI4 Lite subordinates to expose throug the
@@ -394,71 +455,124 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
                 // explicit reset_by
               , reset_by newRst.new_rst );
 
-  // gather all managers
-  Vector #(2, t_bus_mngr) ms;
-  ms[0] = core.manager_0;
-  ms[1] = core.manager_1;
+  // Bus 0 - core cached traffic / forwarded uncached
+  //////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
 
-  // prepare AXI4 subordinates exposed to the wind core manager
-  /////////////////////////////////////////////////////////////
+  // gather all managers
+  Vector #(2, t_bus0_mngr) bus0_ms;
+  bus0_ms[0] = core.manager_0;
+  bus0_ms[1] = ?; // later assigned out of a bridge out of bus1
+
+  // prepare AXI4 subordinates exposed to the cached interface
+  ////////////////////////////////////////////////////////////
 
   // prepare AXI4 manager ports traffic
-  Vector #(3, t_bus_subshim)
+  t_bus0_subshim ddrShim <- mkAXI4ShimFF (reset_by newRst.new_rst);
+
+  // gather all subordinates
+  Vector #(1, t_bus0_sub) bus0_ss;
+  bus0_ss[0] = ddrShim.slave;
+
+  // build route
+  function Vector #(1, Bool) bus0_route (Bit #(Wd_Addr) addr);
+    Vector #(1, Bool) x = replicate (False);
+    if (   inRange (soc_map.m_ddr4_0_cached_addr_range, addr)
+        || inRange (soc_map.m_ddr4_0_uncached_addr_range, addr) )
+      x[0] = True;
+    return x;
+  endfunction
+
+  // Bus 1 - core uncached traffic
+  //////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
+  // gather all managers
+  Vector #(1, t_bus1_mngr) bus1_ms;
+  bus1_ms[0] = core.manager_1;
+
+  // prepare AXI4 subordinates exposed to the bus1 interface
+  //////////////////////////////////////////////////////////
+
+  // prepare AXI4 manager ports traffic
+  Vector #(2, t_bus1_subshim)
     mngrShim <- replicateM (mkAXI4ShimFF (reset_by newRst.new_rst));
 
   // prepare uart0
-  AXI4_Shim #( t_bus_sid, t_axil_sub_addr, t_axil_sub_data
+  AXI4_Shim #( t_bus1_sid, t_axil_sub_addr, t_axil_sub_data
              , t_axil_sub_awuser, t_axil_sub_wuser, t_axil_sub_buser
              , t_axil_sub_aruser, t_axil_sub_ruser)
     uart0DeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
   mkConnection (uart0DeBurst.master, uart0s1, reset_by newRst.new_rst);
-  t_bus_sub uart0_s <-
+  t_bus1_sub uart0_s <-
     toWider_AXI4_Slave ( truncate_AXI4_Slave_addr (uart0DeBurst.slave)
                        , reset_by newRst.new_rst );
 
   // prepare uart1
-  AXI4_Shim #( t_bus_sid, t_axil_sub_addr, t_axil_sub_data
+  AXI4_Shim #( t_bus1_sid, t_axil_sub_addr, t_axil_sub_data
              , t_axil_sub_awuser, t_axil_sub_wuser, t_axil_sub_buser
              , t_axil_sub_aruser, t_axil_sub_ruser)
     uart1DeBurst <- mkBurstToNoBurst (reset_by newRst.new_rst);
   mkConnection (uart1DeBurst.master, uart1s1, reset_by newRst.new_rst);
-  t_bus_sub uart1_s <-
+  t_bus1_sub uart1_s <-
     toWider_AXI4_Slave ( truncate_AXI4_Slave_addr (uart1DeBurst.slave)
                        , reset_by newRst.new_rst );
 
   // prepare bootrom
-  t_bus_subshim fakeBootRomDeBurst <-
+  t_bus1_subshim fakeBootRomDeBurst <-
     mkBurstToNoBurst (reset_by newRst.new_rst);
-  t_bus_sub fakeBootRom <- mkPerpetualZeroAXI4Slave (reset_by newRst.new_rst);
+  t_bus1_sub fakeBootRom <- mkPerpetualZeroAXI4Slave (reset_by newRst.new_rst);
   mkConnection ( fakeBootRomDeBurst.master, fakeBootRom
-               , reset_by newRst.new_rst);
+               , reset_by newRst.new_rst );
+
+  // prepare bridge to bus0
+  NumProxy #(2)  proxyBuffInDepth = ?;
+  NumProxy #(4) proxyBuffOutDepth = ?;
+  match {.bus0BridgeSub, .bus0BridgeMngr} <-
+    mkAXI4DataWidthShim_NarrowToWide ( proxyBuffInDepth
+                                     , proxyBuffOutDepth
+                                     , reset_by newRst.new_rst );
+ /*
+  t_bus1_subshim bus0BridgeShim <- mkAXI4ShimFF (reset_by newRst.new_rst);
+  AXI4_Master #(t_core_mid, Wd_Addr, TMul #(Wd_Data_Periph, 2), 0, 0, 0, 0, 0)
+    m_wide_a <- toWider_AXI4_Master ( bus0BridgeShim.master
+                                    , reset_by newRst.new_rst );
+  AXI4_Master #(t_core_mid, Wd_Addr, TMul #(Wd_Data_Periph, 4), 0, 0, 0, 0, 0)
+    m_wide_b <- toWider_AXI4_Master (m_wide_a, reset_by newRst.new_rst);
+  t_bus0_mngr bus0BridgeMngr <- toWider_AXI4_Master ( m_wide_b
+                                                    , reset_by newRst.new_rst );
+  t_bus1_sub bus0BridgeSub = bus0BridgeShim.slave;
+  */
+
+  //bus0_ms[1] = debugAXI4_Master (bus0BridgeMngr, $format ("bus0BridgeMngr"));
+  bus0_ms[1] = bus0BridgeMngr;
 
   // gather all subordinates
-  Vector #(7, t_bus_sub) ss;
-  ss[0] = mngrShim[0].slave; // f2h accesses
-  ss[1] = mngrShim[1].slave; // ddr accesses
-  ss[2] = mngrShim[2].slave; // global accesses
-  ss[3] = uart0_s;
-  ss[4] = uart1_s;
-  ss[5] = fakeBootRomDeBurst.slave;
-  ss[6] = virtDev.virt;
+  Vector #(7, t_bus1_sub) bus1_ss;
+  bus1_ss[0] = mngrShim[0].slave; // f2h accesses
+  bus1_ss[1] = mngrShim[1].slave; // global accesses
+  bus1_ss[2] = uart0_s;
+  bus1_ss[3] = uart1_s;
+  bus1_ss[4] = fakeBootRomDeBurst.slave;
+  bus1_ss[5] = virtDev.virt;
+  //bus1_ss[6] = debugAXI4_Slave (bus0BridgeSub, $format ("bus0BridgeSub"));
+  bus1_ss[6] = bus0BridgeSub;
 
   // build route
-  function Vector #(7, Bool) route (Bit #(Wd_Addr) addr);
+  function Vector #(7, Bool) bus1_route (Bit #(Wd_Addr) addr);
     Vector #(7, Bool) x = replicate (False);
-    if (inRange (soc_map.m_virt_dev_addr_range, addr))
+    if (inRange (soc_map.m_ddr4_0_uncached_addr_range, addr))
       x[6] = True;
-    else if (inRange (soc_map.m_boot_rom_addr_range, addr))
+    else if (inRange (soc_map.m_virt_dev_addr_range, addr))
       x[5] = True;
-    else if (inRange (soc_map.m_uart_1_addr_range, addr))
+    else if (inRange (soc_map.m_boot_rom_addr_range, addr))
       x[4] = True;
-    else if (inRange (soc_map.m_uart_0_addr_range, addr))
+    else if (inRange (soc_map.m_uart_1_addr_range, addr))
       x[3] = True;
+    else if (inRange (soc_map.m_uart_0_addr_range, addr))
+      x[2] = True;
     else if (  inRange (soc_map.m_global_bgas_addr_range, addr)
             || inRange (soc_map.m_bgas_router_conf_addr_range, addr) )
-      x[2] = True;
-    else if (  inRange (soc_map.m_ddr4_0_uncached_addr_range, addr)
-            || inRange (soc_map.m_ddr4_0_cached_addr_range, addr) )
       x[1] = True;
     else if (inRange (soc_map.m_f2h_addr_range, addr))
       x[0] = True;
@@ -466,7 +580,10 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   endfunction
 
   // wire it all up
-  mkAXI4Bus (route, ms, ss, reset_by newRst.new_rst);
+  //////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+  mkAXI4Bus (bus0_route, bus0_ms, bus0_ss, reset_by newRst.new_rst);
+  mkAXI4Bus (bus1_route, bus1_ms, bus1_ss, reset_by newRst.new_rst);
 
   // Incoming interconnect
   //////////////////////////////////////////////////////////////////////////////
@@ -481,9 +598,10 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   // H2F interface wrapping (extra address bits & data size shim)
   t_h2f_sub h2fSub <- toWider_AXI4_Slave (
                         zero_AXI4_Slave_user (
-                          prepend_AXI4_Slave_addr ( h2fAddrCtrlRO
-                                                  , subShim[0].slave))
-                                         , reset_by newRst.new_rst );
+                          prepend_AXI4_Slave_addr ( 32'b0
+                                                  , or_AXI4_Slave_addr ( h2fAddrCtrlRO
+                                                                       , subShim[0].slave)))
+                      , reset_by newRst.new_rst );
 
   mkAXI4Bus ( constFn (cons (True, nil))
             , cons (subShim[0].master, cons (subShim[1].master, nil))
@@ -508,8 +626,8 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   interface axi_sub_0 = h2fSub;                  // incoming H2F traffic
   interface axi_sub_1 = subShim[1].slave;        // incoming global traffic
   interface axi_mngr_0 = mngrShim[0].master;     // outgoing F2H traffic
-  interface axi_mngr_1 = mngrShim[1].master;     // outgoing ddr traffic
-  interface axi_mngr_2 = mngrShim[2].master;     // outgoing global traffic
+  interface axi_mngr_1 = ddrShim.master;         // outgoing ddr traffic
+  interface axi_mngr_2 = mngrShim[1].master;     // outgoing global traffic
   interface irqs = allIrqs;                      // outgoing interrupts
 
 endmodule

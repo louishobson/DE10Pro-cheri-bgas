@@ -71,7 +71,7 @@ BSCFLAGS += -D ISA_I -D ISA_M -D ISA_A -D ISA_F -D ISA_D -D ISA_FD_DIV -D ISA_C
 BSCFLAGS += -D FABRIC64
 BSCFLAGS += -D Near_Mem_Caches
 BSCFLAGS += -D INCLUDE_GDB_CONTROL
-BSCFLAGS += -D MEM64
+BSCFLAGS += -D MEM512
 BSCFLAGS += -D PERFORMANCE_MONITORING
 # RiscyOOO flags
 BSCFLAGS += -D NUM_CORES=1
@@ -174,7 +174,7 @@ $(VDIR)/mkCHERI_BGAS_Top_Sim.v: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 	mkdir -p $(VDIR)
 	$(BSC) $(BSCFLAGS) $(BSCVERILOGFLAGS) -verilog -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
 
-$(VDIR)/mkCHERI_BGAS_Top_Sig.v: $(TOPFILE_BO) TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
+$(VDIR)/mkCHERI_BGAS_Top_Sig.v: $(TOPFILE) TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
 	mkdir -p $(BDIR)
 	mkdir -p $(VDIR)
 	$(BSC) $(BSCFLAGS) $(BSCVERILOGFLAGS) -verilog -g mkCHERI_BGAS_Top_Sig -u CHERI_BGAS_Top.bsv

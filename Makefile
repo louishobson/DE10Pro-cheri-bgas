@@ -53,19 +53,23 @@ gen-rbf: $(BOOTLOADER)
 synthesize output_files/DE10Pro-cheri-bgas.sof &: gen-ip
 	BLUESTUFFDIR=$(BLUESTUFFDIR) time quartus_sh --flow compile $(QPF)
 
-gen-ip: gen-bluespec-quartus-ip
+gen-ip: $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl
 	BLUESTUFFDIR=$(BLUESTUFFDIR) quartus_ipgenerate $(QPF)
 
-gen-bluespec-quartus-ip: $(VIPBUNDLE) gen-bluespec-rtl
+gen-bluespec-quartus-ip: $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl
+
+$(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl: $(VIPBUNDLE) $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 	$(VIPBUNDLEDIR)/vipbundle \
       -f quartus_ip_tcl \
       -o $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl \
-	  $(VDIR)/mkCHERI_BGAS_Top_Sig.v
+      $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 
 $(VIPBUNDLE):
 	$(MAKE) -C $(VIPBUNDLEDIR) vipbundle
 
-gen-bluespec-rtl:
+gen-bluespec-rtl: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
+
+$(VDIR)/mkCHERI_BGAS_Top_Sig.v:
 	$(MAKE) -C $(BSVSRCDIR) rtl
 
 .PHONY: clean mrproper
@@ -93,7 +97,7 @@ clean-ip-gen:
 	rm -rf $(CURDIR)/toplevel/
 
 clean: clean-bluespec-rtl clean-bluespec-quartus-ip clean-vipbundle clean-ip-gen
-	rm -rf $(CURDIR)/qdb $(CURDIR)/synth_dumps $(CURDIR)/tmp-clearbox $(UBOOTBUILDDIR)
+	rm -rf $(CURDIR)/synth_dumps $(CURDIR)/tmp-clearbox $(UBOOTBUILDDIR)
 
 mrproper-vipbundle:
 	$(MAKE) -C $(VIPBUNDLEDIR) mrproper
@@ -101,5 +105,5 @@ mrproper-vipbundle:
 mrproper-bluespec-rtl:
 	$(MAKE) -C $(BSVSRCDIR) mrproper
 
-mrproper: clean mrproper-bluespec-rtl #mrproper-vipbundle
-	rm -rf $(CURDIR)/output_files
+mrproper: clean mrproper-bluespec-rtl mrproper-vipbundle
+	rm -rf $(CURDIR)/qdb $(CURDIR)/output_files
