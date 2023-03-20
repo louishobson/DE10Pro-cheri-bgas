@@ -51,8 +51,8 @@ spawn_CHERI_BGAS_Sim_Instance v (x, y) pBase dir simCmd devfsCmd gdbstubCmd = do
   createDirectoryIfMissing True dir
   withCurrentDirectory dir do
 
-    simStdout <- openFile ("sim_stdout") AppendMode
-    simStderr <- openFile ("sim_stderr") AppendMode
+    simStdout <- openFile ("sim_stdout") WriteMode
+    simStderr <- openFile ("sim_stderr") WriteMode
     let simProc = (proc simCmd []) {
         std_in = CreatePipe --NoStream
       , std_out = UseHandle simStdout
@@ -63,8 +63,8 @@ spawn_CHERI_BGAS_Sim_Instance v (x, y) pBase dir simCmd devfsCmd gdbstubCmd = do
 
     threadDelay 50000
 
-    devfsStdout <- openFile ("devfs_stdout") AppendMode
-    devfsStderr <- openFile ("devfs_stderr") AppendMode
+    devfsStdout <- openFile ("devfs_stdout") WriteMode
+    devfsStderr <- openFile ("devfs_stderr") WriteMode
     let devfsDir = "simdev/"
     createDirectoryIfMissing True devfsDir
     let devfsProc = (proc devfsCmd ["simports/", devfsDir]) {
@@ -77,8 +77,8 @@ spawn_CHERI_BGAS_Sim_Instance v (x, y) pBase dir simCmd devfsCmd gdbstubCmd = do
 
     threadDelay 50000
 
-    gdbstubStdout <- openFile ("gdbstub_stdout") AppendMode
-    gdbstubStderr <- openFile ("gdbstub_stderr") AppendMode
+    gdbstubStdout <- openFile ("gdbstub_stdout") WriteMode
+    gdbstubStderr <- openFile ("gdbstub_stderr") WriteMode
     let fmemDev = "simdev/debug_unit"
     let port = pBase + 100 * x + y
     let gdbstubProc = (proc gdbstubCmd []) {
@@ -157,8 +157,8 @@ spawn_CHERI_BGAS_Sim_Connection v cmd simFolder insts ((x0, y0), (x1, y1)) = do
           createDirectoryIfMissing True dir
           withCurrentDirectory dir do
             let p = proc cmd [tx, rx]
-            connStdout <- openFile ("conn_stdout") AppendMode
-            connStderr <- openFile ("conn_stderr") AppendMode
+            connStdout <- openFile ("conn_stdout") WriteMode
+            connStderr <- openFile ("conn_stderr") WriteMode
             lvlPrint 2 v $ "Spawning connection: " ++ show p
             handles@(_, _, _, ph) <-
               createProcess p { std_in = CreatePipe --NoStream
