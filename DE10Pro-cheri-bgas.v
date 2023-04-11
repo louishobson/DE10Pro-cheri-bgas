@@ -51,14 +51,14 @@
 
 module DE10Pro_cheri_bgas (
   input         CLK_100_B3I
-, input         CLK_50_B2C
-, input         CLK_50_B2L
-, input         CLK_50_B3C
+//, input         CLK_50_B2C
+//, input         CLK_50_B2L
+//, input         CLK_50_B3C
 , input         CLK_50_B3I
-, input         CLK_50_B3L
+//, input         CLK_50_B3L
 , input         CPU_RESET_n
-, input   [1:0] BUTTON
-, input   [1:0] SW
+//, input   [1:0] BUTTON
+//, input   [1:0] SW
 , output  [3:0] LED
 `ifdef ENABLE_FLASH
 , output        FLASH_CLK
@@ -89,9 +89,9 @@ module DE10Pro_cheri_bgas (
 , output        DDR4A_PAR
 , input         DDR4A_ALERT_n
 , output        DDR4A_ACT_n
-, input         DDR4A_EVENT_n
-, inout         DDR4A_SCL
-, inout         DDR4A_SDA
+//, input         DDR4A_EVENT_n
+//, inout         DDR4A_SCL
+//, inout         DDR4A_SDA
 , input         DDR4A_RZQ
 `endif // ENABLE_DDR4A
 `ifdef ENABLE_DDR4B
@@ -112,9 +112,9 @@ module DE10Pro_cheri_bgas (
 , output        DDR4B_PAR
 , input         DDR4B_ALERT_n
 , output        DDR4B_ACT_n
-, input         DDR4B_EVENT_n
-, inout         DDR4B_SCL
-, inout         DDR4B_SDA
+//, input         DDR4B_EVENT_n
+//, inout         DDR4B_SCL
+//, inout         DDR4B_SDA
 , input         DDR4B_RZQ
 `endif // ENABLE_DDR4B
 `ifdef ENABLE_DDR4C
@@ -135,9 +135,9 @@ module DE10Pro_cheri_bgas (
 , output        DDR4C_PAR
 , input         DDR4C_ALERT_n
 , output        DDR4C_ACT_n
-, input         DDR4C_EVENT_n
-, inout         DDR4C_SCL
-, inout         DDR4C_SDA
+//, input         DDR4C_EVENT_n
+//, inout         DDR4C_SCL
+//, inout         DDR4C_SDA
 , input         DDR4C_RZQ
 `endif // ENABLE_DDR4C
 `ifdef ENABLE_DDR4D
@@ -158,9 +158,9 @@ module DE10Pro_cheri_bgas (
 , output        DDR4D_PAR
 , input         DDR4D_ALERT_n
 , output        DDR4D_ACT_n
-, input         DDR4D_EVENT_n
-, inout         DDR4D_SCL
-, inout         DDR4D_SDA
+//, input         DDR4D_EVENT_n
+//, inout         DDR4D_SCL
+//, inout         DDR4D_SDA
 , input         DDR4D_RZQ
 `endif // ENABLE_DDR4D
 `ifdef ENABLE_SI5340
@@ -178,7 +178,7 @@ module DE10Pro_cheri_bgas (
 `ifdef ENABLE_FAN_I2C
 , inout         FAN_I2C_SCL
 , inout         FAN_I2C_SDA
-, input         FAN_ALERT_n
+//, input         FAN_ALERT_n
 `endif // ENABLE_FAN_I2C
 `ifdef ENABLE_POWER_MONITOR_I2C
 , inout         POWER_MONITOR_I2C_SCL
@@ -276,9 +276,9 @@ module DE10Pro_cheri_bgas (
 , inout         HPS_KEY
 , inout         HPS_CARD_PRSNT_n
 `endif
-, input         EXP_EN
-, inout         UFL_CLKIN_p
-, inout         UFL_CLKIN_n
+//, input         EXP_EN
+//, inout         UFL_CLKIN_p
+//, inout         UFL_CLKIN_n
 );
 
   wire   clk_100;
