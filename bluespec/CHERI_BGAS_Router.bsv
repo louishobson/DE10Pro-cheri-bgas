@@ -551,18 +551,21 @@ module mkCHERI_BGAS_Router #(Maybe #(RouterId #(t_x_sz, t_y_sz)) initRouterId)
   Bool isLegalAW = awflit.awlen == 0;
   Bool isLegalW = wflit.wlast;
   (* descending_urgency = "legal_write, illegal_write" *)
-  rule legal_write (  mngntShim.master.aw.canPeek && isLegalAW
+  rule legal_write;/*(  mngntShim.master.aw.canPeek && isLegalAW
                    && mngntShim.master.w.canPeek && isLegalW
                    && mngntShim.master.b.canPut );
     mngntShim.master.aw.drop;
-    mngntShim.master.w.drop;
-    routerId <= Valid (unpack (truncate (mergeWithBE ( wflit.wstrb
-                                                     , 0
-                                                     , wflit.wdata ))));
-    mngntShim.master.b.put (AXI4_BFlit {
+    mngntShim.master.w.drop;*/
+    RouterId #(t_x_sz, t_y_sz) id = RouterId{x: 0, y: 0};
+    let x_1 <- $test$plusargs ("x_1");
+    if (x_1) id.x = 1;
+    let y_1 <- $test$plusargs ("y_1");
+    if (y_1) id.y = 1;
+    routerId <= tagged Valid id;
+    /*mngntShim.master.b.put (AXI4_BFlit {
         bid: awflit.awid
       , bresp: OKAY
-      , buser: ? });
+      , buser: ? });*/
   endrule
   rule illegal_write (  mngntShim.master.aw.canPeek
                      && mngntShim.master.w.canPeek
