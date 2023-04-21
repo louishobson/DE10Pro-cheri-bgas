@@ -102,7 +102,7 @@ SoC_Map_Struct {
    main_mem_addr_base:     'h_C000_0000,
    main_mem_addr_size:     'h_C000_0000,
 
-   pc_reset_value: 'h_7000_0000 // = boot_rom_addr_base
+   pc_reset_value: 'h_C000_0000 // = boot_rom_addr_base
    };
 
 // ================================================================
@@ -282,7 +282,7 @@ module mkSoC_Map (SoC_Map_IFC);
    // ----------------------------------------------------------------
    // PC, MTVEC and NMIVEC reset values
 
-   Bit #(64) pc_reset_value     = boot_rom_addr_range.base;
+   Bit #(64) pc_reset_value     = ddr4_0_cached_addr_range.base;
    Bit #(64) mtvec_reset_value  = 'h1000;    // TODO
    Bit #(64) nmivec_reset_value = ?;         // TODO
 

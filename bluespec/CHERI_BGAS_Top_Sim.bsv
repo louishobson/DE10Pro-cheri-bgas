@@ -143,8 +143,8 @@ module mkCHERI_BGAS_Top_Sim (Empty);
     fakeDDRB <- mkAXI4Mem ( 1073741824
                           , FilePathEnvVar ("CHERI_BGAS_DDRB_HEX_INIT") );
   mkConnection ( cheri_bgas_top.axm_ddrb
-               //, debugAXI4_Slave (fakeDDRB, $format ("ddrb")));
-               , fakeDDRB );
+               , debugAXI4_Slave (fakeDDRB, $format ("ddrb")));
+               //, fakeDDRB );
   // DDR C channel
   AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
               , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
