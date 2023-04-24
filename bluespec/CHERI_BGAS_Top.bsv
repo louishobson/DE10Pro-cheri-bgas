@@ -548,7 +548,8 @@ provisos (
     //                                , proxyDDRMaxSameId
     //                                , ddrTmp
     //                                , reset_by newRst.new_rst );
-    ddr[i] = truncate_AXI4_Master_addr (getDDRMngr (sys[i]));
+    ddr[i] <- mkAXI4SingleIDMaster (
+                truncate_AXI4_Master_addr (getDDRMngr (sys[i])));
   end
 
   // dispatch IRQs
