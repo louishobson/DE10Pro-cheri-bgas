@@ -60,7 +60,7 @@ import DE10Pro_bsv_shell :: *;
 `define H2F_RUSER    0
 
 `define F2H_ID       4
-`define F2H_ADDR    40 // from 20 (1MB) to 40 (1TB)
+`define F2H_ADDR    38 // from 20 (1MB) to 40 (1TB)
 `define F2H_DATA   128
 `define F2H_AWUSER   0
 `define F2H_WUSER    0
@@ -143,24 +143,24 @@ module mkCHERI_BGAS_Top_Sim (Empty);
     fakeDDRB <- mkAXI4Mem ( 1073741824
                           , FilePathEnvVar ("CHERI_BGAS_DDRB_HEX_INIT") );
   mkConnection ( cheri_bgas_top.axm_ddrb
-               //, debugAXI4_Slave (fakeDDRB, $format ("ddrb")));
-               , fakeDDRB );
+               , debugAXI4_Slave (fakeDDRB, $format ("ddrb")));
+               //, fakeDDRB );
   // DDR C channel
   AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
               , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
               , `DRAM_ARUSER, `DRAM_RUSER )
     fakeDDRC <- mkAXI4Mem (4096, UnInit);
   mkConnection ( cheri_bgas_top.axm_ddrc
-               //, debugAXI4_Slave (fakeDDRC, $format ("ddrc")));
-               , fakeDDRC );
+               , debugAXI4_Slave (fakeDDRC, $format ("ddrc")));
+               //, fakeDDRC );
   // DDR D channel
   AXI4_Slave #( `DRAM_ID, `DRAM_ADDR, `DRAM_DATA
               , `DRAM_AWUSER, `DRAM_WUSER, `DRAM_BUSER
               , `DRAM_ARUSER, `DRAM_RUSER )
     fakeDDRD <- mkAXI4Mem (4096, UnInit);
   mkConnection ( cheri_bgas_top.axm_ddrd
-               //, debugAXI4_Slave (fakeDDRD, $format ("ddrd")));
-               , fakeDDRD );
+               , debugAXI4_Slave (fakeDDRD, $format ("ddrd")));
+               //, fakeDDRD );
 endmodule
 
 endpackage
