@@ -285,12 +285,50 @@ module DE10Pro_cheri_bgas (
   assign clk_100 = CLK_100_B3I;
   wire   clk_50;
   assign clk_50 = CLK_50_B3I;
-  
+
+  // Reset logic - use done signals (delayed a few cycles) negated
+  //////////////////////////////////////////////////////////////////////////////
   // Reset release
   wire ninit_done;
+  reg ninit_done_delayed [1:0];
   reset_release reset_release (.ninit_done(ninit_done));
-  wire   reset_n;
-  assign reset_n = CPU_RESET_n && !ninit_done;
+  always @(posedge clk_50) begin
+    ninit_done_delayed[1] <= ninit_done;
+    ninit_done_delayed[0] <= ninit_done_delayed[1];
+  end
+  // DDR reset signal
+  wire   ddr_reset;
+  assign ddr_reset = ninit_done_delayed[0] || !CPU_RESET_n;
+  // Aggregate DDR reset done signals
+  wire ddr_reset_done;
+  wire ddrb_reset_done;
+  wire ddrc_reset_done;
+  wire ddrd_reset_done;
+  `ifndef ENABLE_DDR4B
+  assign ddrb_reset_done = 1;
+  `endif
+  `ifndef ENABLE_DDR4C
+  assign ddrc_reset_done = 1;
+  `endif
+  `ifndef ENABLE_DDR4D
+  assign ddrd_reset_done = 1;
+  `endif
+  assign ddr_reset_done = ddrb_reset_done && ddrc_reset_done && ddrd_reset_done;
+  reg ddr_reset_done_delayed [1:0];
+  always @(posedge clk_50) begin
+    ddr_reset_done_delayed[1] <= ddr_reset_done;
+    ddr_reset_done_delayed[0] <= ddr_reset_done_delayed[1];
+  end
+  // other reset inputs
+  wire h2f_reset;
+  wire fan_reset_n;
+  // combined reset
+  wire   soc_reset;
+  assign soc_reset =    ninit_done_delayed[0]
+                     || !ddr_reset_done_delayed[0]
+                     || !CPU_RESET_n
+                     || h2f_reset;
+
   assign SI5340A0_RST_n = 1'b1;
   assign SI5340A1_RST_n = 1'b1;
 
@@ -301,12 +339,12 @@ module DE10Pro_cheri_bgas (
   assign LED = ~LED_OUT;
 
   toplevel soc (
-    .reset_reset                                   (~reset_n)
+    .reset_reset                                   (soc_reset)
   //, .clk_clk                                       (clk_100)
   , .clk_clk                                       (clk_50)
   `ifdef ENABLE_DDR4B
-  , .emif_ddrb_local_reset_req_local_reset_req     (~reset_n)
-  //, .emif_ddrb_local_reset_status_local_reset_done (_connected_to_emif_ddrb_local_reset_status_local_reset_done_)
+  , .emif_ddrb_local_reset_req_local_reset_req     (ddr_reset)
+  , .emif_ddrb_local_reset_status_local_reset_done (ddrb_reset_done)
   , .emif_ddrb_pll_ref_clk_clk                     (DDR4B_REFCLK_p)
   , .emif_ddrb_oct_oct_rzqin                       (DDR4B_RZQ)
   , .emif_ddrb_mem_mem_ck                          (DDR4B_CK)
@@ -329,8 +367,8 @@ module DE10Pro_cheri_bgas (
   //, .emif_ddrb_status_local_cal_fail               (_connected_to_emif_ddrb_status_local_cal_fail_)
   `endif // ENABLE_DDR4B
   `ifdef ENABLE_DDR4C
-  , .emif_ddrc_local_reset_req_local_reset_req     (~reset_n)
-  //, .emif_ddrc_local_reset_status_local_reset_done (_connected_to_emif_ddrc_local_reset_status_local_reset_done_)
+  , .emif_ddrc_local_reset_req_local_reset_req     (ddr_reset)
+  , .emif_ddrc_local_reset_status_local_reset_done (ddrc_reset_done)
   , .emif_ddrc_pll_ref_clk_clk                     (DDR4C_REFCLK_p)
   , .emif_ddrc_oct_oct_rzqin                       (DDR4C_RZQ)
   , .emif_ddrc_mem_mem_ck                          (DDR4C_CK)
@@ -353,8 +391,8 @@ module DE10Pro_cheri_bgas (
   //, .emif_ddrc_status_local_cal_fail               (_connected_to_emif_ddrc_status_local_cal_fail_)
   `endif // ENABLE_DDR4C
   `ifdef ENABLE_DDR4D
-  , .emif_ddrd_local_reset_req_local_reset_req     (~reset_n)
-  //, .emif_ddrd_local_reset_status_local_reset_done (_connected_to_emif_ddrd_local_reset_status_local_reset_done_)
+  , .emif_ddrd_local_reset_req_local_reset_req     (ddr_reset)
+  , .emif_ddrd_local_reset_status_local_reset_done (ddrd_reset_done)
   , .emif_ddrd_pll_ref_clk_clk                     (DDR4D_REFCLK_p)
   , .emif_ddrd_oct_oct_rzqin                       (DDR4D_RZQ)
   , .emif_ddrd_mem_mem_ck                          (DDR4D_CK)
@@ -435,6 +473,7 @@ module DE10Pro_cheri_bgas (
   , .hps_io_hps_io_gpio_gpio1_io20                  (HPS_CARD_PRSNT_n)
   , .hps_io_hps_io_phery_emac0_MDIO                 (HPS_EMAC0_MDIO)
   , .hps_io_hps_io_phery_emac0_MDC                  (HPS_EMAC0_MDC)
+  , .hps_h2f_reset_reset                            (h2f_reset)
   `endif // ENABLE_HPS
   `ifdef ENABLE_FAN_I2C
   `ifdef ENABLE_TEMP_I2C
@@ -443,7 +482,9 @@ module DE10Pro_cheri_bgas (
   , .fan_controller_temp_i2c_sda                   (TEMP_I2C_SDA)
   , .fan_controller_temp_i2c_scl                   (TEMP_I2C_SCL)
   , .fan_controller_led_led                        (LED_OUT)
+  , .fan_controller_reset_source_reset_n           (fan_reset_n)
   `endif // ENABLE_TEMP_I2C
   `endif // ENABLE_FAN_I2C
   );
+
 endmodule
