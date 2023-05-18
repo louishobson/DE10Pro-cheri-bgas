@@ -5,13 +5,14 @@ set_global_assignment -name LAST_QUARTUS_VERSION "22.4.0 Pro Edition"
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
 set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
 set_global_assignment -name MAX_CORE_JUNCTION_TEMP 100
+set_global_assignment -name BOARD default
 set_global_assignment -name DEVICE 1SX280HU2F50E1VG
 set_global_assignment -name FAMILY "Stratix 10"
 set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 256
 set_global_assignment -name POWER_APPLY_THERMAL_MARGIN ADDITIONAL
-set_global_assignment -name VERILOG_MACRO "BSV_NO_INITIAL_BLOCKS=ON"
-
-
+set_global_assignment -name DEVICE_FILTER_PACKAGE FBGA
+#set_global_assignment -name ACTIVE_SERIAL_CLOCK AS_FREQ_115MHZ_IOSC
+set_global_assignment -name DEVICE_INITIALIZATION_CLOCK OSC_CLK_1_125MHZ
 set_global_assignment -name USE_CONF_DONE SDM_IO16
 set_global_assignment -name STRATIXV_CONFIGURATION_SCHEME "ACTIVE SERIAL X4"
 set_global_assignment -name INI_VARS "ASM_ENABLE_ADVANCED_DEVICES=ON; hps_dump_handoff_data=on"
@@ -34,25 +35,27 @@ set_global_assignment -name PWRMGT_SLAVE_DEVICE7_ADDRESS 00
 set_global_assignment -name PWRMGT_PAGE_COMMAND_ENABLE ON
 set_global_assignment -name PWRMGT_VOLTAGE_OUTPUT_FORMAT "AUTO DISCOVERY"
 set_global_assignment -name PWRMGT_TRANSLATED_VOLTAGE_VALUE_UNIT VOLTS
-#set_global_assignment -name BSV_NO_INITIAL_BLOCKS "ON"
+set_global_assignment -name VERILOG_MACRO "BSV_NO_INITIAL_BLOCKS=ON"
+set_global_assignment -name OPTIMIZATION_MODE "OPTIMIZE NETLIST FOR ROUTABILITY"
+set_global_assignment -name ALLOW_REGISTER_RETIMING ON
+set_global_assignment -name SEED 4
 
 # paths and source files
 set_global_assignment -name TOP_LEVEL_ENTITY DE10Pro_cheri_bgas
-set_global_assignment -name SEARCH_PATH "./cheri-bgas-rtl"
-set_global_assignment -name SEARCH_PATH /local/ecad/bluespec/current/lib/Verilog
-set_global_assignment -name SEARCH_PATH "/local/scratch/aj443/devstuff/DE10Pro-cheri-bgas.git/main/bluespec/Toooba/libs/BlueStuff/BlueBasics"
-set_global_assignment -name IP_SEARCH_PATHS "./**/*; bluespec/BSVFan/**/*"
-set_global_assignment -name SOURCE_FILE "DE10Pro-pin-assignments.qsf"
 set_global_assignment -name SDC_FILE "DE10Pro-cheri-bgas.sdc"
-
-# toplevel and qsys ip
 set_global_assignment -name VERILOG_FILE "DE10Pro-cheri-bgas.v"
 set_global_assignment -name QSYS_FILE toplevel.qsys
+set_global_assignment -name SEARCH_PATH "./cheri-bgas-rtl"
+set_global_assignment -name SEARCH_PATH "\$env(BLUESPECDIR)/Verilog"
+set_global_assignment -name SEARCH_PATH "\$env(BLUESTUFFDIR)/BlueBasics"
+set_global_assignment -name IP_SEARCH_PATHS "./**/*; bluespec/BSVFan/**/*"
+
+# qsys ip
+set_global_assignment -name IP_FILE ip/toplevel/CHERI_BGAS_Top.ip
 set_global_assignment -name IP_FILE ip/toplevel/emif_hps_ddra.ip
 set_global_assignment -name IP_FILE ip/toplevel/emif_ddrb.ip
 set_global_assignment -name IP_FILE ip/toplevel/emif_ddrd.ip
 set_global_assignment -name IP_FILE ip/toplevel/hps.ip
-set_global_assignment -name IP_FILE ip/toplevel/CHERI_BGAS_Top.ip
 set_global_assignment -name IP_FILE ip/toplevel/ddrb_ccb.ip
 set_global_assignment -name IP_FILE ip/toplevel/ddrc_ccb.ip
 set_global_assignment -name IP_FILE ip/toplevel/ddrd_ccb.ip
@@ -61,8 +64,12 @@ set_global_assignment -name IP_FILE ip/toplevel/fan_controller.ip
 set_global_assignment -name IP_FILE ip/toplevel/clock_in.ip
 set_global_assignment -name IP_FILE ip/toplevel/reset_in.ip
 set_global_assignment -name IP_FILE ip/reset_release.ip
-set_global_assignment -name IP_FILE "/local/scratch/aj443/devstuff/DE10Pro-cheri-bgas.git/main/bluespec/Toooba/libs/BlueStuff/Stratix10ChipID/chipid.ip"
+set_global_assignment -name IP_FILE "\$env(BLUESTUFFDIR)/Stratix10ChipID/chipid.ip"
+
+# signaltap
+set_global_assignment -name ENABLE_SIGNALTAP ON
+set_global_assignment -name SIGNALTAP_FILE hps_axi_ddr_avalon.stp
+set_global_assignment -name USE_SIGNALTAP_FILE hps_axi_ddr_avalon.stp
 
 # pin assignments
 source DE10Pro-pin-assignments.qsf
-set_global_assignment -name BOARD default
