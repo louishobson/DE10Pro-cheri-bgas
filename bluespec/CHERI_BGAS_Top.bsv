@@ -33,6 +33,8 @@ package CHERI_BGAS_Top;
 import DE10Pro_bsv_shell :: *;
 import CHERI_BGAS_System :: *;
 import BlueAXI4 :: *;
+import BlueAvalon :: *;
+import AXI4_Avalon :: *;
 import Routable :: *;
 import BlueBasics :: *;
 import Stratix10ChipID :: *;
@@ -645,6 +647,63 @@ typedef DE10Pro_bsv_shell_Sig #( `H2F_LW_ADDR
 module mkCHERI_BGAS_Top_Sig (DE10ProIfcSig);
   let noSigIfc <- mkCHERI_BGAS_Top;
   let sigIfc <- toDE10Pro_bsv_shell_Sig (noSigIfc);
+  return sigIfc;
+endmodule
+
+typedef DE10Pro_bsv_shell_Sig_Avalon #( `H2F_LW_ADDR
+                                      , `H2F_LW_DATA
+                                      , `H2F_LW_AWUSER
+                                      , `H2F_LW_WUSER
+                                      , `H2F_LW_BUSER
+                                      , `H2F_LW_ARUSER
+                                      , `H2F_LW_RUSER
+                                      , `H2F_ID
+                                      , `H2F_ADDR
+                                      , `H2F_DATA
+                                      , `H2F_AWUSER
+                                      , `H2F_WUSER
+                                      , `H2F_BUSER
+                                      , `H2F_ARUSER
+                                      , `H2F_RUSER
+                                      , `F2H_ID
+                                      , `F2H_ADDR
+                                      , `F2H_DATA
+                                      , `F2H_AWUSER
+                                      , `F2H_WUSER
+                                      , `F2H_BUSER
+                                      , `F2H_ARUSER
+                                      , `F2H_RUSER
+                                      , `DRAM_ID
+                                      , `DRAM_ADDR
+                                      , `DRAM_DATA
+                                      , `DRAM_AWUSER
+                                      , `DRAM_WUSER
+                                      , `DRAM_BUSER
+                                      , `DRAM_ARUSER
+                                      , `DRAM_RUSER
+                                      , `DRAM_ID
+                                      , `DRAM_ADDR
+                                      , `DRAM_DATA
+                                      , `DRAM_AWUSER
+                                      , `DRAM_WUSER
+                                      , `DRAM_BUSER
+                                      , `DRAM_ARUSER
+                                      , `DRAM_RUSER
+                                      , `DRAM_ID
+                                      , `DRAM_ADDR
+                                      , `DRAM_DATA
+                                      , `DRAM_AWUSER
+                                      , `DRAM_WUSER
+                                      , `DRAM_BUSER
+                                      , `DRAM_ARUSER
+                                      , `DRAM_RUSER
+                                      , Bit #(512)
+                                      , Bit #(512) ) DE10ProIfcSigAvalon;
+
+(* synthesize *)
+module mkCHERI_BGAS_Top_Sig_Avalon (DE10ProIfcSigAvalon);
+  let noSigIfc <- mkCHERI_BGAS_Top;
+  let sigIfc <- toDE10Pro_bsv_shell_Sig_Avalon (noSigIfc);
   return sigIfc;
 endmodule
 
