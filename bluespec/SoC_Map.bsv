@@ -1,7 +1,7 @@
 // Copyright (c) 2013-2019 Bluespec, Inc. All Rights Reserved
 
 /*-
- * Copyright (c) 2022 Alexandre Joannou
+ * Copyright (c) 2022-2023 Alexandre Joannou
  * All rights reserved.
  *
  * This material is based upon work supported by the DoD Information Analysis
@@ -74,6 +74,9 @@ import Routable :: *; // For Range
 
 import Fabric_Defs :: *;    // Only for type Fabric_Addr
 
+import "BDPI" getenv_as_64hex =
+  function Maybe #(Bit #(64)) getEnvInt (String varname);
+
 // ================================================================
 // Top-level-struct version of the SoC Map for RISCY-OOO
 
@@ -102,7 +105,9 @@ SoC_Map_Struct {
    main_mem_addr_base:     'h_C000_0000,
    main_mem_addr_size:     'h_C000_0000,
 
-   pc_reset_value: 'h_7000_0000 // = boot_rom_addr_base
+   pc_reset_value:
+     (genC) ? fromMaybe ('h_7000_0000, getEnvInt ("CHERI_BGAS_PC_RESET_VALUE"))
+            : 'h_7000_0000 // = boot_rom_addr_base
    };
 
 // ================================================================
@@ -282,7 +287,10 @@ module mkSoC_Map (SoC_Map_IFC);
    // ----------------------------------------------------------------
    // PC, MTVEC and NMIVEC reset values
 
-   Bit #(64) pc_reset_value     = boot_rom_addr_range.base;
+   Bit #(64) pc_reset_value =
+     (genC) ? fromMaybe ( boot_rom_addr_range.base
+                        , getEnvInt ("CHERI_BGAS_PC_RESET_VALUE") )
+            : boot_rom_addr_range.base;
    Bit #(64) mtvec_reset_value  = 'h1000;    // TODO
    Bit #(64) nmivec_reset_value = ?;         // TODO
 

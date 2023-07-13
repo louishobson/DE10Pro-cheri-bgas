@@ -227,34 +227,34 @@ module mkCHERI_BGAS_Top_Sim_AvalonDDR (Empty);
          , AvalonMMResponse #(`DRAM_DATA) )
     fakeDDRB <- mkAvalonMMMem ( 1073741824
                               , FilePathEnvVar ("CHERI_BGAS_DDRB_HEX_INIT") );
-  Tuple3 #( Source #(AvalonMMRequest #(`DRAM_ADDR, `DRAM_DATA))
-          , Sink #(AvalonMMResponse #(`DRAM_DATA))
+  Tuple2 #( Master #( AvalonMMRequest #(`DRAM_ADDR, `DRAM_DATA)
+                    , AvalonMMResponse #(`DRAM_DATA) )
           , PipelinedAvalonMMAgent #(`DRAM_ADDR, `DRAM_DATA) )
-    {reqB, rspB, agentB} <- toPipelinedAvalonMMAgent (depth_proxy);
+    {masterB, agentB} <- pipelinedAvalonMMAgentTransactor (depth_proxy);
   mkConnection (cheri_bgas_top.avm_ddrb, agentB);
-  mkConnection (tuple2 (reqB, rspB), debugSlave (fakeDDRB, $format ("ddrb")));
+  mkConnection (masterB, debugSlave (fakeDDRB, $format ("ddrb")));
                //, fakeDDRB );
   // DDR C channel
   Slave #( AvalonMMRequest #(`DRAM_ADDR, `DRAM_DATA)
          , AvalonMMResponse #(`DRAM_DATA) )
     fakeDDRC <- mkAvalonMMMem (4096, UnInit);
-  Tuple3 #( Source #(AvalonMMRequest #(`DRAM_ADDR, `DRAM_DATA))
-          , Sink #(AvalonMMResponse #(`DRAM_DATA))
+  Tuple2 #( Master #( AvalonMMRequest #(`DRAM_ADDR, `DRAM_DATA)
+                    , AvalonMMResponse #(`DRAM_DATA) )
           , PipelinedAvalonMMAgent #(`DRAM_ADDR, `DRAM_DATA) )
-    {reqC, rspC, agentC} <- toPipelinedAvalonMMAgent (depth_proxy);
+    {masterC, agentC} <- pipelinedAvalonMMAgentTransactor (depth_proxy);
   mkConnection (cheri_bgas_top.avm_ddrc, agentC);
-  mkConnection (tuple2 (reqC, rspC), debugSlave (fakeDDRC, $format ("ddrc")));
+  mkConnection (masterC, debugSlave (fakeDDRC, $format ("ddrc")));
                //, fakeDDRC );
   // DDR D channel
   Slave #( AvalonMMRequest #(`DRAM_ADDR, `DRAM_DATA)
          , AvalonMMResponse #(`DRAM_DATA) )
     fakeDDRD <- mkAvalonMMMem (4096, UnInit);
-  Tuple3 #( Source #(AvalonMMRequest #(`DRAM_ADDR, `DRAM_DATA))
-          , Sink #(AvalonMMResponse #(`DRAM_DATA))
+  Tuple2 #( Master #( AvalonMMRequest #(`DRAM_ADDR, `DRAM_DATA)
+                    , AvalonMMResponse #(`DRAM_DATA) )
           , PipelinedAvalonMMAgent #(`DRAM_ADDR, `DRAM_DATA) )
-    {reqD, rspD, agentD} <- toPipelinedAvalonMMAgent (depth_proxy);
+    {masterD, agentD} <- pipelinedAvalonMMAgentTransactor (depth_proxy);
   mkConnection (cheri_bgas_top.avm_ddrd, agentD);
-  mkConnection (tuple2 (reqD, rspD), debugSlave (fakeDDRD, $format ("ddrd")));
+  mkConnection (masterD, debugSlave (fakeDDRD, $format ("ddrd")));
                //, fakeDDRD );
 endmodule
 
