@@ -565,18 +565,18 @@ provisos (
 
   // interface
   //////////////////////////////////////////////////////////////////////////////
-  interface axls_h2f_lw = h2flwShim.slave;
-  interface axs_h2f = h2fShimSlave;
-  interface axm_f2h = f2hShimMaster;
+  interface axls_h2f_lw = debugAXI4Lite_Slave (h2flwShim.slave, $format ("h2f_lw"));
+  interface axs_h2f = debugAXI4_Slave (h2fShimSlave, $format ("h2f"));
+  interface axm_f2h = debugAXI4_Master (f2hShimMaster, $format ("f2h"));
   // XXX
   //interface axm_ddrb = ddr[0];
   //interface axm_ddrc = ddr[1];
   //interface axm_ddrd = ddr[2];
   // XXX Only support 2 systems at most for now, and force system 2 to use ddrd
   //     due to a currently unresolved quartus fitter issue
-  interface axm_ddrb = ddr[0];
-  interface axm_ddrc = culDeSac;
-  interface axm_ddrd = ddr[1];
+  interface axm_ddrb = debugAXI4_Master (ddr[0], $format ("ddrb"));
+  interface axm_ddrc = debugAXI4_Master (culDeSac, $format ("ddrd"));
+  interface axm_ddrd = debugAXI4_Master (ddr[1], $format ("ddrd"));
   // XXX
   interface tx_north = tileNorthPort.tx;
   interface rx_north = tileNorthPort.rx;
