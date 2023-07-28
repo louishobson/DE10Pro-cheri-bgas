@@ -311,8 +311,10 @@ module mkAXI4StreamBridge
   //////////////////////////////////////////////////////////////////////////////
   // receive all global incoming traffic and split it into a global AXI flit and
   // a global credits flit
-  function globalSplitAXI = compose (Valid, tpl_1);
-  function globalSplitCredits = compose (Valid, tpl_2);
+  //function globalSplitAXI = compose (Valid, tpl_1);
+  function Maybe #(a) globalSplitAXI (Tuple2 #(a, b) x) = Valid (tpl_1 (x));
+  //function globalSplitCredits = compose (Valid, tpl_2);
+  function Maybe #(b) globalSplitCredits (Tuple2 #(a, b) x) = Valid (tpl_2 (x));
   match {.axiInSrc, .creditsInSrc} <-
     splitAnyHeterogeneousSource ( globalSplitAXI
                                 , globalSplitCredits
