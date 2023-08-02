@@ -26,3 +26,6 @@
 [submodule "bluespec/BSVFan"]
 	path = bluespec/BSVFan
 	url = https://github.com/POETSII/BSVFan.git
+[submodule "software/bare-metal-de10-cheri-bgas"]
+	path = software/bare-metal-de10-cheri-bgas
+	url = https://github.com/CTSRD-CHERI/bare-metal-de10-cheri-bgas.git
