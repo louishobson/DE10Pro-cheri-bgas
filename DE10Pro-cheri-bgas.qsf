@@ -1,5 +1,5 @@
 set_global_assignment -name TOP_LEVEL_ENTITY DE10Pro_cheri_bgas
-set_global_assignment -name LAST_QUARTUS_VERSION "19.2.0 Pro Edition"
+set_global_assignment -name LAST_QUARTUS_VERSION "23.2.0 Pro Edition"
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
 set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
 set_global_assignment -name MAX_CORE_JUNCTION_TEMP 100
@@ -8,7 +8,7 @@ set_global_assignment -name DEVICE 1SX280HU2F50E1VG
 set_global_assignment -name DEVICE_FILTER_PACKAGE FBGA
 set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 256
 
-set_global_assignment -name ACTIVE_SERIAL_CLOCK AS_FREQ_115MHZ_IOSC
+#set_global_assignment -name ACTIVE_SERIAL_CLOCK AS_FREQ_115MHZ_IOSC
 set_global_assignment -name DEVICE_INITIALIZATION_CLOCK OSC_CLK_1_125MHZ
 
 set_global_assignment -name USE_CONF_DONE SDM_IO16
@@ -1645,3 +1645,4 @@ set_global_assignment -name SIGNALTAP_FILE cheri_bgas_top_axi.stp
 set_global_assignment -name OPTIMIZATION_MODE "OPTIMIZE NETLIST FOR ROUTABILITY"
 set_global_assignment -name ALLOW_REGISTER_RETIMING OFF
 set_global_assignment -name SEED 4
+set_global_assignment -name BOARD default
