@@ -33,6 +33,8 @@ package CHERI_BGAS_Top;
 import DE10Pro_bsv_shell :: *;
 import CHERI_BGAS_System :: *;
 import BlueAXI4 :: *;
+import BlueAvalon :: *;
+import AXI4_Avalon :: *;
 import Routable :: *;
 import BlueBasics :: *;
 import Stratix10ChipID :: *;
@@ -76,7 +78,7 @@ Integer nbCheriBgasSystems = valueOf (NBCheriBgasSystems);
 `define H2F_RUSER    0
 
 `define F2H_ID       4
-`define F2H_ADDR    40 // from 20 (1MB) to 40 (1TB)
+`define F2H_ADDR    38 // from 20 (1MB) to 40 (1TB)
 `define F2H_DATA   128
 `define F2H_AWUSER   0
 `define F2H_WUSER    0
@@ -563,18 +565,18 @@ provisos (
 
   // interface
   //////////////////////////////////////////////////////////////////////////////
-  interface axls_h2f_lw = h2flwShim.slave;
-  interface axs_h2f = h2fShimSlave;
-  interface axm_f2h = f2hShimMaster;
+  interface axls_h2f_lw = debugAXI4Lite_Slave (h2flwShim.slave, $format ("h2f_lw"));
+  interface axs_h2f = debugAXI4_Slave (h2fShimSlave, $format ("h2f"));
+  interface axm_f2h = debugAXI4_Master (f2hShimMaster, $format ("f2h"));
   // XXX
   //interface axm_ddrb = ddr[0];
   //interface axm_ddrc = ddr[1];
   //interface axm_ddrd = ddr[2];
   // XXX Only support 2 systems at most for now, and force system 2 to use ddrd
   //     due to a currently unresolved quartus fitter issue
-  interface axm_ddrb = ddr[0];
-  interface axm_ddrc = culDeSac;
-  interface axm_ddrd = ddr[1];
+  interface axm_ddrb = debugAXI4_Master (ddr[0], $format ("ddrb"));
+  interface axm_ddrc = debugAXI4_Master (culDeSac, $format ("ddrd"));
+  interface axm_ddrd = debugAXI4_Master (ddr[1], $format ("ddrd"));
   // XXX
   interface tx_north = tileNorthPort.tx;
   interface rx_north = tileNorthPort.rx;
@@ -645,6 +647,63 @@ typedef DE10Pro_bsv_shell_Sig #( `H2F_LW_ADDR
 module mkCHERI_BGAS_Top_Sig (DE10ProIfcSig);
   let noSigIfc <- mkCHERI_BGAS_Top;
   let sigIfc <- toDE10Pro_bsv_shell_Sig (noSigIfc);
+  return sigIfc;
+endmodule
+
+typedef DE10Pro_bsv_shell_Sig_Avalon #( `H2F_LW_ADDR
+                                      , `H2F_LW_DATA
+                                      , `H2F_LW_AWUSER
+                                      , `H2F_LW_WUSER
+                                      , `H2F_LW_BUSER
+                                      , `H2F_LW_ARUSER
+                                      , `H2F_LW_RUSER
+                                      , `H2F_ID
+                                      , `H2F_ADDR
+                                      , `H2F_DATA
+                                      , `H2F_AWUSER
+                                      , `H2F_WUSER
+                                      , `H2F_BUSER
+                                      , `H2F_ARUSER
+                                      , `H2F_RUSER
+                                      , `F2H_ID
+                                      , `F2H_ADDR
+                                      , `F2H_DATA
+                                      , `F2H_AWUSER
+                                      , `F2H_WUSER
+                                      , `F2H_BUSER
+                                      , `F2H_ARUSER
+                                      , `F2H_RUSER
+                                      , `DRAM_ID
+                                      , `DRAM_ADDR
+                                      , `DRAM_DATA
+                                      , `DRAM_AWUSER
+                                      , `DRAM_WUSER
+                                      , `DRAM_BUSER
+                                      , `DRAM_ARUSER
+                                      , `DRAM_RUSER
+                                      , `DRAM_ID
+                                      , `DRAM_ADDR
+                                      , `DRAM_DATA
+                                      , `DRAM_AWUSER
+                                      , `DRAM_WUSER
+                                      , `DRAM_BUSER
+                                      , `DRAM_ARUSER
+                                      , `DRAM_RUSER
+                                      , `DRAM_ID
+                                      , `DRAM_ADDR
+                                      , `DRAM_DATA
+                                      , `DRAM_AWUSER
+                                      , `DRAM_WUSER
+                                      , `DRAM_BUSER
+                                      , `DRAM_ARUSER
+                                      , `DRAM_RUSER
+                                      , Bit #(512)
+                                      , Bit #(512) ) DE10ProIfcSigAvalon;
+
+(* synthesize *)
+module mkCHERI_BGAS_Top_Sig_Avalon (DE10ProIfcSigAvalon);
+  let noSigIfc <- mkCHERI_BGAS_Top;
+  let sigIfc <- toDE10Pro_bsv_shell_Sig_Avalon (noSigIfc);
   return sigIfc;
 endmodule
 

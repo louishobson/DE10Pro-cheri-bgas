@@ -197,7 +197,7 @@ data Options = Options {
 defaultOptions :: Options
 defaultOptions = Options {
     verbosity = 0
-  , simCmd = "../build/simdir/sim_CHERI_BGAS"
+  , simCmd = "../build/simdir/sim_CHERI_BGAS_AvalonDDR"
   , devfsCmd = "./cheri-bgas-fuse-devfs/cheri-bgas-fuse-devfs"
   , gdbstubCmd = "./RISCV_gdbstub/src/main"
   , connectCmd = "./forever-splice/forever-splice"
