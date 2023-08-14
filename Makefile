@@ -58,16 +58,10 @@ ci-gen-rbf: $(BOOTLOADER)
 synthesize output_files/DE10Pro-cheri-bgas.sof &: gen-ip
 	BLUESTUFFDIR=$(BLUESTUFFDIR) time quartus_sh --flow compile $(QPF)
 
-gen-ip: $(CURDIR)/mkCHERI_BGAS_Top_Sig_Avalon_hw.tcl #$(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl
+gen-ip: $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl
 	BLUESTUFFDIR=$(BLUESTUFFDIR) quartus_ipgenerate $(QPF)
 
-gen-bluespec-quartus-ip: $(CURDIR)/mkCHERI_BGAS_Top_Sig_Avalon_hw.tcl #$(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl
-
-$(CURDIR)/mkCHERI_BGAS_Top_Sig_Avalon_hw.tcl: $(VIPBUNDLE) $(VDIR)/mkCHERI_BGAS_Top_Sig_Avalon.v
-	$(VIPBUNDLEDIR)/vipbundle \
-      -f quartus_ip_tcl \
-      -o $(CURDIR)/mkCHERI_BGAS_Top_Sig_Avalon_hw.tcl \
-      $(VDIR)/mkCHERI_BGAS_Top_Sig_Avalon.v
+gen-bluespec-quartus-ip: $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl
 
 $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl: $(VIPBUNDLE) $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 	$(VIPBUNDLEDIR)/vipbundle \
@@ -78,10 +72,7 @@ $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl: $(VIPBUNDLE) $(VDIR)/mkCHERI_BGAS_Top_Sig
 $(VIPBUNDLE):
 	$(MAKE) -C $(VIPBUNDLEDIR) vipbundle
 
-gen-bluespec-rtl: $(VDIR)/mkCHERI_BGAS_Top_Sig_Avalon.v #$(VDIR)/mkCHERI_BGAS_Top_Sig.v
-
-$(VDIR)/mkCHERI_BGAS_Top_Sig_Avalon.v:
-	$(MAKE) -C $(BSVSRCDIR) rtl
+gen-bluespec-rtl: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 
 $(VDIR)/mkCHERI_BGAS_Top_Sig.v:
 	$(MAKE) -C $(BSVSRCDIR) rtl
@@ -95,7 +86,6 @@ clean-vipbundle:
 	$(MAKE) -C $(VIPBUNDLEDIR) clean
 
 clean-bluespec-quartus-ip:
-	rm -f $(CURDIR)/mkCHERI_BGAS_Top_Sig_Avalon_hw.tcl
 	rm -f $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl
 
 clean-ip-gen:

@@ -87,7 +87,7 @@ BSCFLAGS += -no-warn-action-shadowing
 BSCFLAGS += -suppress-warnings G0020
 # CHERI / Tag Controller conf and flags
 ifneq ($(filter bluesim,$(MAKECMDGOALS)),)
-BSCFLAGS += -D NO_TAGTABLE_ZEROING -D BSIM -D BLUESIM -D RVFI
+BSCFLAGS += -D NO_TAGTABLE_ZEROING -D BSIM -D RVFI
 endif
 BSCFLAGS += -D CheriMasterIDWidth=1
 BSCFLAGS += -D CheriTransactionIDWidth=6
@@ -130,19 +130,13 @@ $(BDIR)/%.bo:
 
 rtl: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 
-bluesim: $(SIMDIR)/sim_CHERI_BGAS_AvalonDDR #$(SIMDIR)/sim_CHERI_BGAS
+bluesim: $(SIMDIR)/sim_CHERI_BGAS
 
 $(SIMDIR)/sim_CHERI_BGAS: CHERI_BGAS_Top_Sim.bsv $(TOPFILE_BO) $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(BLUEUNIXBRIDGESDIR)/BlueUnixFifo.c TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
 	mkdir -p $(BDIR)
 	mkdir -p $(SIMDIR)
 	$(BSC) $(BSCFLAGS) $(BSCBSIMFLAGS) -sim -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
 	$(BSC) $(BSCFLAGS) $(BSCBSIMFLAGS) -sim -e mkCHERI_BGAS_Top_Sim -u -o $@ $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(BLUEUNIXBRIDGESDIR)/BlueUnixFifo.c
-
-$(SIMDIR)/sim_CHERI_BGAS_AvalonDDR: CHERI_BGAS_Top_Sim.bsv $(TOPFILE_BO) $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(BLUEUNIXBRIDGESDIR)/BlueUnixFifo.c TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
-	mkdir -p $(BDIR)
-	mkdir -p $(SIMDIR)
-	$(BSC) $(BSCFLAGS) $(BSCBSIMFLAGS) -sim -g mkCHERI_BGAS_Top_Sim_AvalonDDR -u CHERI_BGAS_Top_Sim.bsv
-	$(BSC) $(BSCFLAGS) $(BSCBSIMFLAGS) -sim -e mkCHERI_BGAS_Top_Sim_AvalonDDR -u -o $@ $(BLUESTUFFDIR)/BlueUtils/SimUtils.c $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(BLUEUNIXBRIDGESDIR)/BlueUnixFifo.c
 
 verilatorsim: $(VDIR)/mkCHERI_BGAS_Top_Sim.v CHERI_BGAS_Top_verilator_sim.cpp
 	$(eval TMP_V := $(shell mktemp -t mkCHERI_BGAS_Top_Sim_edited_XXXX.v))

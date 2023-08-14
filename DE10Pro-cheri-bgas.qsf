@@ -1627,9 +1627,6 @@ set_global_assignment -name IP_FILE ip/toplevel/hps.ip
 set_global_assignment -name IP_FILE ip/toplevel/emif_hps_ddra.ip
 set_global_assignment -name IP_FILE ip/toplevel/emif_ddrb.ip
 set_global_assignment -name IP_FILE ip/toplevel/CHERI_BGAS_Top.ip
-set_global_assignment -name IP_FILE ip/toplevel/ddrb_mm_clock_crossing_bridge.ip
-#set_global_assignment -name IP_FILE ip/toplevel/ddrc_mm_clock_crossing_bridge.ip
-set_global_assignment -name IP_FILE ip/toplevel/ddrd_mm_clock_crossing_bridge.ip
 set_global_assignment -name IP_FILE ip/toplevel/emif_ddrd.ip
 set_global_assignment -name IP_FILE ip/toplevel/fan_controller.ip
 set_global_assignment -name IP_FILE "\$env(BLUESTUFFDIR)/Stratix10ChipID/chipid.ip"
