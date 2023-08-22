@@ -5,17 +5,17 @@
 :source-highlighter:
 
 The https://github.com/CTSRD-CHERI/DE10Pro-cheri-bgas[DE10Pro-cheri-bgas]
-repository aims to provide FPGA bitfiles for the CHERI BGAS project.
+repository to provides FPGA bitfiles for the CHERI-BGAS project.
 
 It includes the Stratix 10 Quartus project, IP configuration, toplevel entity
 verilog, and signal tap configuration files, necessary for synthesis of a
-configuration image for the Terasic DE10Pro SX board. At the moment, the
-project uses Quartus 19.2pro.
+configuration image for the Terasic DE10Pro SX board.
+At the moment, the project uses Quartus 23.2pro.
 
 This repository also includes RTL sources under the
 https://github.com/CTSRD-CHERI/DE10Pro-cheri-bgas/tree/main/bluespec[bluespec/]
 folder, where various git submodules are used and suplemented with a few `.bsv`
-files providing some "toplevel glue" as awell as a minimal simulation
+files providing some "toplevel glue" as well as a minimal simulation
 framework.
 
 [discrete]
@@ -36,17 +36,39 @@ To begin with, clone all required git submodules recursively:
 $ git submodule update --init --recursive
 ----
 
-Currently, the submodules in use are:
+Currently, this repo uses the following direct submodules:
 
-- the https://github.com/CTSRD-CHERI/vipbundle[Verilog IP bundle] tool
-  (to wrap the verilog description of the CHERI-BGAS system into a component
-   usable within Quartus)
-- the https://github.com/POETSII/DE10Pro-bsv-shell[DE10Pro-bsv-shell] bluespec
-  interface library
-- the https://github.com/CTSRD-CHERI/Toooba[Toooba] bluespec CHERI-enabled
-  RISC-V core
-- the https://github.com/CTSRD-CHERI/Recipe[Recipe] state machine description
-  bluespec library (for the simulation framework)
+- https://github.com/POETSII/BSVFan/tree/master[`bluespec/BSVFan`]
++
+A fan controller device for the DE10 board.
+- https://github.com/POETSII/DE10Pro-bsv-shell/tree/main[`bluespec/DE10Pro-bsv-shell`]
++
+A Bluespec SystemVerilog Interface definition for DE10Pro projects with a set of sub-interfaces
+exposing some of the devices available on the board to the code implementing the interface.
+- https://github.com/CTSRD-CHERI/Recipe/tree/master[`bluespec/Recipe`]
++
+A BSV library providing a way to easily build state machines.
+- https://github.com/CTSRD-CHERI/Toooba/tree/CHERI[`bluespec/Toooba`]
++
+A CHERI-enabled Out-of-Order RISC-V Core.
+- https://github.com/jonwoodruff/VirtualDevice/tree/main[`bluespec/VirtualDevice`]
++
+A Bluespec AXI component that intended to act as a virtual device.
+- https://github.com/CTSRD-CHERI/RISCV_gdbstub/tree/master[`bluespec/sim-utils/RISCV_gdbstub`]
++
+A utility converting `gdb` commands to RISC-V "DMI" Debug Module Interface.
+- https://github.com/CTSRD-CHERI/cheri-bgas-fuse-devfs/tree/main[`bluespec/sim-utils/cheri-bgas-fuse-devfs`]
++
+A `fuse` filesystem to expose as `fmem` devices the available devices from a DE10-cheri-bgas simulator.
+- https://github.com/CTSRD-CHERI/forever-splice/tree/main[`bluespec/sim-utils/forever-splice`]
++
+A utility program continuously consuming from a unix fifo and producing into another.
+- https://github.com/CTSRD-CHERI/bare-metal-de10-cheri-bgas/tree/main[`software/bare-metal-de10-cheri-bgas`]
++
+A basic bare-metal setup to write software for the DE10-cheri-bgas platform.
+- https://github.com/CTSRD-CHERI/vipbundle/tree/main[`vipbundle`]
++
+A tool to package a verilog module into a Quartus system-builder component.
 
 === Build a Stratix 10 bitfile
 
