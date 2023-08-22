@@ -89,7 +89,7 @@ $ make synthesize
 
 to generate a `output_files/DE10Pro-cheri-bgas.sof` Stratix 10 FPGA bitfile.
 
-==== Embed a bootloader in the generated bitfile
+==== Generate `.rbf` bitfile slices and embed a bootloader
 
 The bitfiles generated embed both a soft RISCV core and an ARM Hard Processor
 System (HPS). The bootloader code for the HPS can be embedded into a bitfile.
@@ -99,19 +99,17 @@ To do so, you can run
 ----
 $ BOOTLOADER=some/bootloader/ihex make gen-rbf
 ----
+or simply
+[source, shell]
+----
+$ make gen-rbf
+----
 
-once an FPGA bitfile has been successfully generated. This will generate two
-`rbf` slices out of the `sof`, one for the base `hps` system configuration, and
-one  `core` configuration.  If `BOOTLOADER` is not specified, it currently
-defaults to
-`../../DE10Pro-hps-ubuntu-sdcard/u-boot-socfpga/spl/u-boot-spl-dtb.ihex`. If no
-bootloader is explicitly provided, it is expected for a clone of
-https://github.com/POETSII/DE10Pro-hps-ubuntu-sdcard[DE10Pro-hps-ubuntu-sdcard]
-to exist in `../../` (`../../` rather than simply `../` as the assumed git
-workflow for this repository is to `git clone --bare ...` and explicitly create
-a worktree). One can follow
-https://github.com/POETSII/DE10Pro-getting-started#building-the-ubuntu-sd-card-image[this]
-for information on building an sdcard image which contains a U-boot bootloader.
+once an FPGA bitfile has been successfully generated.
+This will generate two `.rbf` slices out of the `.sof`, one for the base
+`hps` system configuration, and one  `core` configuration.
+The `BOOTLOADER` environment variable defaults to
+`$(CURDIR)/software/uboot_build/u-boot-socfpga/spl/u-boot-spl-dtb.ihex`.
 
 == Intel Stratix 10 Hard Processor System interactions
 
