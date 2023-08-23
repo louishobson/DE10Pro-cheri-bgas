@@ -136,7 +136,7 @@ $(SIMDIR)/sim_CHERI_BGAS: CHERI_BGAS_Top_Sim.bsv $(TOPFILE_BO) $(BLUESTUFFDIR)/B
 	mkdir -p $(BDIR)
 	mkdir -p $(SIMDIR)
 	$(BSC) $(BSCFLAGS) $(BSCBSIMFLAGS) -sim -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
-	$(BSC) $(BSCFLAGS) $(BSCBSIMFLAGS) -sim -e mkCHERI_BGAS_Top_Sim -u -o $@ $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(BLUEUNIXBRIDGESDIR)/BlueUnixFifo.c
+	$(BSC) $(BSCFLAGS) $(BSCBSIMFLAGS) -sim -e mkCHERI_BGAS_Top_Sim -u -o $@ $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(BLUESTUFFDIR)/BlueUtils/SimUtils.c $(BLUEUNIXBRIDGESDIR)/BlueUnixFifo.c
 
 verilatorsim: $(VDIR)/mkCHERI_BGAS_Top_Sim.v CHERI_BGAS_Top_verilator_sim.cpp
 	$(eval TMP_V := $(shell mktemp -t mkCHERI_BGAS_Top_Sim_edited_XXXX.v))
@@ -160,7 +160,8 @@ verilatorsim: $(VDIR)/mkCHERI_BGAS_Top_Sim.v CHERI_BGAS_Top_verilator_sim.cpp
       $(BLUESTUFFDIR)/BlueUtils/MemSim.v \
       -exe \
       CHERI_BGAS_Top_verilator_sim.cpp \
-      $(BLUESTUFFDIR)/BlueUtils/MemSim.c
+      $(BLUESTUFFDIR)/BlueUtils/MemSim.c \
+      $(BLUESTUFFDIR)/BlueUtils/SimUtils.c
 	#-Wno-fatal
 	make -C $(VERILATORDIR) -j -f VmkCHERI_BGAS_Top_Sim.mk mkCHERI_BGAS_Top_Sim
 
