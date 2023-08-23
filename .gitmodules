@@ -29,3 +29,6 @@
 [submodule "software/bare-metal-de10-cheri-bgas"]
 	path = software/bare-metal-de10-cheri-bgas
 	url = https://github.com/CTSRD-CHERI/bare-metal-de10-cheri-bgas.git
+[submodule "bluespec/sim-utils/jtagvpi_to_fmemdmi"]
+	path = bluespec/sim-utils/jtagvpi_to_fmemdmi
+	url = https://github.com/CTSRD-CHERI/jtagvpi_to_fmemdmi.git

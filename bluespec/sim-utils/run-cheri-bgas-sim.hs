@@ -28,10 +28,13 @@ data CHERI_BGAS_Sim_Instance = CHERI_BGAS_Sim_Instance {
   , path_sim_folder :: String
   , cmd_cheri_bgas_sim :: String
   , cmd_cheri_bgas_devfs :: String
-  , cmd_gdbstub :: String
+  , cmd_jtagvpi_to_fmemdmi :: String
+  , cmd_openocd :: String
   , sim_handles :: (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
   , devfs_handles :: (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
-  , gdbstub_handles :: (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
+  , jtagvpi_to_fmemdmi_handles :: ( Maybe Handle, Maybe Handle, Maybe Handle
+                                  , ProcessHandle )
+  , openocd_handles :: (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
 }
 
 data CHERI_BGAS_Sim_Connection = CHERI_BGAS_Sim_Connection {
@@ -43,10 +46,13 @@ data CHERI_BGAS_Sim_Connection = CHERI_BGAS_Sim_Connection {
 }
 
 spawn_CHERI_BGAS_Sim_Instance :: Verbosity
-                              -> (Int, Int) -> Int
-                              -> String -> String -> String -> String
+                              -> (Int, Int) -> Int -> Int
+                              -> String -> String -> String
+                              -> String -> String -> String
                               -> IO (CHERI_BGAS_Sim_Instance)
-spawn_CHERI_BGAS_Sim_Instance v (x, y) pBase dir simCmd devfsCmd gdbstubCmd = do
+spawn_CHERI_BGAS_Sim_Instance
+  v (x, y) vpiPortBase debugPortBase
+  dir simCmd devfsCmd jtagvpi_to_fmemdmiCmd openocdConf openocdCmd = do
   lvlPrint 2 v $ "Creating directory " ++ dir
   createDirectoryIfMissing True dir
   withCurrentDirectory dir do
@@ -77,6 +83,7 @@ spawn_CHERI_BGAS_Sim_Instance v (x, y) pBase dir simCmd devfsCmd gdbstubCmd = do
 
     threadDelay 50000
 
+    {-
     gdbstubStdout <- openFile ("gdbstub_stdout") WriteMode
     gdbstubStderr <- openFile ("gdbstub_stderr") WriteMode
     let fmemDev = "simdev/debug_unit"
@@ -90,6 +97,38 @@ spawn_CHERI_BGAS_Sim_Instance v (x, y) pBase dir simCmd devfsCmd gdbstubCmd = do
       }
     lvlPrint 2 v $ "Spawning gdbstub: " ++ show gdbstubProc
     gdbstubHandles <- createProcess gdbstubProc
+    -}
+
+    let vpiPort = vpiPortBase + 100 * x + y
+    let dbgPort = debugPortBase + 100 * x + y
+    let fmemDev = "simdev/debug_unit"
+
+    jtagvpi_to_fmemdmiStdout <- openFile ("jtagvpi_to_fmemdmi_stdout") WriteMode
+    jtagvpi_to_fmemdmiStderr <- openFile ("jtagvpi_to_fmemdmi_stderr") WriteMode
+    let cmdArgs = ["-p", show vpiPort, "-f", fmemDev]
+    let jtagvpi_to_fmemdmiProc = (proc jtagvpi_to_fmemdmiCmd cmdArgs) {
+          std_in = CreatePipe --NoStream
+        , std_out = UseHandle jtagvpi_to_fmemdmiStdout
+        , std_err = UseHandle jtagvpi_to_fmemdmiStderr
+      }
+    lvlPrint 2 v $
+      "Spawning jtagvpi_to_fmemdmi: " ++ show jtagvpi_to_fmemdmiProc
+    jtagvpi_to_fmemdmiHandles <- createProcess jtagvpi_to_fmemdmiProc
+
+    openocdStdout <- openFile ("openocd_stdout") WriteMode
+    openocdStderr <- openFile ("openocd_stderr") WriteMode
+    let openocdArgs = [ "-c", "set vpi_port " ++ show vpiPort
+                      , "-c", "set vpi_addr 127.0.0.1"
+                      , "-c", "set debug_port " ++ show dbgPort
+                      , "-f", openocdConf
+                      ]
+    let openocdProc = (proc openocdCmd openocdArgs) {
+        std_in = CreatePipe --NoStream
+        , std_out = UseHandle openocdStdout
+        , std_err = UseHandle openocdStderr
+      }
+    lvlPrint 2 v $ "Spawning openocd: " ++ show openocdProc
+    openocdHandles <- createProcess openocdProc
 
     return CHERI_BGAS_Sim_Instance {
         x = x
@@ -97,10 +136,12 @@ spawn_CHERI_BGAS_Sim_Instance v (x, y) pBase dir simCmd devfsCmd gdbstubCmd = do
       , path_sim_folder = dir
       , cmd_cheri_bgas_sim = simCmd
       , cmd_cheri_bgas_devfs = devfsCmd
-      , cmd_gdbstub = gdbstubCmd
+      , cmd_jtagvpi_to_fmemdmi = jtagvpi_to_fmemdmiCmd
+      , cmd_openocd = openocdCmd
       , sim_handles = simHandles
       , devfs_handles = devfsHandles
-      , gdbstub_handles = gdbstubHandles
+      , jtagvpi_to_fmemdmi_handles = jtagvpi_to_fmemdmiHandles
+      , openocd_handles = openocdHandles
     }
 
 spawn_CHERI_BGAS_Sim_Connection :: Verbosity
@@ -171,7 +212,8 @@ spawn_CHERI_BGAS_Sim_Connection v cmd simFolder insts ((x0, y0), (x1, y1)) = do
 cleanup_CHERI_BGAS_Sim_Instance :: Verbosity -> CHERI_BGAS_Sim_Instance -> IO ()
 cleanup_CHERI_BGAS_Sim_Instance v CHERI_BGAS_Sim_Instance {..} = do
   lvlPrint 2 v $ "Cleaning sim instance"
-  cleanupProcess gdbstub_handles
+  cleanupProcess jtagvpi_to_fmemdmi_handles
+  cleanupProcess openocd_handles
   cleanupProcess devfs_handles
   cleanupProcess sim_handles
 
@@ -188,7 +230,9 @@ data Options = Options {
     verbosity  :: Int
   , simCmd     :: String
   , devfsCmd   :: String
-  , gdbstubCmd :: String
+  , openocdCmd :: String
+  , openocdConf :: String
+  , jtagvpi_to_fmemdmiCmd :: String
   , connectCmd :: String
   , runFolder  :: String
   , topology   :: (Int, Int)
@@ -199,8 +243,10 @@ defaultOptions = Options {
     verbosity = 0
   , simCmd = "../build/simdir/sim_CHERI_BGAS"
   , devfsCmd = "./cheri-bgas-fuse-devfs/cheri-bgas-fuse-devfs"
-  , gdbstubCmd = "./RISCV_gdbstub/src/main"
   , connectCmd = "./forever-splice/forever-splice"
+  , openocdCmd = "openocd"
+  , openocdConf = "./openocd.cfg"
+  , jtagvpi_to_fmemdmiCmd = "./jtagvpi_to_fmemdmi/jtagvpi_to_fmemdmi"
   , runFolder = "./sim-cheri-bgas"
   , topology = (1,1)
   }
@@ -219,12 +265,17 @@ options = [
   , Option ['d'] ["devfs-bin-path"]
            (ReqArg (\x opts -> opts { devfsCmd = x }) "DEVFS_BIN_PATH")
            "Specify path to the devfs binary"
-  , Option ['g'] ["gdbstub-bin-path"]
-           (ReqArg (\x opts -> opts { gdbstubCmd = x }) "GDBSTUB_BIN_PATH")
-           "Specify path to the gdb stub binary"
   , Option ['c'] ["connect-bin-path"]
            (ReqArg (\x opts -> opts { devfsCmd = x }) "CONNECT_BIN_PATH")
            "Specify path to the command to connect instances"
+  , Option ['j'] ["jtagvpi_to_fmemdmi-bin-path"]
+           ( ReqArg (\x opts -> opts { devfsCmd = x })
+                    "JTAGVPI_TO_FMEMDMI_BIN_PATH" )
+           "Specify path to the jtagvpi_to_fmemdmi command"
+  , Option ['o'] ["openocd-conf-path"]
+           ( ReqArg (\x opts -> opts { devfsCmd = x })
+                    "OPENOCD_CONF_PATH" )
+           "Specify path to the openocd configuration file"
   , Option ['r'] ["run-folder-path"]
            (ReqArg (\x opts -> opts { runFolder = x }) "RUN_FOLDER_PATH")
            "Specify path to the run folder"
@@ -251,8 +302,10 @@ main = do
   runFolder <- makeAbsolute opts.runFolder
   simCmd <- makeAbsolute opts.simCmd
   devfsCmd <- makeAbsolute opts.devfsCmd
-  gdbstubCmd <- makeAbsolute opts.gdbstubCmd
   connectCmd <- makeAbsolute opts.connectCmd
+  let openocdCmd = opts.openocdCmd
+  openocdConf <- makeAbsolute opts.openocdConf
+  jtagvpi_to_fmemdmiCmd <- makeAbsolute opts.jtagvpi_to_fmemdmiCmd
   let (width, height) = opts.topology
   let simFolder x y = runFolder ++ "/sim_" ++ show x ++ "_" ++ show y
   let coords = [ (x, y) | x <- [0..(width-1)], y <- [0..(height-1)] ]
@@ -262,8 +315,9 @@ main = do
   createDirectoryIfMissing True runFolder
   lvlPrint 1 v $ ">> Creating simulator instances"
   insts <- forM coords \(x, y) ->
-    spawn_CHERI_BGAS_Sim_Instance v (x, y) 80000 (simFolder x y)
-                                    simCmd devfsCmd gdbstubCmd
+    spawn_CHERI_BGAS_Sim_Instance
+      v (x, y) 90000 80000 (simFolder x y)
+      simCmd devfsCmd jtagvpi_to_fmemdmiCmd openocdConf openocdCmd
   let instsMap = Map.fromList [ ((x, y), inst)
                               | inst@CHERI_BGAS_Sim_Instance{..} <- insts ]
   lvlPrint 1 v $ ">> Simulator instances created"
