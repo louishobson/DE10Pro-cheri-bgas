@@ -17,9 +17,6 @@
 [submodule "bluespec/cheri-bgas-fuse-devfs"]
 	path = bluespec/sim-utils/cheri-bgas-fuse-devfs
 	url = https://github.com/CTSRD-CHERI/cheri-bgas-fuse-devfs.git
-[submodule "bluespec/sim-utils/RISCV_gdbstub"]
-	path = bluespec/sim-utils/RISCV_gdbstub
-	url = https://github.com/CTSRD-CHERI/RISCV_gdbstub.git
 [submodule "bluespec/sim-utils/forever-splice"]
 	path = bluespec/sim-utils/forever-splice
 	url = https://github.com/CTSRD-CHERI/forever-splice.git
