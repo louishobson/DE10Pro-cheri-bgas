@@ -38,35 +38,35 @@ $ git submodule update --init --recursive
 
 Currently, this repo uses the following direct submodules:
 
-- https://github.com/POETSII/BSVFan/tree/master[`bluespec/BSVFan`]
+- https://github.com/POETSII/BSVFan[`bluespec/BSVFan`]
 +
 A fan controller device for the DE10 board.
-- https://github.com/POETSII/DE10Pro-bsv-shell/tree/main[`bluespec/DE10Pro-bsv-shell`]
+- https://github.com/POETSII/DE10Pro-bsv-shell[`bluespec/DE10Pro-bsv-shell`]
 +
 A Bluespec SystemVerilog Interface definition for DE10Pro projects with a set of sub-interfaces
 exposing some of the devices available on the board to the code implementing the interface.
-- https://github.com/CTSRD-CHERI/Recipe/tree/master[`bluespec/Recipe`]
+- https://github.com/CTSRD-CHERI/Recipe[`bluespec/Recipe`]
 +
 A BSV library providing a way to easily build state machines.
-- https://github.com/CTSRD-CHERI/Toooba/tree/CHERI[`bluespec/Toooba`]
+- https://github.com/CTSRD-CHERI/Toooba[`bluespec/Toooba`]
 +
 A CHERI-enabled Out-of-Order RISC-V Core.
-- https://github.com/jonwoodruff/VirtualDevice/tree/main[`bluespec/VirtualDevice`]
+- https://github.com/CTSRD-CHERI/VirtualDevice[`bluespec/VirtualDevice`]
 +
 A Bluespec AXI component that intended to act as a virtual device.
-- https://github.com/CTSRD-CHERI/cheri-bgas-fuse-devfs/tree/main[`bluespec/sim-utils/cheri-bgas-fuse-devfs`]
+- https://github.com/CTSRD-CHERI/cheri-bgas-fuse-devfs[`bluespec/sim-utils/cheri-bgas-fuse-devfs`]
 +
 A `fuse` filesystem to expose as `fmem` devices the available devices from a DE10-cheri-bgas simulator.
-- https://github.com/CTSRD-CHERI/forever-splice/tree/main[`bluespec/sim-utils/forever-splice`]
+- https://github.com/CTSRD-CHERI/forever-splice[`bluespec/sim-utils/forever-splice`]
 +
 A utility program continuously consuming from a unix fifo and producing into another.
 - https://github.com/CTSRD-CHERI/jtagvpi_to_fmemdmi[`bluespec/sim-utils/jtagvpi_to_fmemdmi`]
 +
 A utility converting `gdb` commands received over jtag as vpi packets to RISC-V "DMI" Debug Module Interface packets over fmem.
-- https://github.com/CTSRD-CHERI/bare-metal-de10-cheri-bgas/tree/main[`software/bare-metal-de10-cheri-bgas`]
+- https://github.com/CTSRD-CHERI/bare-metal-de10-cheri-bgas[`software/bare-metal-de10-cheri-bgas`]
 +
 A basic bare-metal setup to write software for the DE10-cheri-bgas platform.
-- https://github.com/CTSRD-CHERI/vipbundle/tree/main[`vipbundle`]
+- https://github.com/CTSRD-CHERI/vipbundle[`vipbundle`]
 +
 A tool to package a verilog module into a Quartus system-builder component.
 
