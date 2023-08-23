@@ -54,15 +54,15 @@ A CHERI-enabled Out-of-Order RISC-V Core.
 - https://github.com/jonwoodruff/VirtualDevice/tree/main[`bluespec/VirtualDevice`]
 +
 A Bluespec AXI component that intended to act as a virtual device.
-- https://github.com/CTSRD-CHERI/RISCV_gdbstub/tree/master[`bluespec/sim-utils/RISCV_gdbstub`]
-+
-A utility converting `gdb` commands to RISC-V "DMI" Debug Module Interface.
 - https://github.com/CTSRD-CHERI/cheri-bgas-fuse-devfs/tree/main[`bluespec/sim-utils/cheri-bgas-fuse-devfs`]
 +
 A `fuse` filesystem to expose as `fmem` devices the available devices from a DE10-cheri-bgas simulator.
 - https://github.com/CTSRD-CHERI/forever-splice/tree/main[`bluespec/sim-utils/forever-splice`]
 +
 A utility program continuously consuming from a unix fifo and producing into another.
+- https://github.com/CTSRD-CHERI/jtagvpi_to_fmemdmi[`bluespec/sim-utils/jtagvpi_to_fmemdmi`]
++
+A utility converting `gdb` commands received over jtag as vpi packets to RISC-V "DMI" Debug Module Interface packets over fmem.
 - https://github.com/CTSRD-CHERI/bare-metal-de10-cheri-bgas/tree/main[`software/bare-metal-de10-cheri-bgas`]
 +
 A basic bare-metal setup to write software for the DE10-cheri-bgas platform.
@@ -77,7 +77,7 @@ haskell compiler with the `regex-tdfa` haskell library. It will be built
 automatically as part of the overall build process for the FPGA image.
 
 Additionally, you will need a working installation of
-https://www.intel.com/content/www/us/en/programmable/downloads/download-center.html[Quartus 19.2pro]
+https://www.intel.com/content/www/us/en/programmable/downloads/download-center.html[Quartus 23.2pro]
 and a https://github.com/B-Lang-org/bsc[bluespec compiler].
 
 You can then run:
