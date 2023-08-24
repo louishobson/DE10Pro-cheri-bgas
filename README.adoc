@@ -78,6 +78,7 @@ This repo also indirectly relies on (among others) the following repositories:
 - https://github.com/CTSRD-CHERI/RISCV_HPM_Events[RISCV_HPM_Events]
 - https://github.com/CTSRD-CHERI/BlueStuff[BlueStuff]
 - https://github.com/CTSRD-CHERI/BlueAXI4[BlueAXI4]
+- https://github.com/CTSRD-CHERI/BlueUnixBridges[BlueUnixBridges]
 - https://github.com/CTSRD-CHERI/BlueBasics[BlueBasics]
 
 === Build a Stratix 10 bitfile
