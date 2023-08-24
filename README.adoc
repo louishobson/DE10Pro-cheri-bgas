@@ -70,6 +70,16 @@ A basic bare-metal setup to write software for the DE10-cheri-bgas platform.
 +
 A tool to package a verilog module into a Quartus system-builder component.
 
+This repo also indirectly relies on (among others) the following repositories:
+
+- https://github.com/CTSRD-CHERI/WindCoreInterface[WindCoreInterface]
+- https://github.com/CTSRD-CHERI/cheri-cap-lib[cheri-cap-lib]
+- https://github.com/CTSRD-CHERI/TagController[TagController]
+- https://github.com/CTSRD-CHERI/RISCV_HPM_Events[RISCV_HPM_Events]
+- https://github.com/CTSRD-CHERI/BlueStuff[BlueStuff]
+- https://github.com/CTSRD-CHERI/BlueAXI4[BlueAXI4]
+- https://github.com/CTSRD-CHERI/BlueBasics[BlueBasics]
+
 === Build a Stratix 10 bitfile
 
 Building the `vipbundle` tool requires a working installation of the `ghc`
