@@ -1,4 +1,4 @@
-= DE10Proj-CHERI-BGAS Top-Level Repository
+= DE10Pro-CHERI-BGAS Top-Level Repository
 
 :toc: macro
 :toclevels: 4
