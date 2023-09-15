@@ -42,17 +42,24 @@ $(BOOTLOADER):
 	cd $(UBOOTBUILDDIR) && sh $(SOFTDIR)/build_uboot.sh
 
 gen-rbf: $(BOOTLOADER)
-	$(eval NOW = $(shell date +"%d%m%Y-%H_%M"))
-	$(eval OUTDIR = output_files_$(NOW))
+	$(eval NOW = $(shell date +"%Y%m%d_%H_%M"))
+	$(eval GITREV = $(shell git rev-parse HEAD))
+	$(eval GITDIRTY = $(shell git diff --quiet || echo "_dirty"))
+	$(eval TAGNAME = $(NOW)-$(GITREV)$(GITDIRTY))
+	$(eval OUTDIR = output_files_$(TAGNAME))
 	$(eval TEMPLATENAME = "cheri-bgas-socfpga")
 	$(eval SOF = "$(OUTDIR)/DE10Pro-cheri-bgas.sof")
-	$(eval OUTNAME = "$(OUTDIR)/$(TEMPLATENAME)-$(NOW)")
+	$(eval OUTNAME = "$(OUTDIR)/$(TEMPLATENAME)-$(TAGNAME)")
 	cp -r output_files $(OUTDIR)
 	quartus_pfg -c $(SOF) -o hps=ON -o hps_path=$(BOOTLOADER) $(OUTNAME).rbf
 
 ci-gen-rbf: $(BOOTLOADER)
 	$(eval SOF = "output_files/DE10Pro-cheri-bgas.sof")
-	$(eval OUTNAME = "output_files/cheri-bgas-socfpga")
+	$(eval NOW = $(shell date +"%Y%m%d_%H_%M"))
+	$(eval GITREV = $(shell git rev-parse HEAD))
+	$(eval GITDIRTY = $(shell git diff --quiet || echo "_dirty"))
+	$(eval TAGNAME = $(NOW)-$(GITREV)$(GITDIRTY))
+	$(eval OUTNAME = "output_files/cheri-bgas-socfpga-$(TAGNAME)")
 	quartus_pfg -c $(SOF) -o hps=ON -o hps_path=$(BOOTLOADER) $(OUTNAME).rbf
 
 synthesize output_files/DE10Pro-cheri-bgas.sof &: gen-ip
