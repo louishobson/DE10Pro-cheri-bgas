@@ -33,6 +33,7 @@ class BuildContext(object):
   def __init__( self
               , ctxt = None
               , workdir = None
+              , outputdir = None
               , cheribuild = None
               , cleanup = True):
     if not ctxt:
@@ -41,6 +42,8 @@ class BuildContext(object):
       self.ctxt = ctxt
     if workdir:
       self.ctxt = self.ctxt._replace(workdir = workdir)
+    if outputdir:
+      self.ctxt = self.ctxt._replace(outputdir = outputdir)
     if cheribuild:
       self.ctxt = self.ctxt._replace(cheribuild = cheribuild)
     self.cleanup = cleanup
@@ -87,10 +90,14 @@ def install_cheribuild( installdir = "/local/scratch/aj443/tools/cheribuild"
                       , source_root = "/local/scratch/aj443/tools/cheribuild-source-root"
                       , giturl = "https://github.com/CTSRD-CHERI/cheribuild.git"
                       ):
+
   exepath = f"{installdir}/cheribuild.py"
+
   def cheribuild(cmdargs):
-    cmd = [exepath, f"--source-root={source_root}"] + cmdargs
+    cheribuild.source_root = source_root
+    cmd = [exepath, f"--source-root={cheribuild.source_root}"] + cmdargs
     subprocess.run(cmd)
+
   if os.access(exepath, os.X_OK):
     vprint(0, "cheribuild already installed")
   else:
@@ -122,7 +129,9 @@ def install_cheribuild( installdir = "/local/scratch/aj443/tools/cheribuild"
     cmd = ["sudo", "apt", "install"] + pkgdeps
     subprocess.run(cmd)
     git.Repo.clone_from(giturl, installdir)
+
   cheribuild(["llvm"])
+
   return cheribuild
 
 # device tree for the hps system
@@ -164,7 +173,7 @@ def build_hps_riscv_device_tree_overlay(ctxt, top = None):
   github_base_url = "https://raw.githubusercontent.com"
   github_user = "freebsd"
   github_repo = "freebsd-src"
-  commit_ish = "stable/13"
+  commit_ish = "stable/14"
   url_base = "/".join([github_base_url, github_user, github_repo, commit_ish])
   incdir = "sys/contrib/device-tree/include"
   srcs = [ "dt-bindings/interrupt-controller/arm-gic.h"
@@ -197,11 +206,10 @@ def build_riscv_cheribsd_purecap(ctxt):
 ###############################################################################
 
 def build_hps_arm_freebsd(ctxt):
-  vprint(0, "TODO: build_hps_arm_freebsd")
   args = [ "--force"
          , "--freebsd/repository=https://github.com/CTSRD-CHERI/freebsd-morello"
          , "--freebsd/git-revision=stratix10"
-         #, "--freebsd/toolchain=system-llvm"
+         , "--freebsd/toolchain=cheri-llvm"
          , "freebsd-aarch64"
          , "disk-image-freebsd-aarch64" ]
   ctxt.cheribuild(args)
@@ -229,7 +237,9 @@ if __name__ == "__main__":
   # setup cheribuild
   cheribuild = install_cheribuild()
   # create a working directory
-  with BuildContext(cheribuild = cheribuild) as ctxt:
+  extras = f"{cheribuild.source_root}/extra-files"
+  #os.makedirs(extras, exist_ok = True)
+  with BuildContext(cheribuild = cheribuild, outputdir = extras) as ctxt:
     vprint(2, f"Using {ctxt.workdir} as a working directory")
     # build RISC-V device tree
     with BuildContext(ctxt, os.path.join(ctxt.workdir, "riscv_dtb")) as ctxt:
@@ -245,4 +255,4 @@ if __name__ == "__main__":
     with BuildContext(ctxt, os.path.join(ctxt.workdir, "hps_riscv_dtbo")) as ctxt:
       build_hps_riscv_device_tree_overlay(ctxt)
     # build HPS freebsd
-      build_hps_arm_freebsd(ctxt)
+    build_hps_arm_freebsd(ctxt)
