@@ -685,32 +685,32 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="SYS_INFO_DEVICE" type="string">
           <ipxact:name>SYS_INFO_DEVICE</ipxact:name>
           <ipxact:displayName>PARAM_SYS_INFO_DEVICE_NAME</ipxact:displayName>
-          <ipxact:value>1SX280HU2F50E1VG</ipxact:value>
+          <ipxact:value>Unknown</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="SYS_INFO_DEVICE_SPEEDGRADE" type="string">
           <ipxact:name>SYS_INFO_DEVICE_SPEEDGRADE</ipxact:name>
           <ipxact:displayName>PARAM_SYS_INFO_DEVICE_SPEEDGRADE_NAME</ipxact:displayName>
-          <ipxact:value>1</ipxact:value>
+          <ipxact:value></ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="SYS_INFO_DEVICE_TEMPERATURE_GRADE" type="string">
           <ipxact:name>SYS_INFO_DEVICE_TEMPERATURE_GRADE</ipxact:name>
           <ipxact:displayName>PARAM_SYS_INFO_DEVICE_TEMPERATURE_GRADE_NAME</ipxact:displayName>
-          <ipxact:value>EXTENDED</ipxact:value>
+          <ipxact:value></ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="SYS_INFO_DEVICE_POWER_MODEL" type="string">
           <ipxact:name>SYS_INFO_DEVICE_POWER_MODEL</ipxact:name>
           <ipxact:displayName>PARAM_SYS_INFO_DEVICE_POWER_MODEL_NAME</ipxact:displayName>
-          <ipxact:value>SMART_VID</ipxact:value>
+          <ipxact:value></ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="SYS_INFO_DEVICE_DIE_REVISIONS" type="string">
           <ipxact:name>SYS_INFO_DEVICE_DIE_REVISIONS</ipxact:name>
           <ipxact:displayName>PARAM_SYS_INFO_DEVICE_DIE_REVISIONS_NAME</ipxact:displayName>
-          <ipxact:value>HSSI_CRETE2E_REVB,MAIN_ND5_REVC</ipxact:value>
+          <ipxact:value></ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="TRAIT_SUPPORTS_VID" type="string">
           <ipxact:name>TRAIT_SUPPORTS_VID</ipxact:name>
           <ipxact:displayName>PARAM_TRAIT_SUPPORTS_VID_NAME</ipxact:displayName>
-          <ipxact:value>1</ipxact:value>
+          <ipxact:value>0</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="TRAIT_IOBANK_REVISION" type="string">
           <ipxact:name>TRAIT_IOBANK_REVISION</ipxact:name>
@@ -6310,7 +6310,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="CTRL_DDR4_MMR_EN" type="bit">
           <ipxact:name>CTRL_DDR4_MMR_EN</ipxact:name>
           <ipxact:displayName>Enable Memory-Mapped Configuration and Status Register (MMR) Interface</ipxact:displayName>
-          <ipxact:value>false</ipxact:value>
+          <ipxact:value>true</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="CTRL_DDR4_MAJOR_MODE_EN" type="bit">
           <ipxact:name>CTRL_DDR4_MAJOR_MODE_EN</ipxact:name>
@@ -8614,7 +8614,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="device" type="string">
           <ipxact:name>device</ipxact:name>
           <ipxact:displayName>Device</ipxact:displayName>
-          <ipxact:value>1SX280HU2F50E1VG</ipxact:value>
+          <ipxact:value>Unknown</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="deviceFamily" type="string">
           <ipxact:name>deviceFamily</ipxact:name>
@@ -9004,7 +9004,7 @@ https://fpgasoftware.intel.com/eula.-->
         <altera:port_mapping altera:name="pll_ref_clk" altera:internal="pll_ref_clk"></altera:port_mapping>
       </altera:interface_mapping>
     </altera:altera_interface_boundary>
-    <altera:altera_has_warnings>false</altera:altera_has_warnings>
-    <altera:altera_has_errors>false</altera:altera_has_errors>
+    <altera:altera_has_warnings>true</altera:altera_has_warnings>
+    <altera:altera_has_errors>true</altera:altera_has_errors>
   </ipxact:vendorExtensions>
 </ipxact:component>
