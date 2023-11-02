@@ -125,6 +125,7 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Range#(Wd_Addr)  m_virt_dev_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range;
+   (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_delay_config_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_global_bgas_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_bgas_router_conf_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_f2h_addr_range;
@@ -238,6 +239,14 @@ module mkSoC_Map (SoC_Map_IFC);
    };
 
    // ----------------------------------------------------------------
+   // DDR memory 0 delay config
+
+   let ddr4_0_delay_config_addr_range = Range {
+      base: 'h_0000_1000,
+      size: 'h_0000_1000    // 4K
+   };
+
+   // ----------------------------------------------------------------
    // BGAS router configuration
 
    let bgas_router_conf_addr_range = Range {
@@ -272,7 +281,8 @@ module mkSoC_Map (SoC_Map_IFC);
       inRange (ddr4_0_cached_addr_range, addr);
 
    function Bool fn_is_IO_addr (Fabric_Addr addr, Bool imem_not_dmem) =
-         inRange(ddr4_0_uncached_addr_range, addr)
+         inRange(ddr4_0_delay_config_addr_range, addr)
+      || inRange(ddr4_0_uncached_addr_range, addr)
       || inRange(boot_rom_addr_range, addr)
       || inRange(virt_dev_addr_range, addr)
       || (   (! imem_not_dmem)
@@ -308,6 +318,7 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Range#(Wd_Addr)  m_virt_dev_addr_range = virt_dev_addr_range;
    method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range = ddr4_0_uncached_addr_range;
    method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range = ddr4_0_cached_addr_range;
+   method  Range#(Wd_Addr)  m_ddr4_0_delay_config_addr_range = ddr4_0_delay_config_addr_range;
    method  Range#(Wd_Addr)  m_global_bgas_addr_range = global_bgas_addr_range;
    method  Range#(Wd_Addr)  m_bgas_router_conf_addr_range = bgas_router_conf_addr_range;
    method  Range#(Wd_Addr)  m_f2h_addr_range = f2h_addr_range;

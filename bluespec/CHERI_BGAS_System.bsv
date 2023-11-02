@@ -44,6 +44,7 @@ import WindCoreInterface :: *;
 import DE10Pro_bsv_shell :: *;
 import SoC_Map :: *;
 import VirtualDevice :: *;
+import AXI4_DelayShim :: *;
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -468,7 +469,8 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   ////////////////////////////////////////////////////////////
 
   // prepare AXI4 manager ports traffic
-  t_bus0_subshim ddrShim <- mkAXI4ShimFF (reset_by newRst.new_rst);
+  NumProxy#(128) depthProxy = error("Do not look inside a proxy");
+  t_bus0_subshim ddrShim <- mkAXI4_SelfConfigDelayShim (depthProxy, 'd0, soc_map.m_ddr4_0_delay_config_addr_range.base, reset_by newRst.new_rst);
 
   // gather all subordinates
   Vector #(1, t_bus0_sub) bus0_ss;
@@ -477,7 +479,8 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   // build route
   function Vector #(1, Bool) bus0_route (Bit #(Wd_Addr) addr);
     Vector #(1, Bool) x = replicate (False);
-    if (   inRange (soc_map.m_ddr4_0_cached_addr_range, addr)
+    if (   inRange (soc_map.m_ddr4_0_delay_config_addr_range, addr)
+        || inRange (soc_map.m_ddr4_0_cached_addr_range, addr)
         || inRange (soc_map.m_ddr4_0_uncached_addr_range, addr) )
       x[0] = True;
     return x;
