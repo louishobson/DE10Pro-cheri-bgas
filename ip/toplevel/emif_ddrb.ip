@@ -2158,7 +2158,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="PHY_DDR4_USER_PLL_REF_CLK_IO_STD_ENUM" type="string">
           <ipxact:name>PHY_DDR4_USER_PLL_REF_CLK_IO_STD_ENUM</ipxact:name>
           <ipxact:displayName>PLL reference clock I/O standard</ipxact:displayName>
-          <ipxact:value>IO_STD_LVDS</ipxact:value>
+          <ipxact:value>IO_STD_LVDS_NO_OCT</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="PHY_DDR4_USER_RZQ_IO_STD_ENUM" type="string">
           <ipxact:name>PHY_DDR4_USER_RZQ_IO_STD_ENUM</ipxact:name>
@@ -3733,7 +3733,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="MEM_DDR4_TCL" type="int">
           <ipxact:name>MEM_DDR4_TCL</ipxact:name>
           <ipxact:displayName>Memory CAS latency setting</ipxact:displayName>
-          <ipxact:value>22</ipxact:value>
+          <ipxact:value>23</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_RTT_NOM_ENUM" type="string">
           <ipxact:name>MEM_DDR4_RTT_NOM_ENUM</ipxact:name>
@@ -4273,7 +4273,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="MEM_DDR4_TRFC_NS" type="real">
           <ipxact:name>MEM_DDR4_TRFC_NS</ipxact:name>
           <ipxact:displayName>tRFC</ipxact:displayName>
-          <ipxact:value>260.0</ipxact:value>
+          <ipxact:value>350.0</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_TWR_NS" type="real">
           <ipxact:name>MEM_DDR4_TWR_NS</ipxact:name>
@@ -4288,7 +4288,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="MEM_DDR4_TWTR_S_CYC" type="int">
           <ipxact:name>MEM_DDR4_TWTR_S_CYC</ipxact:name>
           <ipxact:displayName>tWTR_S</ipxact:displayName>
-          <ipxact:value>3</ipxact:value>
+          <ipxact:value>4</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_TFAW_NS" type="real">
           <ipxact:name>MEM_DDR4_TFAW_NS</ipxact:name>
@@ -4298,7 +4298,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="MEM_DDR4_TRRD_L_CYC" type="int">
           <ipxact:name>MEM_DDR4_TRRD_L_CYC</ipxact:name>
           <ipxact:displayName>tRRD_L</ipxact:displayName>
-          <ipxact:value>6</ipxact:value>
+          <ipxact:value>7</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_TRRD_S_CYC" type="int">
           <ipxact:name>MEM_DDR4_TRRD_S_CYC</ipxact:name>
@@ -4308,7 +4308,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="MEM_DDR4_TCCD_L_CYC" type="int">
           <ipxact:name>MEM_DDR4_TCCD_L_CYC</ipxact:name>
           <ipxact:displayName>tCCD_L</ipxact:displayName>
-          <ipxact:value>6</ipxact:value>
+          <ipxact:value>7</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_TCCD_S_CYC" type="int">
           <ipxact:name>MEM_DDR4_TCCD_S_CYC</ipxact:name>
