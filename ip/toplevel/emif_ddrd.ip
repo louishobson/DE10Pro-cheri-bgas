@@ -3733,7 +3733,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="MEM_DDR4_TCL" type="int">
           <ipxact:name>MEM_DDR4_TCL</ipxact:name>
           <ipxact:displayName>Memory CAS latency setting</ipxact:displayName>
-          <ipxact:value>22</ipxact:value>
+          <ipxact:value>23</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_RTT_NOM_ENUM" type="string">
           <ipxact:name>MEM_DDR4_RTT_NOM_ENUM</ipxact:name>
@@ -4273,7 +4273,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="MEM_DDR4_TRFC_NS" type="real">
           <ipxact:name>MEM_DDR4_TRFC_NS</ipxact:name>
           <ipxact:displayName>tRFC</ipxact:displayName>
-          <ipxact:value>260.0</ipxact:value>
+          <ipxact:value>350.0</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_TWR_NS" type="real">
           <ipxact:name>MEM_DDR4_TWR_NS</ipxact:name>
@@ -4288,7 +4288,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="MEM_DDR4_TWTR_S_CYC" type="int">
           <ipxact:name>MEM_DDR4_TWTR_S_CYC</ipxact:name>
           <ipxact:displayName>tWTR_S</ipxact:displayName>
-          <ipxact:value>3</ipxact:value>
+          <ipxact:value>4</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_TFAW_NS" type="real">
           <ipxact:name>MEM_DDR4_TFAW_NS</ipxact:name>
@@ -4298,7 +4298,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="MEM_DDR4_TRRD_L_CYC" type="int">
           <ipxact:name>MEM_DDR4_TRRD_L_CYC</ipxact:name>
           <ipxact:displayName>tRRD_L</ipxact:displayName>
-          <ipxact:value>6</ipxact:value>
+          <ipxact:value>7</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_TRRD_S_CYC" type="int">
           <ipxact:name>MEM_DDR4_TRRD_S_CYC</ipxact:name>
@@ -4308,7 +4308,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="MEM_DDR4_TCCD_L_CYC" type="int">
           <ipxact:name>MEM_DDR4_TCCD_L_CYC</ipxact:name>
           <ipxact:displayName>tCCD_L</ipxact:displayName>
-          <ipxact:value>6</ipxact:value>
+          <ipxact:value>7</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_TCCD_S_CYC" type="int">
           <ipxact:name>MEM_DDR4_TCCD_S_CYC</ipxact:name>
@@ -6133,7 +6133,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="BOARD_DDR4_PKG_BRD_SKEW_WITHIN_DQS_NS" type="real">
           <ipxact:name>BOARD_DDR4_PKG_BRD_SKEW_WITHIN_DQS_NS</ipxact:name>
           <ipxact:displayName>Maximum system skew within DQS group</ipxact:displayName>
-          <ipxact:value>0.001350118</ipxact:value>
+          <ipxact:value>5.57425E-4</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="BOARD_DDR4_IS_SKEW_WITHIN_AC_DESKEWED" type="bit">
           <ipxact:name>BOARD_DDR4_IS_SKEW_WITHIN_AC_DESKEWED</ipxact:name>
@@ -6148,12 +6148,12 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="BOARD_DDR4_PKG_BRD_SKEW_WITHIN_AC_NS" type="real">
           <ipxact:name>BOARD_DDR4_PKG_BRD_SKEW_WITHIN_AC_NS</ipxact:name>
           <ipxact:displayName>Maximum system skew within address/command bus</ipxact:displayName>
-          <ipxact:value>0.002645604</ipxact:value>
+          <ipxact:value>6.5186E-4</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="BOARD_DDR4_DQS_TO_CK_SKEW_NS" type="real">
           <ipxact:name>BOARD_DDR4_DQS_TO_CK_SKEW_NS</ipxact:name>
           <ipxact:displayName>Average delay difference between DQS and CK</ipxact:displayName>
-          <ipxact:value>-0.042680619</ipxact:value>
+          <ipxact:value>-0.035835062</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="BOARD_DDR4_SKEW_BETWEEN_DIMMS_NS" type="real">
           <ipxact:name>BOARD_DDR4_SKEW_BETWEEN_DIMMS_NS</ipxact:name>
@@ -6163,22 +6163,22 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="BOARD_DDR4_SKEW_BETWEEN_DQS_NS" type="real">
           <ipxact:name>BOARD_DDR4_SKEW_BETWEEN_DQS_NS</ipxact:name>
           <ipxact:displayName>Maximum skew between DQS groups</ipxact:displayName>
-          <ipxact:value>0.116352997</ipxact:value>
+          <ipxact:value>0.24130189</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="BOARD_DDR4_AC_TO_CK_SKEW_NS" type="real">
           <ipxact:name>BOARD_DDR4_AC_TO_CK_SKEW_NS</ipxact:name>
           <ipxact:displayName>Average delay difference between address/command and CK</ipxact:displayName>
-          <ipxact:value>3.02328E-5</ipxact:value>
+          <ipxact:value>-7.19958E-5</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="BOARD_DDR4_MAX_CK_DELAY_NS" type="real">
           <ipxact:name>BOARD_DDR4_MAX_CK_DELAY_NS</ipxact:name>
           <ipxact:displayName>Maximum CK delay to DIMM/device</ipxact:displayName>
-          <ipxact:value>0.601619768</ipxact:value>
+          <ipxact:value>0.572452566</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="BOARD_DDR4_MAX_DQS_DELAY_NS" type="real">
           <ipxact:name>BOARD_DDR4_MAX_DQS_DELAY_NS</ipxact:name>
           <ipxact:displayName>Maximum DQS delay to DIMM/device</ipxact:displayName>
-          <ipxact:value>0.617112409</ipxact:value>
+          <ipxact:value>0.657226416</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="BOARD_QDR2_USE_DEFAULT_SLEW_RATES" type="bit">
           <ipxact:name>BOARD_QDR2_USE_DEFAULT_SLEW_RATES</ipxact:name>
@@ -9309,11 +9309,6 @@ https://fpgasoftware.intel.com/eula.-->
    }
    element emif_ddrd
    {
-      datum _originalVersion
-      {
-         value = "19.1.0";
-         type = "String";
-      }
    }
 }
 </ipxact:value>

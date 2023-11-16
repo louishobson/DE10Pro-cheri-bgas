@@ -9309,11 +9309,6 @@ https://fpgasoftware.intel.com/eula.-->
    }
    element emif_ddrb
    {
-      datum _originalVersion
-      {
-         value = "19.1.0";
-         type = "String";
-      }
    }
 }
 </ipxact:value>

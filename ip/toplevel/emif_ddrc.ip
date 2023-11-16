@@ -16,14 +16,14 @@ https://fpgasoftware.intel.com/eula.-->
   <ipxact:vendor>Intel Corporation</ipxact:vendor>
   <ipxact:library>emif_ddrc</ipxact:library>
   <ipxact:name>emif_ddrc</ipxact:name>
-  <ipxact:version>19.2.5</ipxact:version>
+  <ipxact:version>19.2.6</ipxact:version>
   <ipxact:busInterfaces>
     <ipxact:busInterface>
       <ipxact:name>local_reset_req</ipxact:name>
-      <ipxact:busType vendor="intel" library="intel" name="conduit" version="22.4"></ipxact:busType>
+      <ipxact:busType vendor="intel" library="intel" name="conduit" version="23.2"></ipxact:busType>
       <ipxact:abstractionTypes>
         <ipxact:abstractionType>
-          <ipxact:abstractionRef vendor="intel" library="intel" name="conduit" version="22.4"></ipxact:abstractionRef>
+          <ipxact:abstractionRef vendor="intel" library="intel" name="conduit" version="23.2"></ipxact:abstractionRef>
           <ipxact:portMaps>
             <ipxact:portMap>
               <ipxact:logicalPort>
@@ -57,10 +57,10 @@ https://fpgasoftware.intel.com/eula.-->
     </ipxact:busInterface>
     <ipxact:busInterface>
       <ipxact:name>local_reset_status</ipxact:name>
-      <ipxact:busType vendor="intel" library="intel" name="conduit" version="22.4"></ipxact:busType>
+      <ipxact:busType vendor="intel" library="intel" name="conduit" version="23.2"></ipxact:busType>
       <ipxact:abstractionTypes>
         <ipxact:abstractionType>
-          <ipxact:abstractionRef vendor="intel" library="intel" name="conduit" version="22.4"></ipxact:abstractionRef>
+          <ipxact:abstractionRef vendor="intel" library="intel" name="conduit" version="23.2"></ipxact:abstractionRef>
           <ipxact:portMaps>
             <ipxact:portMap>
               <ipxact:logicalPort>
@@ -94,10 +94,10 @@ https://fpgasoftware.intel.com/eula.-->
     </ipxact:busInterface>
     <ipxact:busInterface>
       <ipxact:name>pll_ref_clk</ipxact:name>
-      <ipxact:busType vendor="intel" library="intel" name="clock" version="22.4"></ipxact:busType>
+      <ipxact:busType vendor="intel" library="intel" name="clock" version="23.2"></ipxact:busType>
       <ipxact:abstractionTypes>
         <ipxact:abstractionType>
-          <ipxact:abstractionRef vendor="intel" library="intel" name="clock" version="22.4"></ipxact:abstractionRef>
+          <ipxact:abstractionRef vendor="intel" library="intel" name="clock" version="23.2"></ipxact:abstractionRef>
           <ipxact:portMaps>
             <ipxact:portMap>
               <ipxact:logicalPort>
@@ -131,10 +131,10 @@ https://fpgasoftware.intel.com/eula.-->
     </ipxact:busInterface>
     <ipxact:busInterface>
       <ipxact:name>oct</ipxact:name>
-      <ipxact:busType vendor="intel" library="intel" name="conduit" version="22.4"></ipxact:busType>
+      <ipxact:busType vendor="intel" library="intel" name="conduit" version="23.2"></ipxact:busType>
       <ipxact:abstractionTypes>
         <ipxact:abstractionType>
-          <ipxact:abstractionRef vendor="intel" library="intel" name="conduit" version="22.4"></ipxact:abstractionRef>
+          <ipxact:abstractionRef vendor="intel" library="intel" name="conduit" version="23.2"></ipxact:abstractionRef>
           <ipxact:portMaps>
             <ipxact:portMap>
               <ipxact:logicalPort>
@@ -168,10 +168,10 @@ https://fpgasoftware.intel.com/eula.-->
     </ipxact:busInterface>
     <ipxact:busInterface>
       <ipxact:name>mem</ipxact:name>
-      <ipxact:busType vendor="intel" library="intel" name="conduit" version="22.4"></ipxact:busType>
+      <ipxact:busType vendor="intel" library="intel" name="conduit" version="23.2"></ipxact:busType>
       <ipxact:abstractionTypes>
         <ipxact:abstractionType>
-          <ipxact:abstractionRef vendor="intel" library="intel" name="conduit" version="22.4"></ipxact:abstractionRef>
+          <ipxact:abstractionRef vendor="intel" library="intel" name="conduit" version="23.2"></ipxact:abstractionRef>
           <ipxact:portMaps>
             <ipxact:portMap>
               <ipxact:logicalPort>
@@ -325,10 +325,10 @@ https://fpgasoftware.intel.com/eula.-->
     </ipxact:busInterface>
     <ipxact:busInterface>
       <ipxact:name>status</ipxact:name>
-      <ipxact:busType vendor="intel" library="intel" name="conduit" version="22.4"></ipxact:busType>
+      <ipxact:busType vendor="intel" library="intel" name="conduit" version="23.2"></ipxact:busType>
       <ipxact:abstractionTypes>
         <ipxact:abstractionType>
-          <ipxact:abstractionRef vendor="intel" library="intel" name="conduit" version="22.4"></ipxact:abstractionRef>
+          <ipxact:abstractionRef vendor="intel" library="intel" name="conduit" version="23.2"></ipxact:abstractionRef>
           <ipxact:portMaps>
             <ipxact:portMap>
               <ipxact:logicalPort>
@@ -370,10 +370,10 @@ https://fpgasoftware.intel.com/eula.-->
     </ipxact:busInterface>
     <ipxact:busInterface>
       <ipxact:name>emif_usr_reset_n</ipxact:name>
-      <ipxact:busType vendor="intel" library="intel" name="reset" version="22.4"></ipxact:busType>
+      <ipxact:busType vendor="intel" library="intel" name="reset" version="23.2"></ipxact:busType>
       <ipxact:abstractionTypes>
         <ipxact:abstractionType>
-          <ipxact:abstractionRef vendor="intel" library="intel" name="reset" version="22.4"></ipxact:abstractionRef>
+          <ipxact:abstractionRef vendor="intel" library="intel" name="reset" version="23.2"></ipxact:abstractionRef>
           <ipxact:portMaps>
             <ipxact:portMap>
               <ipxact:logicalPort>
@@ -412,10 +412,10 @@ https://fpgasoftware.intel.com/eula.-->
     </ipxact:busInterface>
     <ipxact:busInterface>
       <ipxact:name>emif_usr_clk</ipxact:name>
-      <ipxact:busType vendor="intel" library="intel" name="clock" version="22.4"></ipxact:busType>
+      <ipxact:busType vendor="intel" library="intel" name="clock" version="23.2"></ipxact:busType>
       <ipxact:abstractionTypes>
         <ipxact:abstractionType>
-          <ipxact:abstractionRef vendor="intel" library="intel" name="clock" version="22.4"></ipxact:abstractionRef>
+          <ipxact:abstractionRef vendor="intel" library="intel" name="clock" version="23.2"></ipxact:abstractionRef>
           <ipxact:portMaps>
             <ipxact:portMap>
               <ipxact:logicalPort>
@@ -459,10 +459,10 @@ https://fpgasoftware.intel.com/eula.-->
     </ipxact:busInterface>
     <ipxact:busInterface>
       <ipxact:name>ctrl_ecc_user_interrupt_0</ipxact:name>
-      <ipxact:busType vendor="intel" library="intel" name="conduit" version="22.4"></ipxact:busType>
+      <ipxact:busType vendor="intel" library="intel" name="conduit" version="23.2"></ipxact:busType>
       <ipxact:abstractionTypes>
         <ipxact:abstractionType>
-          <ipxact:abstractionRef vendor="intel" library="intel" name="conduit" version="22.4"></ipxact:abstractionRef>
+          <ipxact:abstractionRef vendor="intel" library="intel" name="conduit" version="23.2"></ipxact:abstractionRef>
           <ipxact:portMaps>
             <ipxact:portMap>
               <ipxact:logicalPort>
@@ -496,10 +496,10 @@ https://fpgasoftware.intel.com/eula.-->
     </ipxact:busInterface>
     <ipxact:busInterface>
       <ipxact:name>ctrl_amm_0</ipxact:name>
-      <ipxact:busType vendor="intel" library="intel" name="avalon" version="22.4"></ipxact:busType>
+      <ipxact:busType vendor="intel" library="intel" name="avalon" version="23.2"></ipxact:busType>
       <ipxact:abstractionTypes>
         <ipxact:abstractionType>
-          <ipxact:abstractionRef vendor="intel" library="intel" name="avalon" version="22.4"></ipxact:abstractionRef>
+          <ipxact:abstractionRef vendor="intel" library="intel" name="avalon" version="23.2"></ipxact:abstractionRef>
           <ipxact:portMaps>
             <ipxact:portMap>
               <ipxact:logicalPort>
@@ -1336,7 +1336,7 @@ https://fpgasoftware.intel.com/eula.-->
       <ipxact:vendor>Intel Corporation</ipxact:vendor>
       <ipxact:library>emif_ddrc</ipxact:library>
       <ipxact:name>altera_emif_s10</ipxact:name>
-      <ipxact:version>19.2.5</ipxact:version>
+      <ipxact:version>19.2.6</ipxact:version>
     </altera:entity_info>
     <altera:altera_module_parameters>
       <ipxact:parameters>
@@ -2075,6 +2075,11 @@ https://fpgasoftware.intel.com/eula.-->
           <ipxact:displayName>Mimic HPS EMIF</ipxact:displayName>
           <ipxact:value>false</ipxact:value>
         </ipxact:parameter>
+        <ipxact:parameter parameterId="PHY_DDR4_ALLOW_72_DQ_WIDTH" type="bit">
+          <ipxact:name>PHY_DDR4_ALLOW_72_DQ_WIDTH</ipxact:name>
+          <ipxact:displayName>Allow DQ Widths of 72</ipxact:displayName>
+          <ipxact:value>false</ipxact:value>
+        </ipxact:parameter>
         <ipxact:parameter parameterId="PHY_DDR4_USER_AC_IO_STD_ENUM" type="string">
           <ipxact:name>PHY_DDR4_USER_AC_IO_STD_ENUM</ipxact:name>
           <ipxact:displayName>I/O standard</ipxact:displayName>
@@ -2153,7 +2158,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="PHY_DDR4_USER_PLL_REF_CLK_IO_STD_ENUM" type="string">
           <ipxact:name>PHY_DDR4_USER_PLL_REF_CLK_IO_STD_ENUM</ipxact:name>
           <ipxact:displayName>PLL reference clock I/O standard</ipxact:displayName>
-          <ipxact:value>IO_STD_LVDS</ipxact:value>
+          <ipxact:value>IO_STD_LVDS_NO_OCT</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="PHY_DDR4_USER_RZQ_IO_STD_ENUM" type="string">
           <ipxact:name>PHY_DDR4_USER_RZQ_IO_STD_ENUM</ipxact:name>
@@ -3728,7 +3733,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="MEM_DDR4_TCL" type="int">
           <ipxact:name>MEM_DDR4_TCL</ipxact:name>
           <ipxact:displayName>Memory CAS latency setting</ipxact:displayName>
-          <ipxact:value>22</ipxact:value>
+          <ipxact:value>23</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_RTT_NOM_ENUM" type="string">
           <ipxact:name>MEM_DDR4_RTT_NOM_ENUM</ipxact:name>
@@ -4268,7 +4273,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="MEM_DDR4_TRFC_NS" type="real">
           <ipxact:name>MEM_DDR4_TRFC_NS</ipxact:name>
           <ipxact:displayName>tRFC</ipxact:displayName>
-          <ipxact:value>260.0</ipxact:value>
+          <ipxact:value>350.0</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_TWR_NS" type="real">
           <ipxact:name>MEM_DDR4_TWR_NS</ipxact:name>
@@ -4283,7 +4288,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="MEM_DDR4_TWTR_S_CYC" type="int">
           <ipxact:name>MEM_DDR4_TWTR_S_CYC</ipxact:name>
           <ipxact:displayName>tWTR_S</ipxact:displayName>
-          <ipxact:value>3</ipxact:value>
+          <ipxact:value>4</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_TFAW_NS" type="real">
           <ipxact:name>MEM_DDR4_TFAW_NS</ipxact:name>
@@ -4293,7 +4298,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="MEM_DDR4_TRRD_L_CYC" type="int">
           <ipxact:name>MEM_DDR4_TRRD_L_CYC</ipxact:name>
           <ipxact:displayName>tRRD_L</ipxact:displayName>
-          <ipxact:value>6</ipxact:value>
+          <ipxact:value>7</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_TRRD_S_CYC" type="int">
           <ipxact:name>MEM_DDR4_TRRD_S_CYC</ipxact:name>
@@ -4303,7 +4308,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="MEM_DDR4_TCCD_L_CYC" type="int">
           <ipxact:name>MEM_DDR4_TCCD_L_CYC</ipxact:name>
           <ipxact:displayName>tCCD_L</ipxact:displayName>
-          <ipxact:value>6</ipxact:value>
+          <ipxact:value>7</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MEM_DDR4_TCCD_S_CYC" type="int">
           <ipxact:name>MEM_DDR4_TCCD_S_CYC</ipxact:name>
@@ -6128,7 +6133,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="BOARD_DDR4_PKG_BRD_SKEW_WITHIN_DQS_NS" type="real">
           <ipxact:name>BOARD_DDR4_PKG_BRD_SKEW_WITHIN_DQS_NS</ipxact:name>
           <ipxact:displayName>Maximum system skew within DQS group</ipxact:displayName>
-          <ipxact:value>0.001350118</ipxact:value>
+          <ipxact:value>5.80398E-4</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="BOARD_DDR4_IS_SKEW_WITHIN_AC_DESKEWED" type="bit">
           <ipxact:name>BOARD_DDR4_IS_SKEW_WITHIN_AC_DESKEWED</ipxact:name>
@@ -6143,12 +6148,12 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="BOARD_DDR4_PKG_BRD_SKEW_WITHIN_AC_NS" type="real">
           <ipxact:name>BOARD_DDR4_PKG_BRD_SKEW_WITHIN_AC_NS</ipxact:name>
           <ipxact:displayName>Maximum system skew within address/command bus</ipxact:displayName>
-          <ipxact:value>0.002645604</ipxact:value>
+          <ipxact:value>6.07391E-4</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="BOARD_DDR4_DQS_TO_CK_SKEW_NS" type="real">
           <ipxact:name>BOARD_DDR4_DQS_TO_CK_SKEW_NS</ipxact:name>
           <ipxact:displayName>Average delay difference between DQS and CK</ipxact:displayName>
-          <ipxact:value>0.042680619</ipxact:value>
+          <ipxact:value>-0.065206882</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="BOARD_DDR4_SKEW_BETWEEN_DIMMS_NS" type="real">
           <ipxact:name>BOARD_DDR4_SKEW_BETWEEN_DIMMS_NS</ipxact:name>
@@ -6158,22 +6163,22 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="BOARD_DDR4_SKEW_BETWEEN_DQS_NS" type="real">
           <ipxact:name>BOARD_DDR4_SKEW_BETWEEN_DQS_NS</ipxact:name>
           <ipxact:displayName>Maximum skew between DQS groups</ipxact:displayName>
-          <ipxact:value>0.116352997</ipxact:value>
+          <ipxact:value>0.160445062</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="BOARD_DDR4_AC_TO_CK_SKEW_NS" type="real">
           <ipxact:name>BOARD_DDR4_AC_TO_CK_SKEW_NS</ipxact:name>
           <ipxact:displayName>Average delay difference between address/command and CK</ipxact:displayName>
-          <ipxact:value>3.02328E-5</ipxact:value>
+          <ipxact:value>9.56762E-4</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="BOARD_DDR4_MAX_CK_DELAY_NS" type="real">
           <ipxact:name>BOARD_DDR4_MAX_CK_DELAY_NS</ipxact:name>
           <ipxact:displayName>Maximum CK delay to DIMM/device</ipxact:displayName>
-          <ipxact:value>0.601619768</ipxact:value>
+          <ipxact:value>0.504062506</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="BOARD_DDR4_MAX_DQS_DELAY_NS" type="real">
           <ipxact:name>BOARD_DDR4_MAX_DQS_DELAY_NS</ipxact:name>
           <ipxact:displayName>Maximum DQS delay to DIMM/device</ipxact:displayName>
-          <ipxact:value>0.617112409</ipxact:value>
+          <ipxact:value>0.519011833</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="BOARD_QDR2_USE_DEFAULT_SLEW_RATES" type="bit">
           <ipxact:name>BOARD_QDR2_USE_DEFAULT_SLEW_RATES</ipxact:name>
@@ -9302,7 +9307,7 @@ https://fpgasoftware.intel.com/eula.-->
          type = "String";
       }
    }
-   element emif_ddrd
+   element emif_ddrc
    {
    }
 }
@@ -10159,7 +10164,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:busInterfaces>
           <ipxact:busInterface>
             <ipxact:name>ecc_core.ctrl_amm_0</ipxact:name>
-            <ipxact:busType vendor="intel" library="intel" name="avalon" version="22.4"></ipxact:busType>
+            <ipxact:busType vendor="intel" library="intel" name="avalon" version="23.2"></ipxact:busType>
             <ipxact:slave></ipxact:slave>
           </ipxact:busInterface>
         </ipxact:busInterfaces>

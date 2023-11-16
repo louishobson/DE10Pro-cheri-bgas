@@ -35,7 +35,7 @@
 //`define ENABLE_FLASH
 `define ENABLE_DDR4A
 `define ENABLE_DDR4B
-//`define ENABLE_DDR4C
+`define ENABLE_DDR4C
 `define ENABLE_DDR4D
 //`define ENABLE_SI5340
 `define ENABLE_FAN_I2C
