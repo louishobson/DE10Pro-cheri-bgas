@@ -1,0 +1,12 @@
+diff --git a/cmd/bootefi.c b/cmd/bootefi.c
+index 3196d86040..f96eeca6a7 100644
+--- a/cmd/bootefi.c
++++ b/cmd/bootefi.c
+@@ -269,6 +269,7 @@ static unsigned long do_bootefi_exec(void *efi, void *fdt)
+ #ifdef CONFIG_ARM64
+ 	/* On AArch64 we need to make sure we call our payload in < EL3 */
+ 	if (current_el() == 3) {
++		armv8_setup_psci();
+ 		smp_kick_all_cpus();
+ 		dcache_disable();	/* flush cache before switch to EL2 */
+ 
