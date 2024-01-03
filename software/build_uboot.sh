@@ -40,7 +40,9 @@ CWD=$(pwd)
 GIT="https://github.com/terasic/u-boot-socfpga"
 #BRANCH="socfpga_v2017.09"
 BRANCH="de10_pro_revC"
+#BRANCH="de10_pro_revD"
 #COMMIT="a2cf064e6c87683173aebda9399f6bd9a5ea3a8c"
+PATCHES=uboot-psci.patch
 
 echo "Fetching compiler..."
 wget -c $COMPILER_URL
@@ -53,14 +55,15 @@ export CROSS_COMPILE=$CWD/$COMPILER_FILE/bin/aarch64-linux-gnu-
 if [ -d u-boot-socfpga ] ; then
 	echo "Cleaning and updating to upstream U-boot source..."
 	cd u-boot-socfpga
-	git fetch origin
-	git reset --hard origin/$BRANCH
+#	git fetch origin
+#	git reset --hard origin/$BRANCH
 else
 	echo "Fetching U-boot source..."
 	git clone $GIT
 	cd u-boot-socfpga
 fi
 git checkout $BRANCH
+for p in $PATCHES; do git apply ../$p; done
 #git checkout $COMMIT
 
 export ARCH=arm64
@@ -68,13 +71,15 @@ echo "Configuring U-Boot source..."
 make mrproper
 # may need to install ncurses-devel or ncurses-dev package for this step
 make socfpga_de10_pro_defconfig
-# change any options here
+#make socfpga_stratix10_de10_pro
+#cp de10_pro.config .config
+#change any options here
 
 echo "Edit device tree now"
-read -n1 -rsp $'Press any key to continue or Ctrl+C to exit...\n'
+#read -n1 -rsp $'Press any key to continue or Ctrl+C to exit...\n'
 
 #make menuconfig
-make
+make -j32
 #make
 
 ${CROSS_COMPILE}objcopy -I binary -O ihex --change-addresses 0xffe00000  spl/u-boot-spl-dtb.bin spl/u-boot-spl-dtb.ihex

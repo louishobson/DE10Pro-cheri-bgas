@@ -3,6 +3,7 @@
 import os
 import git
 import shutil
+import tarfile
 import requests
 import tempfile
 import subprocess
@@ -23,8 +24,12 @@ def vprint(tgtlvl, msg, pfx = f"{'':<5}"):
     vprint(tgtlvl, msg)
 
 # build context
-Ctxt = collections.namedtuple("Ctxt", ["outputdir", "cheribuild", "workdir"]
+Ctxt = collections.namedtuple("Ctxt", [ "outputdir"
+                                      , "cheribuild"
+                                      , "workdir"
+                                      , "aarch64_cross_pfx" ]
                                     , defaults = [ None
+                                                 , None
                                                  , None
                                                  , None ])
 
@@ -35,6 +40,7 @@ class BuildContext(object):
               , workdir = None
               , outputdir = None
               , cheribuild = None
+              , aarch64_cross_pfx = None
               , cleanup = True):
     if not ctxt:
       self.ctxt = Ctxt()
@@ -46,6 +52,8 @@ class BuildContext(object):
       self.ctxt = self.ctxt._replace(outputdir = outputdir)
     if cheribuild:
       self.ctxt = self.ctxt._replace(cheribuild = cheribuild)
+    if aarch64_cross_pfx:
+      self.ctxt = self.ctxt._replace(aarch64_cross_pfx = aarch64_cross_pfx)
     self.cleanup = cleanup
     self.olddir = None
     self.tmpdir = None
@@ -134,6 +142,57 @@ def install_cheribuild( installdir = "/local/scratch/aj443/tools/cheribuild"
 
   return cheribuild
 
+  # aarch64 gcc install
+def install_aarch64_gcc( parentinstalldir = "/local/scratch/aj443/tools"
+                       , url="https://releases.linaro.org/components/toolchain/binaries/7.2-2017.11/aarch64-linux-gnu/gcc-linaro-7.2.1-2017.11-x86_64_aarch64-linux-gnu.tar.xz" 
+                       , cross_pfx = "aarch64-linux-gnu-"
+                      ):
+  dirname = os.path.basename(url)
+  dirname = os.path.splitext(os.path.splitext(dirname)[0])[0] # peel off .xz and .tar
+
+  full_cross_pfx = f"{parentinstalldir}/{dirname}/bin/{cross_pfx}"
+
+  if os.access(f"{full_cross_pfx}gcc", os.X_OK):
+    vprint(0, "aarch64-gcc already installed")
+  else:
+    vprint(0, "installing aarch64-gcc")
+    vprint(2, "pre download")
+    download(url)
+    vprint(2, "pre tar open")
+    tar = tarfile.open(f"{dirname}.tar.xz")
+    vprint(2, "pre tar extract")
+    tar.extractall(parentinstalldir)
+
+  return full_cross_pfx
+
+################################################################################
+
+def build_riscv_device_tree(ctxt):
+  github_base_url = "https://github.com"
+  github_user = "CTSRD-CHERI"
+  github_repo = "DE10Pro-softcore-devicetree"
+  url_base = "/".join([github_base_url, github_user, f"{github_repo}.git"])
+  git.Repo.clone_from(url_base, ctxt.workdir)
+  subprocess.run(["make", "devicetree.dtb"])
+  subprocess.run(["make", "devicetree.wrapped.elf"])
+  shutil.copy('devicetree.dtb', ctxt.outputdir)
+  os.chmod('devicetree.wrapped.elf', 0o664)
+  shutil.copy('devicetree.wrapped.elf', ctxt.outputdir)
+
+###############################################################################
+
+def build_riscv_bbl_purecap(ctxt):
+  ctxt.cheribuild(["--force", "bbl-gfe-baremetal-riscv64-purecap"])
+
+###############################################################################
+
+def build_riscv_cheribsd_purecap(ctxt):
+  ctxt.cheribuild(["--force", "cheribsd-riscv64-purecap"])
+  ctxt.cheribuild(["--force", "disk-image-mfs-root-riscv64-purecap"])
+  ctxt.cheribuild([ "--cheribsd-mfs-root-kernel-riscv64/build-fpga-kernels"
+                  , "--force"
+                  , "cheribsd-mfs-root-kernel-riscv64-purecap" ])
+
 # device tree for the hps system
 ################################################################################
 
@@ -163,6 +222,31 @@ def build_hps_device_tree(ctxt):
   x.wait()
   y.wait()
 
+################################################################################
+
+def build_hps_uboot(ctxt, patches = []):
+
+  # get the uboot sources
+  github_org="terasic"
+  github_repo_name="u-boot-socfpga"
+  github_branch="de10_pro_revC"
+  github_url=f"https://github.com/{github_org}/{github_repo_name}"
+
+  repo = git.Repo.clone_from(github_url, github_repo_name)
+  os.chdir(github_repo_name)
+  repo.git.checkout(github_branch)
+  for p in patches:
+    repo.git.apply(p)
+  customenv = os.environ.copy()
+  customenv['ARCH'] = "arm64"
+  customenv['CROSS_COMPILE'] = ctxt.aarch64_cross_pfx
+  x = subprocess.Popen(["make", "mrproper"], env = customenv)
+  x.wait()
+  x = subprocess.Popen(["make", "socfpga_de10_pro_defconfig"], env = customenv)
+  x.wait()
+  x = subprocess.Popen(["make"], env = customenv)
+  x.wait()
+
 ###############################################################################
 
 def build_hps_riscv_device_tree_overlay(ctxt, top = None):
@@ -191,24 +275,12 @@ def build_hps_riscv_device_tree_overlay(ctxt, top = None):
 
 ###############################################################################
 
-def build_riscv_bbl_purecap(ctxt):
-  ctxt.cheribuild(["--force", "bbl-gfe-baremetal-riscv64-purecap"])
-
-###############################################################################
-
-def build_riscv_cheribsd_purecap(ctxt):
-  ctxt.cheribuild(["--force", "cheribsd-riscv64-purecap"])
-  ctxt.cheribuild(["--force", "disk-image-mfs-root-riscv64-purecap"])
-  ctxt.cheribuild([ "--cheribsd-mfs-root-kernel-riscv64/build-fpga-kernels"
-                  , "--force"
-                  , "cheribsd-mfs-root-kernel-riscv64-purecap" ])
-
-###############################################################################
-
 def build_hps_arm_freebsd(ctxt):
   args = [ "--force"
          , "--freebsd/repository=https://github.com/CTSRD-CHERI/freebsd-morello"
-         , "--freebsd/git-revision=stratix10"
+         #, "--freebsd/git-revision=stratix10"
+         , "--freebsd/git-revision=stratix10_fixed"
+         #, f"--freebsd/source-directory={ctxt.cheribsd.source_root}/freebsd"
          , "--freebsd/toolchain=cheri-llvm"
          , "freebsd-aarch64"
          , "disk-image-freebsd-aarch64" ]
@@ -216,43 +288,34 @@ def build_hps_arm_freebsd(ctxt):
 
 ################################################################################
 
-def build_riscv_device_tree(ctxt):
-  github_base_url = "https://github.com"
-  github_user = "CTSRD-CHERI"
-  github_repo = "DE10Pro-softcore-devicetree"
-  url_base = "/".join([github_base_url, github_user, f"{github_repo}.git"])
-  git.Repo.clone_from(url_base, ctxt.workdir)
-  subprocess.run(["make", "devicetree.dtb"])
-  subprocess.run(["make", "devicetree.wrapped.elf"])
-  shutil.copy('devicetree.dtb', ctxt.outputdir)
-  os.chmod('devicetree.wrapped.elf', 0o664)
-  shutil.copy('devicetree.wrapped.elf', ctxt.outputdir)
-
-################################################################################
-
 if __name__ == "__main__":
 
   # set verbosity level
   vprint.lvl = 3
+  # setup aarch64-gcc
+  aarch64_cross_pfx = install_aarch64_gcc()
   # setup cheribuild
   cheribuild = install_cheribuild()
   # create a working directory
   extras = f"{cheribuild.source_root}/extra-files"
-  #os.makedirs(extras, exist_ok = True)
-  with BuildContext(cheribuild = cheribuild, outputdir = extras) as ctxt:
-    vprint(2, f"Using {ctxt.workdir} as a working directory")
-    # build RISC-V device tree
-    with BuildContext(ctxt, os.path.join(ctxt.workdir, "riscv_dtb")) as ctxt:
-      build_riscv_device_tree(ctxt)
-    # build RISC-V bbl
-    build_riscv_bbl_purecap(ctxt)
-    # build RISC-V freebsd
-    build_riscv_cheribsd_purecap(ctxt)
-    # build HPS device tree
-    with BuildContext(ctxt, os.path.join(ctxt.workdir, "hps_dtb")) as ctxt:
-      build_hps_device_tree(ctxt)
-    # build HPS device tree overlay for RISC-V system
-    with BuildContext(ctxt, os.path.join(ctxt.workdir, "hps_riscv_dtbo")) as ctxt:
-      build_hps_riscv_device_tree_overlay(ctxt)
+  os.makedirs(extras, exist_ok = True)
+  uboot_patches=[f"{os.getcwd()}/uboot-psci.patch"]
+  with BuildContext(cheribuild = cheribuild, aarch64_cross_pfx = aarch64_cross_pfx, outputdir = extras) as ctxt:
+    #vprint(2, f"Using {ctxt.workdir} as a working directory")
+    ## build RISC-V device tree
+    #with BuildContext(ctxt, os.path.join(ctxt.workdir, "riscv_dtb")) as ctxt:
+    #  build_riscv_device_tree(ctxt)
+    ## build RISC-V bbl
+    #build_riscv_bbl_purecap(ctxt)
+    ## build RISC-V freebsd
+    #build_riscv_cheribsd_purecap(ctxt)
+    ## build HPS device tree
+    #with BuildContext(ctxt, os.path.join(ctxt.workdir, "hps_dtb")) as ctxt:
+    #  build_hps_device_tree(ctxt)
+    ## build HPS device tree overlay for RISC-V system
+    #with BuildContext(ctxt, os.path.join(ctxt.workdir, "hps_riscv_dtbo")) as ctxt:
+    #  build_hps_riscv_device_tree_overlay(ctxt)
+    ## build uboot
+    #build_hps_uboot(ctxt, uboot_patches)
     # build HPS freebsd
     build_hps_arm_freebsd(ctxt)
