@@ -1,7 +1,3 @@
-[submodule "bluespec/Toooba"]
-	path = bluespec/Toooba
-	url = https://github.com/CTSRD-CHERI/Toooba.git
-	branch = CHERI
 [submodule "bluespec/DE10Pro-bsv-shell"]
 	path = bluespec/DE10Pro-bsv-shell
 	url = https://github.com/POETSII/DE10Pro-bsv-shell.git
@@ -29,3 +25,6 @@
 [submodule "bluespec/sim-utils/jtagvpi_to_fmemdmi"]
 	path = bluespec/sim-utils/jtagvpi_to_fmemdmi
 	url = https://github.com/CTSRD-CHERI/jtagvpi_to_fmemdmi.git
+[submodule "bluespec/TID-Toooba"]
+	path = bluespec/TID-Toooba
+	url = git@github.com:CTSRD-CHERI/TID-Toooba.git
