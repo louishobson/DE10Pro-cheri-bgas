@@ -27,4 +27,4 @@
 	url = https://github.com/CTSRD-CHERI/jtagvpi_to_fmemdmi.git
 [submodule "bluespec/TID-Toooba"]
 	path = bluespec/TID-Toooba
-	url = git@github.com:CTSRD-CHERI/TID-Toooba.git
+	url = https://github.com/CTSRD-CHERI/TID-Toooba.git
