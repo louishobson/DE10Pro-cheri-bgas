@@ -69,7 +69,7 @@ BSCFLAGS += -D INCLUDE_GDB_CONTROL
 BSCFLAGS += -D MEM512
 BSCFLAGS += -D PERFORMANCE_MONITORING
 # RiscyOOO flags
-BSCFLAGS += -D NUM_CORES=1
+BSCFLAGS += -D NUM_CORES=2
 ifeq ($(NB_SYSTEMS),1)
 BSCFLAGS += -D CORE_SMALL
 else
@@ -170,6 +170,7 @@ $(VDIR)/mkCHERI_BGAS_Top_Sim.v: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 	mkdir -p $(VDIR)
 	$(BSC) $(BSCFLAGS) $(BSCVERILOGFLAGS) -verilog -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
 
+.PHONY: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 $(VDIR)/mkCHERI_BGAS_Top_Sig.v: $(TOPFILE) TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
 	mkdir -p $(BDIR)
 	mkdir -p $(VDIR)
