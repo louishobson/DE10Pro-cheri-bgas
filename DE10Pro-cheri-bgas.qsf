@@ -1640,7 +1640,23 @@ set_global_assignment -name ENABLE_SIGNALTAP ON
 set_global_assignment -name SIGNALTAP_FILE mem_axi.stp
 set_global_assignment -name USE_SIGNALTAP_FILE mem_axi.stp
 set_global_assignment -name SIGNALTAP_FILE cheri_bgas_top_axi.stp
-set_global_assignment -name OPTIMIZATION_MODE "OPTIMIZE NETLIST FOR ROUTABILITY"
-set_global_assignment -name ALLOW_REGISTER_RETIMING OFF
+set_global_assignment -name OPTIMIZATION_MODE BALANCED
+set_global_assignment -name ALLOW_REGISTER_RETIMING ON
 set_global_assignment -name SEED 4
 set_global_assignment -name BOARD default
+set_global_assignment -name POWER_APPLY_THERMAL_MARGIN ADDITIONAL
+set_global_assignment -name IP_FILE ip/toplevel/toplevel_mm_ccb_0.ip
+set_instance_assignment -name PARTITION mkCore -to soc|cheri_bgas_top|cheri_bgas_top|noSigIfc|sys_0_both_proc|core_0 -entity DE10Pro_cheri_bgas
+set_instance_assignment -name PARTITION_COLOUR 4294934200 -to soc|cheri_bgas_top|cheri_bgas_top|noSigIfc|sys_0_both_proc|core_0 -entity DE10Pro_cheri_bgas
+set_instance_assignment -name PARTITION mkCore_1 -to soc|cheri_bgas_top|cheri_bgas_top|noSigIfc|sys_0_both_proc|core_1 -entity DE10Pro_cheri_bgas
+set_instance_assignment -name PARTITION_COLOUR 4289036031 -to soc|cheri_bgas_top|cheri_bgas_top|noSigIfc|sys_0_both_proc|core_1 -entity DE10Pro_cheri_bgas
+set_instance_assignment -name PARTITION_COLOUR 4294928112 -to DE10Pro_cheri_bgas -entity DE10Pro_cheri_bgas
+set_instance_assignment -name PARTITION_COLOUR 4294921444 -to auto_fab_0 -entity DE10Pro_cheri_bgas
+set_instance_assignment -name PARTITION mkLLCache -to soc|cheri_bgas_top|cheri_bgas_top|noSigIfc|sys_0_both_proc|llc -entity DE10Pro_cheri_bgas
+set_instance_assignment -name PARTITION_COLOUR 4286382016 -to soc|cheri_bgas_top|cheri_bgas_top|noSigIfc|sys_0_both_proc|llc -entity DE10Pro_cheri_bgas
+set_instance_assignment -name PARTITION mkTagController -to soc|cheri_bgas_top|cheri_bgas_top|noSigIfc|sys_0_both_tagController_tmp_tagCon -entity DE10Pro_cheri_bgas
+set_instance_assignment -name PARTITION_COLOUR 4286054390 -to soc|cheri_bgas_top|cheri_bgas_top|noSigIfc|sys_0_both_tagController_tmp_tagCon -entity DE10Pro_cheri_bgas
+set_instance_assignment -name PLACE_REGION "X10 Y324 X188 Y396" -to soc|cheri_bgas_top|cheri_bgas_top|noSigIfc|sys_0_both_proc|llc
+set_instance_assignment -name RESERVE_PLACE_REGION OFF -to soc|cheri_bgas_top|cheri_bgas_top|noSigIfc|sys_0_both_proc|llc
+set_instance_assignment -name CORE_ONLY_PLACE_REGION ON -to soc|cheri_bgas_top|cheri_bgas_top|noSigIfc|sys_0_both_proc|llc
+set_instance_assignment -name REGION_NAME mkLLCache -to soc|cheri_bgas_top|cheri_bgas_top|noSigIfc|sys_0_both_proc|llc

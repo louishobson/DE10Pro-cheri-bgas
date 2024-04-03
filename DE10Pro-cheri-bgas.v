@@ -285,6 +285,7 @@ module DE10Pro_cheri_bgas (
   assign clk_100 = CLK_100_B3I;
   wire   clk_50;
   assign clk_50 = CLK_50_B3I;
+  wire   clk_sys;
 
   // Reset logic - use done signals (delayed a few cycles) negated
   //////////////////////////////////////////////////////////////////////////////
@@ -292,7 +293,7 @@ module DE10Pro_cheri_bgas (
   wire ninit_done;
   reg ninit_done_delayed [1:0];
   reset_release reset_release (.ninit_done(ninit_done));
-  always @(posedge clk_50) begin
+  always @(posedge clk_sys) begin
     ninit_done_delayed[1] <= ninit_done;
     ninit_done_delayed[0] <= ninit_done_delayed[1];
   end
@@ -313,19 +314,31 @@ module DE10Pro_cheri_bgas (
   `ifndef ENABLE_DDR4D
   assign ddrd_reset_done = 1;
   `endif
-  assign ddr_reset_done = ddrb_reset_done && ddrc_reset_done && ddrd_reset_done;
-  reg ddr_reset_done_delayed [1:0];
-  always @(posedge clk_50) begin
-    ddr_reset_done_delayed[1] <= ddr_reset_done;
-    ddr_reset_done_delayed[0] <= ddr_reset_done_delayed[1];
+  reg ddrb_reset_done_delayed [1:0];
+  always @(posedge clk_sys) begin
+    ddrb_reset_done_delayed[1] <= ddrb_reset_done;
+    ddrb_reset_done_delayed[0] <= ddrb_reset_done_delayed[1];
   end
+  reg ddrc_reset_done_delayed [1:0];
+  always @(posedge clk_sys) begin
+    ddrc_reset_done_delayed[1] <= ddrc_reset_done;
+    ddrc_reset_done_delayed[0] <= ddrc_reset_done_delayed[1];
+  end
+  reg ddrd_reset_done_delayed [1:0];
+  always @(posedge clk_sys) begin
+    ddrd_reset_done_delayed[1] <= ddrd_reset_done;
+    ddrd_reset_done_delayed[0] <= ddrd_reset_done_delayed[1];
+  end
+  
   // other reset inputs
   wire h2f_reset;
   wire fan_reset_n;
   // combined reset
   wire   soc_reset;
   assign soc_reset =    ninit_done_delayed[0]
-                     || !ddr_reset_done_delayed[0]
+                     || !ddrb_reset_done_delayed[0]
+							|| !ddrc_reset_done_delayed[0]
+							|| !ddrd_reset_done_delayed[0]
                      || !CPU_RESET_n
                      || h2f_reset;
 
@@ -341,7 +354,7 @@ module DE10Pro_cheri_bgas (
   toplevel soc (
     .reset_reset                                   (soc_reset)
   //, .clk_clk                                       (clk_100)
-  , .clk_clk                                       (clk_50)
+  , .clk_out_clk                                     (clk_sys)
   `ifdef ENABLE_DDR4B
   , .emif_ddrb_local_reset_req_local_reset_req     (ddr_reset)
   , .emif_ddrb_local_reset_status_local_reset_done (ddrb_reset_done)

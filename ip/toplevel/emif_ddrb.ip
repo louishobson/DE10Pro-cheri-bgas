@@ -6963,7 +6963,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="CTRL_DDR4_REORDER_EN" type="bit">
           <ipxact:name>CTRL_DDR4_REORDER_EN</ipxact:name>
           <ipxact:displayName>Enable Reordering</ipxact:displayName>
-          <ipxact:value>true</ipxact:value>
+          <ipxact:value>false</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="CTRL_DDR4_STARVE_LIMIT" type="int">
           <ipxact:name>CTRL_DDR4_STARVE_LIMIT</ipxact:name>
@@ -10061,6 +10061,32 @@ https://fpgasoftware.intel.com/eula.-->
           <ipxact:value>&lt;systemInfosDefinition&gt;
     &lt;connPtSystemInfos&gt;
         &lt;entry&gt;
+            &lt;key&gt;afi_clk&lt;/key&gt;
+            &lt;value&gt;
+                &lt;connectionPointName&gt;afi_clk&lt;/connectionPointName&gt;
+                &lt;suppliedSystemInfos/&gt;
+                &lt;consumedSystemInfos&gt;
+                    &lt;entry&gt;
+                        &lt;key&gt;CLOCK_RATE&lt;/key&gt;
+                        &lt;value&gt;333333333&lt;/value&gt;
+                    &lt;/entry&gt;
+                &lt;/consumedSystemInfos&gt;
+            &lt;/value&gt;
+        &lt;/entry&gt;
+        &lt;entry&gt;
+            &lt;key&gt;afi_half_clk&lt;/key&gt;
+            &lt;value&gt;
+                &lt;connectionPointName&gt;afi_half_clk&lt;/connectionPointName&gt;
+                &lt;suppliedSystemInfos/&gt;
+                &lt;consumedSystemInfos&gt;
+                    &lt;entry&gt;
+                        &lt;key&gt;CLOCK_RATE&lt;/key&gt;
+                        &lt;value&gt;166666666&lt;/value&gt;
+                    &lt;/entry&gt;
+                &lt;/consumedSystemInfos&gt;
+            &lt;/value&gt;
+        &lt;/entry&gt;
+        &lt;entry&gt;
             &lt;key&gt;ctrl_amm_0&lt;/key&gt;
             &lt;value&gt;
                 &lt;connectionPointName&gt;ctrl_amm_0&lt;/connectionPointName&gt;
@@ -10100,6 +10126,10 @@ https://fpgasoftware.intel.com/eula.-->
       </ipxact:parameters>
     </altera:altera_system_parameters>
     <altera:altera_interface_boundary>
+      <altera:interface_mapping altera:name="afi" altera:internal="emif_ddrb.afi"></altera:interface_mapping>
+      <altera:interface_mapping altera:name="afi_clk" altera:internal="emif_ddrb.afi_clk"></altera:interface_mapping>
+      <altera:interface_mapping altera:name="afi_half_clk" altera:internal="emif_ddrb.afi_half_clk"></altera:interface_mapping>
+      <altera:interface_mapping altera:name="afi_reset_n" altera:internal="emif_ddrb.afi_reset_n"></altera:interface_mapping>
       <altera:interface_mapping altera:name="ctrl_amm_0" altera:internal="emif_ddrb.ctrl_amm_0" altera:type="avalon" altera:dir="end">
         <altera:port_mapping altera:name="amm_address_0" altera:internal="amm_address_0"></altera:port_mapping>
         <altera:port_mapping altera:name="amm_burstcount_0" altera:internal="amm_burstcount_0"></altera:port_mapping>
