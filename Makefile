@@ -81,7 +81,6 @@ $(VIPBUNDLE):
 
 gen-bluespec-rtl: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 
-.PHONY: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 $(VDIR)/mkCHERI_BGAS_Top_Sig.v:
 	$(MAKE) -C $(BSVSRCDIR) rtl
 
