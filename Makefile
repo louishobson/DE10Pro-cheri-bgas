@@ -81,7 +81,8 @@ $(VIPBUNDLE):
 
 gen-bluespec-rtl: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 
-$(VDIR)/mkCHERI_BGAS_Top_Sig.v:
+TOOOBA_SOURCE_FILES = $(shell find $(CURDIR)/bluespec/Toooba/ -type f -name '*.bsv')
+$(VDIR)/mkCHERI_BGAS_Top_Sig.v: $(TOOOBA_SOURCE_FILES)
 	$(MAKE) -C $(BSVSRCDIR) rtl
 
 .PHONY: clean mrproper
