@@ -27,5 +27,5 @@
 	url = https://github.com/CTSRD-CHERI/jtagvpi_to_fmemdmi.git
 [submodule "bluespec/Toooba"]
 	path = bluespec/Toooba
-	url = https://github.com:CTSRD-CHERI/Toooba.git
+	url = https://github.com/CTSRD-CHERI/Toooba.git
 	branch = faf28_clearing
