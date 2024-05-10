@@ -382,7 +382,7 @@ provisos (
   function t_sys_axi_sub_1 getGlobalSub (t_cheri_bgas_sys ifc) = ifc.axi_sub_1;
   function t_sys_axi_mngr0 getF2HMngr (t_cheri_bgas_sys ifc) = ifc.axi_mngr_0;
   function t_sys_axi_mngr1 getDDRMngr (t_cheri_bgas_sys ifc) = ifc.axi_mngr_1;
-  function t_sys_axi_mngr2 getGlobalMngr (t_cheri_bgas_sys ifc) = debugAXI4_Master (ifc.axi_mngr_2, $format ("sytemGlobalManager"));
+  function t_sys_axi_mngr2 getGlobalMngr (t_cheri_bgas_sys ifc) = ifc.axi_mngr_2;
   function t_irqs getIRQs (t_cheri_bgas_sys s) = s.irqs;
 
   // global network connections
@@ -399,12 +399,12 @@ provisos (
       zero_AXI4_Slave_user (
         mask_AXI4_Slave_addr ( zeroExtend (44'hFFF_FFFF_FFFF)
                              , getGlobalSub (sys[i]) ) );
-    mkConnection (debugAXI4_Master (router[i].localManager, $format ("routerLocalManager")), sub, reset_by newRst.new_rst);
+    mkConnection (router[i].localManager, sub, reset_by newRst.new_rst);
     // outgoing traffic
     t_global_mngr mngr = zero_AXI4_Master_user (getGlobalMngr (sys[i]));
     Vector #(2, t_global_sub) subs;
-    subs[0] = debugAXI4_Slave (router[i].mngmntSubordinate, $format ("routerMngmntSubordinate"));
-    subs[1] = debugAXI4_Slave (router[i].localSubordinate, $format ("routerLocalSubordinate"));
+    subs[0] = router[i].mngmntSubordinate;
+    subs[1] = router[i].localSubordinate;
     function route_to_router (addr);
       Vector #(2, Bool) x = replicate (False);
       if (inRange (soc_map.m_global_bgas_addr_range, addr))

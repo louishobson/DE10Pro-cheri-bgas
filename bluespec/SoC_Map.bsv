@@ -288,6 +288,7 @@ module mkSoC_Map (SoC_Map_IFC);
    // PC, MTVEC and NMIVEC reset values
 
 <<<<<<< HEAD
+<<<<<<< HEAD
    Bit #(64) pc_reset_value =
      (genC) ? fromMaybe ( boot_rom_addr_range.base
                         , getEnvInt ("CHERI_BGAS_PC_RESET_VALUE") )
@@ -295,6 +296,9 @@ module mkSoC_Map (SoC_Map_IFC);
 =======
    Bit #(64) pc_reset_value     = ddr4_0_cached_addr_range.base;
 >>>>>>> Changes used for running multi-system BGAS simulation.
+=======
+   Bit #(64) pc_reset_value     = boot_rom_addr_range.base;
+>>>>>>> Revert "Changes used for running multi-system BGAS simulation."
    Bit #(64) mtvec_reset_value  = 'h1000;    // TODO
    Bit #(64) nmivec_reset_value = ?;         // TODO
 
