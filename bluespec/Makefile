@@ -30,21 +30,36 @@ BSC = bsc
 BLUESPECDIR ?= $(shell which $(BSC) | xargs dirname | xargs dirname)/lib
 
 NB_SYSTEMS ?= 1
+CORE_NUM ?= 2
+
+# RiscyOOO flags
+ifeq ($(NB_SYSTEMS),1)
+CORE_SIZE ?= SMALL
+else
+#BSCFLAGS += -D CORE_MINI
+CORE_SIZE ?= TINY
+endif
 
 TOPFILE = $(CURDIR)/CHERI_BGAS_Top.bsv
 
 # relevant folders
 DE10PROBSVSHELLDIR ?= $(CURDIR)/DE10Pro-bsv-shell
 COREDIR ?= $(CURDIR)/Toooba
-COREW_DIRS = $(COREDIR)/src_Core/Core:$(COREDIR)/src_Verifier/BSV-RVFI-DII:$(COREDIR)/src_Core/CPU:$(COREDIR)/src_Core/ISA:$(COREDIR)/src_Core/PLIC:$(COREDIR)/src_Core/Debug_Module:$(COREDIR)/src_Core/BSV_Additional_Libs:$(COREDIR)/src_Core/RISCY_OOO/procs/RV64G_OOO:$(COREDIR)/src_Core/RISCY_OOO/procs/lib:$(COREDIR)/src_Core/RISCY_OOO/coherence/src:$(COREDIR)/src_Core/RISCY_OOO/fpgautils/lib
-WINDCOREIFCDIR ?= $(COREDIR)/libs/WindCoreInterface
-CHERICAPLIBDIR ?= $(COREDIR)/libs/cheri-cap-lib
-TAGCONTROLLERDIR ?= $(COREDIR)/libs/TagController
+
+#================================================================
+# Parameter settings for MIT RISCY
+
+include $(COREDIR)/builds/Resources/Include_RISCY_Config.mk
+
+#COREW_DIRS = $(COREDIR)/src_Core/Core:$(COREDIR)/src_Verifier/BSV-RVFI-DII:$(COREDIR)/src_Core/CPU:$(COREDIR)/src_Core/ISA:$(COREDIR)/src_Core/PLIC:$(COREDIR)/src_Core/Debug_Module:$(COREDIR)/src_Core/BSV_Additional_Libs:$(COREDIR)/src_Core/RISCY_OOO/procs/RV64G_OOO:$(COREDIR)/src_Core/RISCY_OOO/procs/lib:$(COREDIR)/src_Core/RISCY_OOO/coherence/src:$(COREDIR)/src_Core/RISCY_OOO/fpgautils/lib
+#WINDCOREIFCDIR ?= $(COREDIR)/libs/WindCoreInterface
+#CHERICAPLIBDIR ?= $(COREDIR)/libs/cheri-cap-lib
+#TAGCONTROLLERDIR ?= $(COREDIR)/libs/TagController
 VIRTUALDEVICE_DIRS ?= $(CURDIR)/VirtualDevice
 RISCVHPMEVENTSDIR ?= $(COREDIR)/libs/RISCV_HPM_Events
-TAGCONTROLLER_DIRS = $(TAGCONTROLLERDIR)/TagController:$(TAGCONTROLLERDIR)/TagController/CacheCore
-BLUESTUFFDIR ?= $(COREDIR)/libs/BlueStuff
-include $(BLUESTUFFDIR)/bluestuff.inc.mk
+#TAGCONTROLLER_DIRS = $(TAGCONTROLLERDIR)/TagController:$(TAGCONTROLLERDIR)/TagController/CacheCore
+#BLUESTUFFDIR ?= $(COREDIR)/libs/BlueStuff
+#include $(BLUESTUFFDIR)/bluestuff.inc.mk
 RECIPEDIR = $(CURDIR)/Recipe
 
 # generated files directories
@@ -55,28 +70,15 @@ VDIR ?= $(CURDIR)/verilogdir
 VERILATORDIR ?= $(CURDIR)/verilatordir
 
 # search path for bsc imports
-BSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(WINDCOREIFCDIR):$(RISCVHPMEVENTSDIR):$(CHERICAPLIBDIR):$(TAGCONTROLLER_DIRS):$(COREW_DIRS):$(BLUESTUFF_DIRS):$(VIRTUALDEVICE_DIRS)
-BSCFLAGS = -p $(BSVPATH)
+EXTRABSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(VIRTUALDEVICE_DIRS)
+BSCFLAGS = -p $(BSVPATH) -p $(EXTRABSVPATH)
 
 # design configuration variables
 # Toooba conf flags
-BSCFLAGS += -D RV64
-BSCFLAGS += -D ISA_PRIV_M -D ISA_PRIV_U -D ISA_PRIV_S -D SV39
-BSCFLAGS += -D ISA_I -D ISA_M -D ISA_A -D ISA_F -D ISA_D -D ISA_FD_DIV -D ISA_C
-BSCFLAGS += -D FABRIC64
-BSCFLAGS += -D Near_Mem_Caches
+BSCFLAGS += $(BSC_COMPILATION_FLAGS)
 BSCFLAGS += -D INCLUDE_GDB_CONTROL
-BSCFLAGS += -D MEM512
 BSCFLAGS += -D PERFORMANCE_MONITORING
-# RiscyOOO flags
-BSCFLAGS += -D NUM_CORES=2
-ifeq ($(NB_SYSTEMS),1)
-BSCFLAGS += -D CORE_SMALL
-else
-#BSCFLAGS += -D CORE_MINI
-BSCFLAGS += -D CORE_TINY
-endif
-BSCFLAGS += -D CACHE_LARGE
+
 BSCFLAGS += -D NO_XILINX
 BSCFLAGS += -D XILINX_FP_FMA_LATENCY=3 # TODO why is this needed?
 BSCFLAGS += -D XILINX_INT_MUL_LATENCY=2 # TODO why is this needed?
@@ -89,11 +91,8 @@ BSCFLAGS += -suppress-warnings G0020
 ifneq ($(filter bluesim,$(MAKECMDGOALS)),)
 BSCFLAGS += -D NO_TAGTABLE_ZEROING -D BSIM -D RVFI
 endif
-BSCFLAGS += -D CheriMasterIDWidth=1
-BSCFLAGS += -D CheriTransactionIDWidth=6
 BSCFLAGS += -D USECAP
 BSCFLAGS += -D RISCV
-BSCFLAGS += -D CAP128
 CAPSIZE = 128
 TAGS_STRUCT = 0 64
 TAGS_ALIGN = 32
