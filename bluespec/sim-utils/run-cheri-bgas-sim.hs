@@ -53,9 +53,7 @@ spawn_CHERI_BGAS_Sim_Instance v (x, y) pBase dir simCmd devfsCmd gdbstubCmd = do
 
     simStdout <- openFile ("sim_stdout") WriteMode
     simStderr <- openFile ("sim_stderr") WriteMode
-
-    let simParams = ["+x_1" | x == 1] ++ ["+y_1" | y == 1]
-    let simProc = (proc simCmd simParams) {
+    let simProc = (proc simCmd []) {
         std_in = CreatePipe --NoStream
       , std_out = UseHandle simStdout
       , std_err = UseHandle simStderr
