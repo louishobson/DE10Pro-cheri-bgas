@@ -44,22 +44,14 @@ TOPFILE = $(CURDIR)/CHERI_BGAS_Top.bsv
 
 # relevant folders
 DE10PROBSVSHELLDIR ?= $(CURDIR)/DE10Pro-bsv-shell
-COREDIR ?= $(CURDIR)/Toooba
+CORE_DIR ?= $(CURDIR)/Toooba
 
 #================================================================
 # Parameter settings for MIT RISCY
 
-include $(COREDIR)/builds/Resources/Include_RISCY_Config.mk
+include $(CORE_DIR)/builds/Resources/Include_RISCY_Config.mk
 
-#COREW_DIRS = $(COREDIR)/src_Core/Core:$(COREDIR)/src_Verifier/BSV-RVFI-DII:$(COREDIR)/src_Core/CPU:$(COREDIR)/src_Core/ISA:$(COREDIR)/src_Core/PLIC:$(COREDIR)/src_Core/Debug_Module:$(COREDIR)/src_Core/BSV_Additional_Libs:$(COREDIR)/src_Core/RISCY_OOO/procs/RV64G_OOO:$(COREDIR)/src_Core/RISCY_OOO/procs/lib:$(COREDIR)/src_Core/RISCY_OOO/coherence/src:$(COREDIR)/src_Core/RISCY_OOO/fpgautils/lib
-#WINDCOREIFCDIR ?= $(COREDIR)/libs/WindCoreInterface
-#CHERICAPLIBDIR ?= $(COREDIR)/libs/cheri-cap-lib
-#TAGCONTROLLERDIR ?= $(COREDIR)/libs/TagController
 VIRTUALDEVICE_DIRS ?= $(CURDIR)/VirtualDevice
-RISCVHPMEVENTSDIR ?= $(COREDIR)/libs/RISCV_HPM_Events
-#TAGCONTROLLER_DIRS = $(TAGCONTROLLERDIR)/TagController:$(TAGCONTROLLERDIR)/TagController/CacheCore
-#BLUESTUFFDIR ?= $(COREDIR)/libs/BlueStuff
-#include $(BLUESTUFFDIR)/bluestuff.inc.mk
 RECIPEDIR = $(CURDIR)/Recipe
 
 # generated files directories
@@ -176,21 +168,21 @@ $(VDIR)/mkCHERI_BGAS_Top_Sig.v: $(TOPFILE) TagTableStructure.bsv GenerateHPMVect
 	$(BSC) $(BSCFLAGS) $(BSCVERILOGFLAGS) -verilog -g mkCHERI_BGAS_Top_Sig -u CHERI_BGAS_Top.bsv
 
 #.PHONY: TagTableStructure.bsv
-TagTableStructure.bsv: $(TAGCONTROLLERDIR)/tagsparams.py
+TagTableStructure.bsv: $(TAG_CONTROLLER_DIR)/tagsparams.py
 	@echo "INFO: Re-generating CHERI tag controller parameters"
 	$^ -v -c $(CAPSIZE) -s $(TAGS_STRUCT:"%"=%) -a $(TAGS_ALIGN) --data-store-base-addr 0xc0000000 -b $@ 0xbfff8000 0x17ffff000
 	@echo "INFO: Re-generated CHERI tag controller parameters"
 
 #.PHONY: GenerateHPMVector.bsv
-GenerateHPMVector.bsv: $(RISCVHPMEVENTSDIR)/parse_counters.py
+GenerateHPMVector.bsv: $(RISCV_HPM_EVENTS_DIR)/parse_counters.py
 	@echo "INFO: Re-generating GenerateHPMVector bluespec file"
-	$^ $(RISCVHPMEVENTSDIR)/counters.yaml -m ProcTypes -b $@
+	$^ $(RISCV_HPM_EVENTS_DIR)/counters.yaml -m ProcTypes -b $@
 	@echo "INFO: Re-generated GenerateHPMVector bluespec file"
 
 #.PHONY: StatCounters.bsv
-StatCounters.bsv: $(RISCVHPMEVENTSDIR)/parse_counters.py
+StatCounters.bsv: $(RISCV_HPM_EVENTS_DIR)/parse_counters.py
 	@echo "INFO: Re-generating HPM events struct bluepsec file"
-	$^ $(RISCVHPMEVENTSDIR)/counters.yaml -m ProcTypes -s $@
+	$^ $(RISCV_HPM_EVENTS_DIR)/counters.yaml -m ProcTypes -s $@
 	@echo "INFO: Re-generated HPM events struct bluespec file"
 
 .PHONY: clean mrproper
