@@ -62,7 +62,8 @@ VDIR ?= $(CURDIR)/verilogdir
 VERILATORDIR ?= $(CURDIR)/verilatordir
 
 # search path for bsc imports
-EXTRABSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(VIRTUALDEVICE_DIRS)
+RVFIDIR = $(CORE_DIR)/src_Verifier/BSV-RVFI-DII
+EXTRABSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(VIRTUALDEVICE_DIRS):$(RVFIDIR)
 BSCFLAGS = -p $(BSVPATH) -p $(EXTRABSVPATH)
 
 # design configuration variables
