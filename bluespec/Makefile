@@ -40,6 +40,17 @@ else
 CORE_SIZE ?= TINY
 endif
 
+# If we're running in simulation, tell RISCY_Config to include RVFI debug logs.
+
+# $(filter bluesim,$(MAKECMDGOALS)) = return the list of goals in MAKECMDGOALS that are equal to bluesim
+# e.g. for `make clean` returns (), for `make bluesim` returns (bluesim,)
+# ifneq (x,) = if x is not nothing
+# => if (the list of goals in MAKECMDGOALS that are equal to bluesim) is not nothing
+# => if `bluesim` is one of the goals, include these defines.
+ifneq ($(filter bluesim,$(MAKECMDGOALS)),)
+RVFI = true
+endif
+
 TOPFILE = $(CURDIR)/CHERI_BGAS_Top.bsv
 
 # relevant folders
@@ -62,9 +73,8 @@ VDIR ?= $(CURDIR)/verilogdir
 VERILATORDIR ?= $(CURDIR)/verilatordir
 
 # search path for bsc imports
-RVFIDIR = $(CORE_DIR)/src_Verifier/BSV-RVFI-DII
-EXTRABSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(VIRTUALDEVICE_DIRS):$(RVFIDIR)
-BSCFLAGS = -p $(BSVPATH) -p $(EXTRABSVPATH)
+EXTRABSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(VIRTUALDEVICE_DIRS)
+BSCFLAGS = $(BSC_PATH) -p $(EXTRABSVPATH)
 
 # design configuration variables
 # Toooba conf flags
@@ -82,7 +92,10 @@ BSCFLAGS += -no-warn-action-shadowing
 BSCFLAGS += -suppress-warnings G0020
 # CHERI / Tag Controller conf and flags
 ifneq ($(filter bluesim,$(MAKECMDGOALS)),)
-BSCFLAGS += -D NO_TAGTABLE_ZEROING -D BSIM -D RVFI
+# Memory is implicitly zero         => -D NO_TAGTABLE_ZEROING
+# We are in simulation              => -D BSIM
+# We have already set up RVFI in Include_RISCY_Config.mk
+BSCFLAGS += -D NO_TAGTABLE_ZEROING -D BSIM
 endif
 BSCFLAGS += -D USECAP
 BSCFLAGS += -D FABRIC64
