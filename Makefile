@@ -27,6 +27,7 @@ BLUESTUFFDIR = $(BSVSRCDIR)/Toooba/libs/BlueStuff
 VIPBUNDLEDIR = $(CURDIR)/vipbundle
 VIPBUNDLE = $(VIPBUNDLEDIR)/vipbundle
 QPF = $(CURDIR)/DE10Pro-cheri-bgas.qpf
+BLUESPECDIR = $(shell dirname $(shell dirname $(shell which bsc)))/lib
 export VDIR = $(CURDIR)/cheri-bgas-rtl
 
 SOFTDIR ?= $(CURDIR)/software
@@ -63,10 +64,10 @@ ci-gen-rbf: $(BOOTLOADER)
 	quartus_pfg -c $(SOF) -o hps=ON -o hps_path=$(BOOTLOADER) $(OUTNAME).rbf
 
 synthesize output_files/DE10Pro-cheri-bgas.sof &: gen-ip
-	BLUESTUFFDIR=$(BLUESTUFFDIR) time quartus_sh --flow compile $(QPF)
+	BLUESPECDIR=$(BLUESPECDIR) BLUESTUFFDIR=$(BLUESTUFFDIR) time quartus_sh --flow compile $(QPF)
 
 gen-ip: $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl
-	BLUESTUFFDIR=$(BLUESTUFFDIR) quartus_ipgenerate $(QPF)
+	BLUESPECDIR=$(BLUESPECDIR) BLUESTUFFDIR=$(BLUESTUFFDIR) quartus_ipgenerate $(QPF)
 
 gen-bluespec-quartus-ip: $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl
 
