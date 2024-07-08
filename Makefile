@@ -27,8 +27,10 @@ BLUESTUFFDIR = $(BSVSRCDIR)/Toooba/libs/BlueStuff
 VIPBUNDLEDIR = $(CURDIR)/vipbundle
 VIPBUNDLE = $(VIPBUNDLEDIR)/vipbundle
 QPF = $(CURDIR)/DE10Pro-cheri-bgas.qpf
-BLUESPECDIR = $(shell dirname $(shell dirname $(shell which bsc)))/lib
 export VDIR = $(CURDIR)/cheri-bgas-rtl
+
+BSC = bsc
+BLUESPECDIR ?= $(shell which $(BSC) | xargs dirname | xargs dirname)/lib
 
 SOFTDIR ?= $(CURDIR)/software
 UBOOTBUILDDIR ?= $(SOFTDIR)/uboot_build
