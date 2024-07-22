@@ -59,6 +59,7 @@ module mkH2FAddrCtrl #(Bit #(t_h2f_addr) dfltAddrBits)
   provisos (
     NumAlias #( t_dats_per_addr, TDiv#(t_h2f_addr,t_h2f_lw_data))
   , NumAlias #( t_dat_select, TLog#(t_dats_per_addr))
+  , NumAlias #( t_sub_lw_word_addr_bits, TLog#(TDiv#(t_h2f_lw_data, 8)))
   , Add#(a__, t_dat_select, t_h2f_lw_addr)
   , Mul#(TDiv#(t_h2f_addr, t_h2f_lw_data), t_h2f_lw_data, t_h2f_addr) // Evenly divisible
   );
@@ -70,7 +71,7 @@ module mkH2FAddrCtrl #(Bit #(t_h2f_addr) dfltAddrBits)
   // read requests handling (always answer with upper bits)
   rule read_req;
     let ar <- get (axiShim.master.ar);
-    Bit#(t_dat_select) i = truncate(ar.araddr);
+    Bit#(t_dat_select) i = truncate(ar.araddr >> valueOf(t_sub_lw_word_addr_bits));
     axiShim.master.r.put (AXI4Lite_RFlit { rdata: addrBits[i]
                                          , rresp: OKAY
                                          , ruser: ? });
@@ -79,7 +80,7 @@ module mkH2FAddrCtrl #(Bit #(t_h2f_addr) dfltAddrBits)
   // write requests handling (update the appropriate word of addrBits)
   rule write_req;
     let aw <- get (axiShim.master.aw);
-    Bit#(t_dat_select) i = truncate(aw.awaddr);
+    Bit#(t_dat_select) i = truncate(aw.awaddr >> valueOf(t_sub_lw_word_addr_bits));
     let w <- get (axiShim.master.w);
     addrBits[i] <= w.wdata;
     axiShim.master.b.put (AXI4Lite_BFlit { bresp: OKAY
