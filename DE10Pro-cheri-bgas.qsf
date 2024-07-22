@@ -1650,13 +1650,13 @@ set_global_assignment -name IP_FILE ip/toplevel/emif_ddrd.ip
 set_global_assignment -name IP_FILE ip/toplevel/fan_controller.ip
 set_global_assignment -name IP_FILE "\$env(BLUESTUFFDIR)/Stratix10ChipID/chipid.ip"
 
-set_global_assignment -name IP_FILE de10pro-seriallite3/S10FPGA/xcvr_atx_pll_s10_htile.ip
-set_global_assignment -name IP_FILE de10pro-seriallite3/S10FPGA/s10_seriallite3_4lane.ip
 set_global_assignment -name QSYS_FILE seriallite3_wrapper.qsys
-set_global_assignment -name IP_FILE ip/seriallite3_wrapper/seriallite3_wrapper_clock_in.ip
+set_global_assignment -name IP_FILE ip/seriallite3_wrapper/iopll.ip
+set_global_assignment -name IP_FILE ip/seriallite3_wrapper/reset50.ip
 set_global_assignment -name IP_FILE ip/seriallite3_wrapper/reset100.ip
 set_global_assignment -name IP_FILE ip/seriallite3_wrapper/reset200.ip
-set_global_assignment -name IP_FILE ip/seriallite3_wrapper/iopll.ip
+set_global_assignment -name IP_FILE ip/seriallite3_wrapper/seriallite3_wrapper_clock_in.ip
+set_global_assignment -name IP_FILE ip/seriallite3_wrapper/axi4lite_management_bridge.ip
 set_global_assignment -name IP_FILE ip/seriallite3_wrapper/mkSerialLite3_Instance_a.ip
 set_global_assignment -name IP_FILE ip/seriallite3_wrapper/mkSerialLite3_Instance_d.ip
 set_global_assignment -name IP_FILE ip/seriallite3_wrapper/mkSerialLite3_Instance_b.ip
@@ -1665,9 +1665,10 @@ set_global_assignment -name IP_FILE ip/seriallite3_wrapper/mkBERT_Instance_a.ip
 set_global_assignment -name IP_FILE ip/seriallite3_wrapper/mkBERT_Instance_d.ip
 set_global_assignment -name IP_FILE ip/seriallite3_wrapper/mkBERT_Instance_b.ip
 set_global_assignment -name IP_FILE ip/seriallite3_wrapper/mkBERT_Instance_c.ip
+set_global_assignment -name IP_FILE ip/seriallite3_wrapper/mkStatusDevice_Instance_Status15_0.ip
+set_global_assignment -name IP_FILE de10pro-seriallite3/S10FPGA/xcvr_atx_pll_s10_htile.ip
+set_global_assignment -name IP_FILE de10pro-seriallite3/S10FPGA/s10_seriallite3_4lane.ip
 set_global_assignment -name SDC_FILE de10pro-seriallite3/S10FPGA/s10dcfifo.sdc
 set_global_assignment -name VERILOG_FILE de10pro-seriallite3/S10FPGA/s10dcfifo.v
 set_global_assignment -name VERILOG_FILE de10pro-seriallite3/S10FPGA/s10syncronizer.v
 set_global_assignment -name SEARCH_PATH de10pro-seriallite3/S10FPGA
-set_global_assignment -name IP_FILE ip/seriallite3_wrapper/reset50.ip
-set_global_assignment -name IP_FILE ip/seriallite3_wrapper/axi4lite_management_bridge.ip

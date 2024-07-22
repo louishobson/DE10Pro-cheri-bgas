@@ -27,7 +27,7 @@ https://fpgasoftware.intel.com/eula.-->
           <ipxact:portMaps>
             <ipxact:portMap>
               <ipxact:logicalPort>
-                <ipxact:name>coe_link_status</ipxact:name>
+                <ipxact:name>conduit_15</ipxact:name>
               </ipxact:logicalPort>
               <ipxact:physicalPort>
                 <ipxact:name>coe_C_csi_clk_C__R_rsi_rst_n_R__link_status</ipxact:name>
@@ -64,7 +64,7 @@ https://fpgasoftware.intel.com/eula.-->
           <ipxact:portMaps>
             <ipxact:portMap>
               <ipxact:logicalPort>
-                <ipxact:name>coe_qsfp28_rx_pins_x</ipxact:name>
+                <ipxact:name>conduit_4</ipxact:name>
               </ipxact:logicalPort>
               <ipxact:physicalPort>
                 <ipxact:name>coe_C_csi_clk_C__R_rsi_rst_n_R__qsfp28_rx_pins_x</ipxact:name>
@@ -101,7 +101,7 @@ https://fpgasoftware.intel.com/eula.-->
           <ipxact:portMaps>
             <ipxact:portMap>
               <ipxact:logicalPort>
-                <ipxact:name>coe_qsfp28_tx_pins</ipxact:name>
+                <ipxact:name>conduit_4</ipxact:name>
               </ipxact:logicalPort>
               <ipxact:physicalPort>
                 <ipxact:name>coe_C_csi_clk_C__R_rsi_rst_n_R__qsfp28_tx_pins</ipxact:name>
@@ -1528,7 +1528,7 @@ https://fpgasoftware.intel.com/eula.-->
             &lt;ports&gt;
                 &lt;port&gt;
                     &lt;name&gt;coe_C_csi_clk_C__R_rsi_rst_n_R__link_status&lt;/name&gt;
-                    &lt;role&gt;coe_link_status&lt;/role&gt;
+                    &lt;role&gt;conduit_15&lt;/role&gt;
                     &lt;direction&gt;Output&lt;/direction&gt;
                     &lt;width&gt;15&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
@@ -1563,7 +1563,7 @@ https://fpgasoftware.intel.com/eula.-->
             &lt;ports&gt;
                 &lt;port&gt;
                     &lt;name&gt;coe_C_csi_clk_C__R_rsi_rst_n_R__qsfp28_rx_pins_x&lt;/name&gt;
-                    &lt;role&gt;coe_qsfp28_rx_pins_x&lt;/role&gt;
+                    &lt;role&gt;conduit_4&lt;/role&gt;
                     &lt;direction&gt;Input&lt;/direction&gt;
                     &lt;width&gt;4&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
@@ -1598,7 +1598,7 @@ https://fpgasoftware.intel.com/eula.-->
             &lt;ports&gt;
                 &lt;port&gt;
                     &lt;name&gt;coe_C_csi_clk_C__R_rsi_rst_n_R__qsfp28_tx_pins&lt;/name&gt;
-                    &lt;role&gt;coe_qsfp28_tx_pins&lt;/role&gt;
+                    &lt;role&gt;conduit_4&lt;/role&gt;
                     &lt;direction&gt;Output&lt;/direction&gt;
                     &lt;width&gt;4&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
