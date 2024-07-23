@@ -52,22 +52,23 @@ import VirtualDevice :: *;
 // A straightforward axi lite subordinate to provide a banking mechanism for
 // the h2f window into the core's memory map.
 //
-// Exposes a readable/writable Wd_Addr at relative address 0x0
+// Exposes a readable/writable t_h2f_addr at relative address 0x0
 // such that the LSB is bit 0 of address 0
-// and the MSB is bit 7 of address 0x3 or 0x7, if Wd_Addr is 32 or 64 respectively.
+// and the MSB is bit 7 of address 0x3 or 0x7, if t_h2f_addr is e.g. 32 or 64 respectively.
+// t_h2f_addr is usually Wd_Addr, the fabric address width, which is usually 64.
 // WSTRB is *ignored*.
 // This mapping is repeated over the remaining address space, so 0x8 maps to the same thing as 0x0.
-module mkH2FAddrCtrl #(Bit #(Wd_Addr) dfltAddrBits)
+module mkH2FAddrCtrl #(Bit #(t_h2f_addr) dfltAddrBits)
   (Tuple2 #( AXI4Lite_Slave #( t_h2f_lw_addr, t_h2f_lw_data
                              , t_h2f_lw_awuser, t_h2f_lw_wuser, t_h2f_lw_buser
                              , t_h2f_lw_aruser, t_h2f_lw_ruser)
-           , ReadOnly #(Bit #(Wd_Addr)) ))
+           , ReadOnly #(Bit #(t_h2f_addr)) ))
   provisos (
-    NumAlias #( t_dats_per_addr, TDiv#(Wd_Addr, t_h2f_lw_data))
+    NumAlias #( t_dats_per_addr, TDiv#(t_h2f_addr, t_h2f_lw_data))
   , NumAlias #( t_dat_select, TLog#(t_dats_per_addr))
   , NumAlias #( t_sub_lw_word_addr_bits, TLog#(TDiv#(t_h2f_lw_data, 8)))
   , Add#(a__, t_dat_select, t_h2f_lw_addr)
-  , Mul#(TDiv#(Wd_Addr, t_h2f_lw_data), t_h2f_lw_data, Wd_Addr) // Evenly divisible
+  , Mul#(TDiv#(t_h2f_addr, t_h2f_lw_data), t_h2f_lw_data, t_h2f_addr) // Evenly divisible
   );
 
   // internal state and signals
