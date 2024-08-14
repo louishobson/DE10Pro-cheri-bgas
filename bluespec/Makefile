@@ -62,6 +62,8 @@ CORE_DIR ?= $(CURDIR)/Toooba
 
 include $(CORE_DIR)/builds/Resources/Include_RISCY_Config.mk
 
+SERIALLITE3_DIRS ?= $(CURDIR)/../de10pro-seriallite3/S10FPGA
+
 VIRTUALDEVICE_DIRS ?= $(CURDIR)/VirtualDevice
 RECIPEDIR = $(CURDIR)/Recipe
 
@@ -73,7 +75,7 @@ VDIR ?= $(CURDIR)/verilogdir
 VERILATORDIR ?= $(CURDIR)/verilatordir
 
 # search path for bsc imports
-EXTRABSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(VIRTUALDEVICE_DIRS)
+EXTRABSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(VIRTUALDEVICE_DIRS):$(SERIALLITE3_DIRS)
 BSCFLAGS = $(BSC_PATH) -p $(EXTRABSVPATH)
 
 # design configuration variables
@@ -203,6 +205,7 @@ StatCounters.bsv: $(RISCV_HPM_EVENTS_DIR)/parse_counters.py
 .PHONY: clean mrproper
 
 clean:
+	rm -f .depends.mk
 	rm -f TagTableStructure.bsv
 	rm -f GenerateHPMVector.bsv
 	rm -f StatCounters.bsv
