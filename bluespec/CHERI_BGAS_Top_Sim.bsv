@@ -38,6 +38,7 @@ import BlueUnixBridges :: *;
 import BlueUtils :: *;
 import Connectable :: *;
 import CHERI_BGAS_Top :: *;
+import BERT :: *;
 import DE10Pro_bsv_shell :: *;
 
 // Concrete parameters definitions
@@ -88,31 +89,55 @@ module mkCHERI_BGAS_Top_Sim (Empty);
   // topmodule to simulate
   DE10ProIfc cheri_bgas_top <- mkCHERI_BGAS_Top;
 
-  // unix FIFOs for the router ports
-  Sink #(Bit #(512))
-    northTX <- mkUnixFifoSink ("simports/bgas-global-ports/north/tx");
-  mkConnection (cheri_bgas_top.tx_north, northTX);
-  Sink #(Bit #(512))
-    eastTX <- mkUnixFifoSink ("simports/bgas-global-ports/east/tx");
-  mkConnection (cheri_bgas_top.tx_east, eastTX);
-  Sink #(Bit #(512))
-    southTX <- mkUnixFifoSink ("simports/bgas-global-ports/south/tx");
-  mkConnection (cheri_bgas_top.tx_south, southTX);
-  Sink #(Bit #(512))
-    westTX <- mkUnixFifoSink ("simports/bgas-global-ports/west/tx");
-  mkConnection (cheri_bgas_top.tx_west, westTX);
-  Source #(Bit #(512))
-    northRX <- mkUnixFifoSource ("simports/bgas-global-ports/north/rx");
-  mkConnection (cheri_bgas_top.rx_north, northRX);
-  Source #(Bit #(512))
-    eastRX <- mkUnixFifoSource ("simports/bgas-global-ports/east/rx");
-  mkConnection (cheri_bgas_top.rx_east, eastRX);
-  Source #(Bit #(512))
-    southRX <- mkUnixFifoSource ("simports/bgas-global-ports/south/rx");
-  mkConnection (cheri_bgas_top.rx_south, southRX);
-  Source #(Bit #(512))
-    westRX <- mkUnixFifoSource ("simports/bgas-global-ports/west/rx");
-  mkConnection (cheri_bgas_top.rx_west, westRX);
+  // unix FIFOs for the serial-lite3 traffic
+  Sink #(Bit #(256))   northTX <- mkUnixFifoSink   ("simports/bgas-global-ports/north/tx");
+  Source #(Bit #(256)) northRX <- mkUnixFifoSource ("simports/bgas-global-ports/north/rx");
+  Sink #(Bit #(256))    eastTX <- mkUnixFifoSink   ("simports/bgas-global-ports/east/tx");
+  Source #(Bit #(256))  eastRX <- mkUnixFifoSource ("simports/bgas-global-ports/east/rx");
+  Sink #(Bit #(256))   southTX <- mkUnixFifoSink   ("simports/bgas-global-ports/south/tx");
+  Source #(Bit #(256)) southRX <- mkUnixFifoSource ("simports/bgas-global-ports/south/rx");
+  Sink #(Bit #(256))    westTX <- mkUnixFifoSink   ("simports/bgas-global-ports/west/tx");
+  Source #(Bit #(256))  westRX <- mkUnixFifoSource ("simports/bgas-global-ports/west/rx");
+  // BERTs
+  let clk <- exposeCurrentClock;
+  let rst <- exposeCurrentReset;
+  BERT #(32,0,0,0,0,0,Bit #(512)) bertNorth <- mkBERT(clk, rst, clk, rst);
+  BERT #(32,0,0,0,0,0,Bit #(512))  bertEast <- mkBERT(clk, rst, clk, rst);
+  BERT #(32,0,0,0,0,0,Bit #(512)) bertSouth <- mkBERT(clk, rst, clk, rst);
+  BERT #(32,0,0,0,0,0,Bit #(512))  bertWest <- mkBERT(clk, rst, clk, rst);
+  // connect up global traffic
+  function AXI4Stream_Flit #(0,n,0,9) toAXI4Stream(Bit #(n) x) =
+    AXI4Stream_Flit {
+      tdata: zeroExtend (pack (x))
+    , tstrb: ~0
+    , tkeep: ~0
+    , tlast: True
+    , tid: ?
+    , tdest: ?
+    , tuser: {1'h1, pack (InternalTraffic)}
+    };
+  function Bit #(n) fromAXI4Stream(AXI4Stream_Flit #(0,n,0,9) x) =
+    pack (x.tdata);
+  // north
+  mkConnection (cheri_bgas_top.tx_north, bertNorth.internalTX);
+  mkConnection (mapSource (fromAXI4Stream, bertNorth.externalTX), northTX);
+  mkConnection (northRX, mapSink (toAXI4Stream, bertNorth.externalRX));
+  mkConnection (bertNorth.internalRX, cheri_bgas_top.rx_north);
+  // east
+  mkConnection (cheri_bgas_top.tx_east, bertEast.internalTX);
+  mkConnection (mapSource (fromAXI4Stream, bertEast.externalTX), eastTX);
+  mkConnection (eastRX, mapSink (toAXI4Stream, bertEast.externalRX));
+  mkConnection (bertEast.internalRX, cheri_bgas_top.rx_east);
+  // south
+  mkConnection (cheri_bgas_top.tx_south, bertSouth.internalTX);
+  mkConnection (mapSource (fromAXI4Stream, bertSouth.externalTX), southTX);
+  mkConnection (southRX, mapSink (toAXI4Stream, bertSouth.externalRX));
+  mkConnection (bertSouth.internalRX, cheri_bgas_top.rx_south);
+  // west
+  mkConnection (cheri_bgas_top.tx_west, bertWest.internalTX);
+  mkConnection (mapSource (fromAXI4Stream, bertWest.externalTX), westTX);
+  mkConnection (westRX, mapSink (toAXI4Stream, bertWest.externalRX));
+  mkConnection (bertWest.internalRX, cheri_bgas_top.rx_west);
 
   // H2F_LW port
   AXI4_Master #( 0, `H2F_LW_ADDR, `H2F_LW_DATA
