@@ -471,28 +471,14 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   //////////////////////////////////////////////////////////////////////////////
 
   // gather all managers
-  Vector #(2, t_bus0_mngr) bus0_ms;
-  bus0_ms[0] = core.manager_0;
-  bus0_ms[1] = ?; // later assigned out of a bridge out of bus1
+  //Vector #(1, t_bus0_mngr) bus0_ms;
+  //bus0_ms[0] = core.manager_0;
 
   // prepare AXI4 subordinates exposed to the cached interface
   ////////////////////////////////////////////////////////////
 
   // prepare AXI4 manager ports traffic
   t_bus0_subshim ddrShim <- mkAXI4ShimFF (reset_by newRst.new_rst);
-
-  // gather all subordinates
-  Vector #(1, t_bus0_sub) bus0_ss;
-  bus0_ss[0] = ddrShim.slave;
-
-  // build route
-  function Vector #(1, Bool) bus0_route (Bit #(Wd_Addr) addr);
-    Vector #(1, Bool) x = replicate (False);
-    if (   inRange (soc_map.m_ddr4_0_cached_addr_range, addr)
-        || inRange (soc_map.m_ddr4_0_uncached_addr_range, addr) )
-      x[0] = True;
-    return x;
-  endfunction
 
   // Bus 1 - core uncached traffic
   //////////////////////////////////////////////////////////////////////////////
@@ -539,10 +525,6 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   // prepare bridge to bus0
   NumProxy #(2)  proxyBuffInDepth = ?;
   NumProxy #(4) proxyBuffOutDepth = ?;
-  match {.bus0BridgeSub, .bus0BridgeMngr} <-
-    mkAXI4DataWidthShim_NarrowToWide ( proxyBuffInDepth
-                                     , proxyBuffOutDepth
-                                     , reset_by newRst.new_rst );
  /*
   t_bus1_subshim bus0BridgeShim <- mkAXI4ShimFF (reset_by newRst.new_rst);
   AXI4_Master #(t_core_mid, Wd_Addr, TMul #(Wd_Data_Periph, 2), 0, 0, 0, 0, 0)
@@ -555,11 +537,8 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   t_bus1_sub bus0BridgeSub = bus0BridgeShim.slave;
   */
 
-  //bus0_ms[1] = debugAXI4_Master (bus0BridgeMngr, $format ("bus0BridgeMngr"));
-  bus0_ms[1] = bus0BridgeMngr;
-
   // gather all subordinates
-  Vector #(7, t_bus1_sub) bus1_ss;
+  Vector #(6, t_bus1_sub) bus1_ss;
   bus1_ss[0] = mngrShim[0].slave; // f2h accesses
   bus1_ss[1] = mngrShim[1].slave; // global accesses
   bus1_ss[2] = uart0_s;
@@ -567,14 +546,11 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   bus1_ss[4] = fakeBootRomDeBurst.slave;
   bus1_ss[5] = virtDev.virt;
   //bus1_ss[6] = debugAXI4_Slave (bus0BridgeSub, $format ("bus0BridgeSub"));
-  bus1_ss[6] = bus0BridgeSub;
 
   // build route
-  function Vector #(7, Bool) bus1_route (Bit #(Wd_Addr) addr);
-    Vector #(7, Bool) x = replicate (False);
-    if (inRange (soc_map.m_ddr4_0_uncached_addr_range, addr))
-      x[6] = True;
-    else if (inRange (soc_map.m_virt_dev_addr_range, addr))
+  function Vector #(6, Bool) bus1_route (Bit #(Wd_Addr) addr);
+    Vector #(6, Bool) x = replicate (False);
+    if (inRange (soc_map.m_virt_dev_addr_range, addr))
       x[5] = True;
     else if (inRange (soc_map.m_boot_rom_addr_range, addr))
       x[4] = True;
@@ -593,7 +569,7 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   // wire it all up
   //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
-  mkAXI4Bus (bus0_route, bus0_ms, bus0_ss, reset_by newRst.new_rst);
+  mkConnection(core.manager_0, ddrShim.slave, reset_by newRst.new_rst);
   mkAXI4Bus (bus1_route, bus1_ms, bus1_ss, reset_by newRst.new_rst);
 
   // Incoming interconnect

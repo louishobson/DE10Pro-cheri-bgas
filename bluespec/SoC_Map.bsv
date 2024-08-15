@@ -96,14 +96,14 @@ deriving (FShow);
 
 SoC_Map_Struct soc_map_struct =
 SoC_Map_Struct {
-   near_mem_io_addr_base:  'h_1000_0000,
-   near_mem_io_addr_size:  'h_0001_0000,
+   near_mem_io_addr_base:  'h0_1000_0000,
+   near_mem_io_addr_size:  'h0_0001_0000,
 
-   boot_rom_addr_base:     'h_7000_0000,
-   boot_rom_addr_size:     'h_0000_1000,
+   boot_rom_addr_base:     'h0_7000_0000,
+   boot_rom_addr_size:     'h0_0000_1000,
 
-   main_mem_addr_base:     'h_C000_0000,
-   main_mem_addr_size:     'h_C000_0000,
+   main_mem_addr_base:     'h0_8000_0000,
+   main_mem_addr_size:     'h1_0000_0000,
 
    pc_reset_value:
      (genC) ? fromMaybe ('h_7000_0000, getEnvInt ("CHERI_BGAS_PC_RESET_VALUE"))
@@ -123,7 +123,6 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Range#(Wd_Addr)  m_gpio_0_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_boot_rom_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_virt_dev_addr_range;
-   (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_global_bgas_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_bgas_router_conf_addr_range;
@@ -222,14 +221,6 @@ module mkSoC_Map (SoC_Map_IFC);
    };
 
    // ----------------------------------------------------------------
-   // DDR memory 0 uncached
-
-   let ddr4_0_uncached_addr_range = Range {
-      base: 'h_8000_0000,
-      size: 'h_0000_0000    // No uncached ddr4 in this configuraion
-   };
-
-   // ----------------------------------------------------------------
    // DDR memory 0 cached
 
    let ddr4_0_cached_addr_range = Range {
@@ -272,8 +263,7 @@ module mkSoC_Map (SoC_Map_IFC);
       inRange (ddr4_0_cached_addr_range, addr);
 
    function Bool fn_is_IO_addr (Fabric_Addr addr, Bool imem_not_dmem) =
-         inRange(ddr4_0_uncached_addr_range, addr)
-      || inRange(boot_rom_addr_range, addr)
+         inRange(boot_rom_addr_range, addr)
       || inRange(virt_dev_addr_range, addr)
       || (   (! imem_not_dmem)
           && (   inRange(plic_addr_range, addr)
@@ -306,7 +296,6 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Range#(Wd_Addr)  m_gpio_0_addr_range = gpio_0_addr_range;
    method  Range#(Wd_Addr)  m_boot_rom_addr_range = boot_rom_addr_range;
    method  Range#(Wd_Addr)  m_virt_dev_addr_range = virt_dev_addr_range;
-   method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range = ddr4_0_uncached_addr_range;
    method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range = ddr4_0_cached_addr_range;
    method  Range#(Wd_Addr)  m_global_bgas_addr_range = global_bgas_addr_range;
    method  Range#(Wd_Addr)  m_bgas_router_conf_addr_range = bgas_router_conf_addr_range;
