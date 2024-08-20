@@ -199,7 +199,7 @@ provisos (
 , NumAlias #(t_sys_axi_mngr0_aruser, 0)
 , NumAlias #(t_sys_axi_mngr0_ruser, 0)
   // AXI4 manager port 1 for CHERI_BGAS_System - DDR
-, NumAlias #(t_sys_axi_mngr1_id, 8)
+, NumAlias #(t_sys_axi_mngr1_id, 7)
 , NumAlias #(t_sys_axi_mngr1_addr, 64)
 , NumAlias #(t_sys_axi_mngr1_data, 512)
 , NumAlias #(t_sys_axi_mngr1_awuser, 0)
@@ -550,7 +550,7 @@ provisos (
     //                                , proxyDDRMaxSameId
     //                                , ddrTmp
     //                                , reset_by newRst.new_rst );
-    ddr[i] = truncate_AXI4_Master_addr (getDDRMngr (sys[i]));
+    ddr[i] =  prepend_AXI4_Master_id(1'b0, truncate_AXI4_Master_addr (getDDRMngr (sys[i])));
   end
 
   // dispatch IRQs

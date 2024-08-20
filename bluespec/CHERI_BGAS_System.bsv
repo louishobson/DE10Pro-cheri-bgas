@@ -293,12 +293,12 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
              , t_axil_sub_aruser, t_axil_sub_ruser ))
     // outgoing traffic
   , NumAlias #(t_core_mid, TAdd #(Wd_MId, 1)) // id width out of the core
-  , NumAlias #(t_bus0_sid, TAdd #(t_core_mid, 1)) // cope with 2 masters only
+  //, NumAlias #(t_bus0_sid, t_core_mid) // cope with 2 masters only
   , Alias #(t_bus0_mngr, AXI4_Master #( t_core_mid, Wd_Addr, Wd_Data
                                       , 0, 0, 0, 0, 0))
-  , Alias #(t_bus0_sub, AXI4_Slave #( t_bus0_sid, Wd_Addr, Wd_Data
+  , Alias #(t_bus0_sub, AXI4_Slave #( t_core_mid, Wd_Addr, Wd_Data
                                     , 0, 0, 0, 0, 0))
-  , Alias #(t_bus0_subshim, AXI4_Shim #( t_bus0_sid, Wd_Addr, Wd_Data
+  , Alias #(t_bus0_subshim, AXI4_Shim #( t_core_mid, Wd_Addr, Wd_Data
                                        , 0, 0, 0, 0, 0))
   , NumAlias #(t_bus1_sid, t_core_mid) // cope with 1 master only
   , Alias #(t_bus1_mngr, AXI4_Master #( t_core_mid, Wd_Addr, Wd_Data_Periph
@@ -351,7 +351,7 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   , Add #(0, 0, t_axi_mngr0_aruser)
   , Add #(0, 0, t_axi_mngr0_ruser)
     // AXI4 manager 1 port -- used for DDR traffic
-  , Add #(0, t_bus0_sid, t_axi_mngr1_id)
+  , Add #(0, t_core_mid, t_axi_mngr1_id)
   , Add #(0, Wd_Addr, t_axi_mngr1_addr)
   , Add #(0, Wd_Data, t_axi_mngr1_data)
   , Add #(0, 0, t_axi_mngr1_awuser)
