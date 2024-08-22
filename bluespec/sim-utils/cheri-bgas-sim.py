@@ -352,6 +352,7 @@ def main(ctxt):
   with test_and_open_file(ctxt.sim_dir / 'simulation.info', mode='w+') as sim_info:
     sim_info.write(f'cheri_bgas_simulation:\n')
     sim_info.write(f'- creation_date: {datetime.datetime.now()}\n')
+    sim_info.write(f'- pid: {os.getpid()}\n')
     sim_info.write(f'- nodes:\n')
     for idx, node_dir, vpi_port, dbg_port in ctxts:
       sim_info.write(f'  - node_{show_idx(idx)}:\n')
