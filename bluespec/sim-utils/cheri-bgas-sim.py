@@ -7,6 +7,7 @@ import socket
 import signal
 import logging
 import argparse
+import datetime
 import functools as ft
 from pathlib import Path
 import contextlib
@@ -347,6 +348,33 @@ def main(ctxt):
   # spawn connection processes
   ctxt.conn_procs = spawn_connections(ctxt)
   print("simulation connection processes spawned")
+
+  with test_and_open_file(ctxt.sim_dir / 'simulation.info', mode='w+') as sim_info:
+    sim_info.write(f'cheri_bgas_simulation:\n')
+    sim_info.write(f'- creation_date: {datetime.datetime.now()}\n')
+    sim_info.write(f'- nodes:\n')
+    for idx, node_dir, vpi_port, dbg_port in ctxts:
+      sim_info.write(f'  - node_{show_idx(idx)}:\n')
+      sim_info.write(f'    - sim_path: {node_dir}\n')
+      sim_info.write(f'    - vpi_port: {vpi_port}\n')
+      sim_info.write(f'    - dbg_port: {dbg_port}\n')
+      sim_info.write(f'    - pids:\n')
+      sim_info.write(f'      - simulator: {proc_handles[idx]["simulator"].pid}\n')
+      sim_info.write(f'      - devfs: {proc_handles[idx]["devfs"].pid}\n')
+      sim_info.write(f'      - jtagvpi_to_fmemdmi: {proc_handles[idx]["jtagvpi_to_fmemdmi"].pid}\n')
+      sim_info.write(f'      - openocd: {proc_handles[idx]["openocd"].pid}\n')
+    sim_info.write(f'- connection_pids:\n')
+    for p in ctxt.conn_procs:
+      sim_info.write(f'  - {p.pid}\n')
+
+    #sim_info.seek(0)
+    #print(f"simulation info logged in {sim_info.name}:\n{sim_info.read()}")
+    print(f"simulation info logged in {sim_info.name}")
+
+  for idx, _, _, dbg_port in ctxts:
+    print(f'node {idx} dbg port: {dbg_port}')
+
+  print('='*80)
 
   signal.signal(signal.SIGINT, ft.partial(terminate_simulation, ctxt))
   signal.signal(signal.SIGABRT, ft.partial(terminate_simulation, ctxt))
