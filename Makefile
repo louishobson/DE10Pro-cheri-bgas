@@ -26,6 +26,7 @@ BSVSRCDIR = $(CURDIR)/bluespec
 BLUESTUFFDIR = $(BSVSRCDIR)/Toooba/libs/BlueStuff
 VIPBUNDLEDIR = $(CURDIR)/vipbundle
 VIPBUNDLE = $(VIPBUNDLEDIR)/vipbundle
+DE10SERIALLITE3DIR = $(CURDIR)/de10pro-seriallite3
 QPF = $(CURDIR)/DE10Pro-cheri-bgas.qpf
 export VDIR = $(CURDIR)/cheri-bgas-rtl
 
@@ -68,16 +69,23 @@ ci-gen-rbf: $(BOOTLOADER)
 synthesize output_files/DE10Pro-cheri-bgas.sof &: gen-ip
 	BLUESPECDIR=$(BLUESPECDIR) BLUESTUFFDIR=$(BLUESTUFFDIR) time quartus_sh --flow compile $(QPF)
 
-gen-ip: $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl
+gen-ip: $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl $(addprefix $(DE10SERIALLITE3DIR)/, mkBERT_hw.tcl mkSerialLite3_hw.tcl mkStatusDevice_Status15_hw.tcl)
 	BLUESPECDIR=$(BLUESPECDIR) BLUESTUFFDIR=$(BLUESTUFFDIR) quartus_ipgenerate $(QPF)
 
-gen-bluespec-quartus-ip: $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl
+gen-bluespec-quartus-ip: $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl $(addprefix $(DE10SERIALLITE3DIR)/, mkBERT_hw.tcl mkSerialLite3_hw.tcl mkStatusDevice_Status15_hw.tcl)
 
 $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl: $(VIPBUNDLE) $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 	$(VIPBUNDLEDIR)/vipbundle \
       -f quartus_ip_tcl \
       -o $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl \
       $(VDIR)/mkCHERI_BGAS_Top_Sig.v
+
+$(DE10SERIALLITE3DIR)/mkBERT_hw.tcl:
+	$(MAKE) -C $(DE10SERIALLITE3DIR) generate_bert_tcl
+$(DE10SERIALLITE3DIR)/mkSerialLite3_hw.tcl:
+	$(MAKE) -C $(DE10SERIALLITE3DIR) generate_seriallite3_tcl
+$(DE10SERIALLITE3DIR)/mkStatusDevice_Status15_hw.tcl:
+	$(MAKE) -C $(DE10SERIALLITE3DIR) generate_status_dev_15_tcl
 
 $(VIPBUNDLE):
 	$(MAKE) -C $(VIPBUNDLEDIR) vipbundle
@@ -98,6 +106,22 @@ clean-vipbundle:
 
 clean-bluespec-quartus-ip:
 	rm -f $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl
+
+mrproper-bert: clean-bert-tcl clean-bert-rtl
+mrproper-seriallite3: clean-seriallite3-tcl clean-seriallite3-rtl
+mrproper-status_dev_15: clean-status_dev_15-tcl clean-status_dev_15-rtl
+clean-bert-tcl:
+	$(MAKE) -C $(DE10SERIALLITE3DIR) clean_bert_tcl
+clean-seriallite3-tcl:
+	$(MAKE) -C $(DE10SERIALLITE3DIR) clean_seriallite3_tcl
+clean-status_dev_15-tcl:
+	$(MAKE) -C $(DE10SERIALLITE3DIR) clean_status_dev_15_tcl
+clean-bert-rtl:
+	$(MAKE) -C $(DE10SERIALLITE3DIR) mrproper_bert_rtl
+clean-seriallite3-rtl:
+	$(MAKE) -C $(DE10SERIALLITE3DIR) mrproper_seriallite3_rtl
+clean-status_dev_15-rtl:
+	$(MAKE) -C $(DE10SERIALLITE3DIR) mrproper_status_dev_15_rtl
 
 clean-ip-gen:
 	rm -rf $(CURDIR)/ip/reset_release/
@@ -121,5 +145,7 @@ mrproper-vipbundle:
 mrproper-bluespec-rtl:
 	$(MAKE) -C $(BSVSRCDIR) mrproper
 
-mrproper: clean mrproper-bluespec-rtl mrproper-vipbundle
+mrproper-seriallite3: mrproper-bert mrproper-seriallite3 mrproper-status_dev_15
+
+mrproper: clean mrproper-bluespec-rtl mrproper-vipbundle mrproper-seriallite3
 	rm -rf $(CURDIR)/qdb $(CURDIR)/output_files
