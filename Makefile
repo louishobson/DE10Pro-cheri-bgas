@@ -67,10 +67,10 @@ ci-gen-rbf: $(BOOTLOADER)
 	quartus_pfg -c $(SOF) -o hps=ON -o hps_path=$(BOOTLOADER) $(OUTNAME).rbf
 
 synthesize output_files/DE10Pro-cheri-bgas.sof &: gen-ip
-	BLUESPECDIR=$(BLUESPECDIR) BLUESTUFFDIR=$(BLUESTUFFDIR) time quartus_sh --flow compile $(QPF)
+	BLUESPECDIR=$(BLUESPECDIR) BLUESTUFFDIR=$(BLUESTUFFDIR) DE10SERIALLITE3DIR=$(DE10SERIALLITE3DIR) time quartus_sh --flow compile $(QPF)
 
 gen-ip: $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl $(addprefix $(DE10SERIALLITE3DIR)/, mkBERT_hw.tcl mkSerialLite3_hw.tcl mkStatusDevice_Status15_hw.tcl)
-	BLUESPECDIR=$(BLUESPECDIR) BLUESTUFFDIR=$(BLUESTUFFDIR) quartus_ipgenerate $(QPF)
+	BLUESPECDIR=$(BLUESPECDIR) BLUESTUFFDIR=$(BLUESTUFFDIR) DE10SERIALLITE3DIR=$(DE10SERIALLITE3DIR) quartus_ipgenerate $(QPF)
 
 gen-bluespec-quartus-ip: $(CURDIR)/mkCHERI_BGAS_Top_Sig_hw.tcl $(addprefix $(DE10SERIALLITE3DIR)/, mkBERT_hw.tcl mkSerialLite3_hw.tcl mkStatusDevice_Status15_hw.tcl)
 
