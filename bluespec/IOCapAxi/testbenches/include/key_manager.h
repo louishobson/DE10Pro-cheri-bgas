@@ -42,6 +42,22 @@ namespace key_manager {
                 };
             }
         }
+        static KeyResponse fromBluespec(Tuple2_KeyId_MaybeKey x) {
+            if (x.keyValid) {
+                return KeyResponse {
+                    .keyId = x.keyId,
+                    .key = Key {
+                        .top = x.keyTop,
+                        .bottom = x.keyBot,
+                    },
+                };
+            } else {
+                return KeyResponse {
+                    .keyId = x.keyId,
+                    .key = std::nullopt,                    
+                };
+            }
+        }
     };
 
     // 13-bit address, 32-bit data AXI4-Lite

@@ -218,6 +218,46 @@ void push_input(DUT& dut, const ShimmedExposerInput& input) {
     #undef PUT
 }
 
+template<class DUT>
+void observe_input(DUT& dut, ShimmedExposerInput& input) {
+    #define CANPEEK(from) (dut.EN_## from ##_put)
+    #define PEEK(from) dut. from ##_put_val
+
+    if (CANPEEK(exposer4x32_iocapsIn_axiSignals_aw)) {
+        input.iocap_flit_aw = axi::IOCapAxi::AWFlit_id4_addr64_user3::unpack(stdify_array(PEEK(exposer4x32_iocapsIn_axiSignals_aw)));
+    }
+
+    if (CANPEEK(exposer4x32_iocapsIn_axiSignals_w)) {
+        input.iocap_flit_w = axi::IOCapAxi::WFlit_data32::unpack(PEEK(exposer4x32_iocapsIn_axiSignals_w));
+    }
+
+    if (CANPEEK(exposer4x32_iocapsIn_axiSignals_ar)) {
+        input.iocap_flit_ar = axi::IOCapAxi::ARFlit_id4_addr64_user3::unpack(stdify_array(PEEK(exposer4x32_iocapsIn_axiSignals_ar)));
+    }
+
+    if (CANPEEK(exposer4x32_sanitizedOut_b)) {
+        input.clean_flit_b = axi::SanitizedAxi::BFlit_id4::unpack(PEEK(exposer4x32_sanitizedOut_b));
+    }
+
+    if (CANPEEK(exposer4x32_sanitizedOut_r)) {
+        input.clean_flit_r = axi::SanitizedAxi::RFlit_id4_data32::unpack(PEEK(exposer4x32_sanitizedOut_r));
+    }
+
+    if (CANPEEK(keyStoreShim_newEpochRequests)) {
+        input.keyManager.newEpochRequest = PEEK(keyStoreShim_newEpochRequests);
+    }
+
+    if (CANPEEK(keyStoreShim_keyResponses)) {
+        input.keyManager.keyResponse = key_manager::KeyResponse::fromBluespec(
+            key_manager::Tuple2_KeyId_MaybeKey::unpack(stdify_array(PEEK(keyStoreShim_keyResponses)))
+        );
+        fmt::println(stderr, "peeking {} from input {}", input.keyManager.keyResponse, stdify_array(PEEK(keyStoreShim_keyResponses)));
+    }
+
+    #undef PEEK
+    #undef CANPEEK
+}
+
 /**
  * Pull from the outputs of a Verilator device-under-test to fill a ShimmedExposerOutput.
  * The DUT must have adhere to the Bluespec `SimpleIOCapExposerTb` interface, with keyStoreShim and exposer4x32 sub-interfaces.

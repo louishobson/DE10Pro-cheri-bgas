@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 #include <random>
+#include <memory>
 
 #define FMT_HEADER_ONLY
 #include "fmt/format.h"
@@ -16,6 +17,7 @@
 struct TestBase {
     virtual ~TestBase() = default;
 
+    virtual std::string_view name() = 0;
     virtual bool run(int argc, char** argv) = 0;
 };
 
@@ -36,7 +38,6 @@ struct CycleTest : TestBase {
     CycleTest(int seed = 123908104) : rng(seed) {}
     virtual ~CycleTest() override = default;
 
-    virtual std::string_view name() = 0;
     virtual std::pair<std::vector<TbInput>, std::vector<TbOutput>> stimuli() = 0;
 
     /**
@@ -200,6 +201,91 @@ public:
             return elems[key];
         }
         return (*iter).second;
+    }
+};
+
+template<class DUT>
+class StimulusGenerator {
+public:
+    virtual ~StimulusGenerator() {}
+    virtual std::string_view name() = 0;
+    virtual void driveInputsForTick(DUT& dut, uint64_t tick) = 0;
+    virtual uint64_t getEndTime() = 0;
+};
+
+using test_failure = std::logic_error;
+
+template<class DUT>
+class Scoreboard {
+public:
+    virtual ~Scoreboard() {}
+    // Should raise a test_failure
+    virtual void monitorAndScore(DUT& dut, uint64_t tick) = 0;
+    // Should raise a test_failure
+    virtual void endTest() {}
+};
+
+template<class DUT>
+struct UVMishTest : public TestBase {
+protected:
+    std::unique_ptr<Scoreboard<DUT>> scoreboard;
+    std::unique_ptr<StimulusGenerator<DUT>> generator;
+public:
+    UVMishTest(Scoreboard<DUT>* scoreboard, StimulusGenerator<DUT>* generator) : scoreboard(scoreboard), generator(generator) {}
+    virtual ~UVMishTest() override = default;
+    virtual std::string_view name() {
+        return generator->name();
+    }
+    virtual bool run(int argc, char** argv) override {
+        fmt::println(stderr, "\033[1;33mTest: {}\033[0m", name());
+        uint64_t end_time = generator->getEndTime();
+        try {
+            VerilatedContext ctx{};
+            ctx.commandArgs(argc, argv);    // remember args
+            // Make a design-under-test
+            DUT dut{&ctx};
+
+            uint64_t main_time = 0;
+            // initial conditions in order to generate appropriate edges on
+            // reset
+            dut.RST_N = 1;
+            dut.CLK = 0;
+
+            while ((!ctx.gotFinish()) && (main_time <= end_time) ) { // $finish executed
+                if (main_time == 2) {
+                    dut.RST_N = 0;    // assert reset
+                }
+                else if (main_time == 7) {
+                    dut.RST_N = 1;    // deassert reset
+                }
+
+                // Toggle clock - goes up at 5, 15, 25, 35...
+                if ((main_time % 10) == 5) {
+                    dut.CLK = 1;
+                }
+                // Goes down at 10, 20, 30, 40...
+                else if ((main_time % 10) == 0) {
+                    dut.CLK = 0;
+                    
+                    generator->driveInputsForTick(dut, main_time);
+                    scoreboard->monitorAndScore(dut, main_time);
+                }
+
+                dut.eval();
+                main_time++;
+            }
+
+            dut.final();    // Done simulating
+            scoreboard->endTest();
+            // end of DUT lifetime, gets destructed
+            // end of ctx lifetime, gets destructed
+        } catch (test_failure& f) {
+            fmt::println(stderr, "\033[1;31mTest-Failure\033[0m");
+            fmt::println(stderr, "{}", f.what());
+            return false;
+        }
+        fmt::println(stderr, "\033[1;32mTest-Success\033[0m");
+        return true;
     }
 };
 
