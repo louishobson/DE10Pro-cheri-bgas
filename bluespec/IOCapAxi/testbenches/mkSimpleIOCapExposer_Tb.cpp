@@ -133,6 +133,8 @@ public:
 
 template<class DUT>
 class BasicSanitizedMemStimulus : public SanitizedMemStimulus<DUT> {
+    // Flits which have arrived before their corresponding AW
+    std::deque<axi::SanitizedAxi::WFlit_data32> unexpectedWFlits;
     std::deque<uint64_t> wFlitsExpectedPerBurst;
     std::deque<axi::SanitizedAxi::BFlit_id4> bInputs;
     std::deque<axi::SanitizedAxi::RFlit_id4_data32> rInputs;
@@ -165,20 +167,22 @@ public:
             uint64_t flit;
             POP_OUTPUT(exposer4x32_sanitizedOut_w, flit);
             auto wFlit = axi::SanitizedAxi::WFlit_data32::unpack(flit);
+            unexpectedWFlits.push_back(wFlit);
+        }
 
-            // TODO handle wflit, which will push_back to bInputs on every completion
-            if (wFlitsExpectedPerBurst.empty()) {
-                throw std::logic_error("BasicSanitizedMemStimulus got w flits when no sanitized AW flits had gone through");
+        // Resolve W flits
+        while (!wFlitsExpectedPerBurst.empty() && !unexpectedWFlits.empty()) {
+            auto wFlit = unexpectedWFlits.front();
+            unexpectedWFlits.pop_front();
+
+            if (wFlitsExpectedPerBurst.front() == 0) {
+                throw std::logic_error("BasicSanitizedMemStimulus had a burst of 0 flits expected");
+            } else if (wFlitsExpectedPerBurst.front() == 1) {
+                wFlitsExpectedPerBurst.pop_front();
+                assert(wFlit.wlast == 1);
             } else {
-                if (wFlitsExpectedPerBurst.front() == 0) {
-                    throw std::logic_error("BasicSanitizedMemStimulus had a burst of 0 flits expected");
-                } else if (wFlitsExpectedPerBurst.front() == 1) {
-                    wFlitsExpectedPerBurst.pop_front();
-                    assert(wFlit.wlast == 1);
-                } else {
-                    wFlitsExpectedPerBurst.front() -= 1;
-                    assert(wFlit.wlast == 0);
-                }
+                wFlitsExpectedPerBurst.front() -= 1;
+                assert(wFlit.wlast == 0);
             }
         }
 
@@ -315,7 +319,8 @@ class ExposerScoreboard : public Scoreboard<DUT> {
     std::vector<axi::IOCapAxi::AWFlit_id4_addr64_user3> awInProgress;
     std::deque<axi::SanitizedAxi::AWFlit_id4_addr64_user0> expectedAw;
 
-    // W flits received on the input where we don't know if their associated AWs were correctly authed
+    // W flits received on the input where we don't know if their associated AWs were correctly authed.
+    // The DUT cannot possibly know if W flits in this queue are correctly authed or not.
     std::deque<axi::IOCapAxi::WFlit_data32> wInProgress;
     // The status of future groups of W flits. e.g. if you recieve a valid AW transaction specifying 3 W flits, store (true, 3) so the next 3 W flits received will automatically be counted as valid.
     std::deque<std::pair<bool, uint64_t>> wflitValidity; // tuple[0] = is valid, tuple[1] = count
@@ -680,14 +685,18 @@ public:
     // Should raise a test_failure on failure
     virtual void endTest() override {
         if (
+            !expectedEpochCompletions.empty() ||
+            !awInProgress.empty() ||
             !expectedAw.empty() ||
+            !wInProgress.empty() ||
             !expectedW.empty() ||
+            !arInProgress.empty() ||
             !expectedAr.empty() ||
             // Check foreach ID in {B, R}
             std::any_of(expectedB.begin(), expectedB.end(), [](auto& expectedForId) { return !expectedForId.empty(); }) ||
             std::any_of(expectedR.begin(), expectedR.end(), [](auto& expectedForId) { return !expectedForId.empty(); })
         ) {
-            throw test_failure(fmt::format("ExposerScoreboard expected more flits:\naw: {}\nw: {}\nar: {}\nb: {}\nr: {}\n", expectedAw, expectedW, expectedAr, expectedB, expectedR));
+            throw test_failure(fmt::format("ExposerScoreboard expected more flits:\nepoch completions: {}\naw: {} in progress, {} expected\nw: {} in progress, {} expected\nar: {} in progress, {} expected\nb: {}\nr: {}\n", expectedEpochCompletions, awInProgress, expectedAw, wInProgress, expectedW, arInProgress, expectedAr, expectedB, expectedR));
         }
     }
 };
@@ -1955,8 +1964,11 @@ int main(int argc, char** argv) {
 
 
         // UVM-style testing
-        new ExposerUVMishTest<VmkSimpleIOCapExposer_Tb>(
+        new ExposerUVMishTest(
             new UVMValidKeyValidCapValidWrite<VmkSimpleIOCapExposer_Tb>()
+        ),
+        new ExposerUVMishTest(
+            new UVMValidKeyValidCapValidRead<VmkSimpleIOCapExposer_Tb>()
         )
     };
     for (auto* test : tests) {

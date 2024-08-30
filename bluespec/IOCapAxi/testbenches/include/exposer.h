@@ -251,7 +251,6 @@ void observe_input(DUT& dut, ShimmedExposerInput& input) {
         input.keyManager.keyResponse = key_manager::KeyResponse::fromBluespec(
             key_manager::Tuple2_KeyId_MaybeKey::unpack(stdify_array(PEEK(keyStoreShim_keyResponses)))
         );
-        fmt::println(stderr, "peeking {} from input {}", input.keyManager.keyResponse, stdify_array(PEEK(keyStoreShim_keyResponses)));
     }
 
     #undef PEEK
