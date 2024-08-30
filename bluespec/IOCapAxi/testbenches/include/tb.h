@@ -267,8 +267,11 @@ public:
                 else if ((main_time % 10) == 0) {
                     dut.CLK = 0;
                     
-                    generator->driveInputsForTick(dut, main_time);
-                    scoreboard->monitorAndScore(dut, main_time);
+                    // Only start driving at 20 to let the reset status settle
+                    if (main_time >= 20) {
+                        generator->driveInputsForTick(dut, main_time);
+                        scoreboard->monitorAndScore(dut, main_time);
+                    }
                 }
 
                 dut.eval();

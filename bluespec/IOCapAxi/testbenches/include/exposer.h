@@ -39,6 +39,9 @@ namespace exposer {
         std::optional<axi::SanitizedAxi::RFlit_id4_data32> clean_flit_r;
         
         bool operator==(const ExposerInput&) const = default;
+        bool is_notable() const {
+            return (iocap_flit_aw) || (iocap_flit_w) || (iocap_flit_ar) || (clean_flit_b) || (clean_flit_r);
+        }
     };
 
     struct ExposerOutput {
@@ -52,7 +55,7 @@ namespace exposer {
         std::optional<axi::SanitizedAxi::ARFlit_id4_addr64_user0> clean_flit_ar;
 
         bool operator==(const ExposerOutput&) const = default;
-        bool is_notable() {
+        bool is_notable() const {
             return (iocap_flit_b) || (iocap_flit_r) || (clean_flit_aw) || (clean_flit_ar) || (clean_flit_w);
         }
     };
@@ -81,6 +84,9 @@ struct KeyMngrShimInput {
     std::optional<key_manager::KeyResponse> keyResponse;
 
     bool operator==(const KeyMngrShimInput&) const = default;
+    bool is_notable() const {
+        return (newEpochRequest) || (keyResponse);
+    }
 };
 template <> class fmt::formatter<KeyMngrShimInput> {
     public:
@@ -95,6 +101,9 @@ struct ShimmedExposerInput : exposer::ExposerInput {
     KeyMngrShimInput keyManager;
 
     bool operator==(const ShimmedExposerInput&) const = default;
+    bool is_notable() const {
+        return exposer::ExposerInput::is_notable() || (keyManager.is_notable());
+    }
 };
 template <> class fmt::formatter<ShimmedExposerInput> {
     public:
@@ -332,20 +341,28 @@ void pull_output(DUT& dut, ShimmedExposerOutput& output) {
         NOPOP(keyStoreShim_finishedEpochs);
     }
 
-    if (dut.keyStoreShim_bumpedPerfCounterGoodWrite___05Fread) {
+    if (dut.RDY_keyStoreShim_bumpedPerfCounterGoodWrite___05Fread &&
+        dut.keyStoreShim_bumpedPerfCounterGoodWrite___05Fread) {
         output.keyManager.bumpPerfCounterGoodWrite = true;
+        fmt::println("pull_output good write at {}", output.time);
     }
 
-    if (dut.keyStoreShim_bumpedPerfCounterBadWrite___05Fread) {
+    if (dut.RDY_keyStoreShim_bumpedPerfCounterBadWrite___05Fread &&
+        dut.keyStoreShim_bumpedPerfCounterBadWrite___05Fread) {
         output.keyManager.bumpPerfCounterBadWrite = true;
+        fmt::println("pull_output bad write at {}", output.time);
     }
 
-    if (dut.keyStoreShim_bumpedPerfCounterGoodRead___05Fread) {
+    if (dut.RDY_keyStoreShim_bumpedPerfCounterGoodRead___05Fread &&
+        dut.keyStoreShim_bumpedPerfCounterGoodRead___05Fread) {
         output.keyManager.bumpPerfCounterGoodRead = true;
+        fmt::println("pull_output good read at {}", output.time);
     }
 
-    if (dut.keyStoreShim_bumpedPerfCounterBadRead___05Fread) {
+    if (dut.RDY_keyStoreShim_bumpedPerfCounterBadRead___05Fread &&
+        dut.keyStoreShim_bumpedPerfCounterBadRead___05Fread) {
         output.keyManager.bumpPerfCounterBadRead = true;
+        fmt::println("pull_output bad read at {}", output.time);
     }
 
     #undef NOPOP

@@ -336,6 +336,18 @@ class ExposerScoreboard : public Scoreboard<DUT> {
     std::array<std::deque<axi::IOCapAxi::BFlit_id4>, 16> expectedB;
     std::array<std::deque<axi::IOCapAxi::RFlit_id4_data32>, 16> expectedR;
 
+    uint64_t expectedGoodWrite = 0;
+    uint64_t expectedBadWrite = 0;
+    uint64_t expectedGoodRead = 0;
+    uint64_t expectedBadRead = 0;
+    uint64_t signalledGoodWrite = 0;
+    uint64_t signalledBadWrite = 0;
+    uint64_t signalledGoodRead = 0;
+    uint64_t signalledBadRead = 0;
+
+    std::vector<ShimmedExposerInput> inputs;
+    std::vector<ShimmedExposerOutput> outputs;
+
     virtual void onKeyMngrNewEpoch(key_manager::Epoch newEpoch) {
         throw test_failure("ExposerScoreboard base class can't handle getting new key epoch!");
     }
@@ -418,6 +430,8 @@ class ExposerScoreboard : public Scoreboard<DUT> {
                 });
                 // and expect the right number of W flits to be passed through
                 wflitValidity.push_back(std::make_pair(true, axi::len_to_n_transfers(awInProgress[0].awlen)));
+                // and expect the performance counter to bump
+                expectedGoodWrite++;
             } else {
                 // Otherwise expect a B flit with a BAD response to come out
                 expectedB[awInProgress[0].awid].push_back(axi::IOCapAxi::BFlit_id4 {
@@ -426,6 +440,8 @@ class ExposerScoreboard : public Scoreboard<DUT> {
                 });
                 // and drop the W flits
                 wflitValidity.push_back(std::make_pair(false, axi::len_to_n_transfers(awInProgress[0].awlen)));
+                // and expect the performance counter to bump
+                expectedBadWrite++;
             }
 
             // We've now handled the set of AW flits, and can drop them
@@ -500,6 +516,8 @@ class ExposerScoreboard : public Scoreboard<DUT> {
                     .araddr = arInProgress[0].araddr,
                     .arid = arInProgress[0].arid,
                 });
+                // and expect the performance counter to bump
+                expectedGoodRead++;
             } else {
                 // Otherwise expect a B flit with a BAD response to come out
                 expectedR[arInProgress[0].arid].push_back(axi::IOCapAxi::RFlit_id4_data32 {
@@ -508,6 +526,8 @@ class ExposerScoreboard : public Scoreboard<DUT> {
                     .rdata = 0,
                     .rid = arInProgress[0].arid,
                 });
+                // and expect the performance counter to bump
+                expectedBadRead++;
             }
 
             // We've now handled the set of AR flits, and can drop them
@@ -564,8 +584,11 @@ public:
     virtual ~ExposerScoreboard() = default;
     // Should raise a test_failure on failure
     virtual void monitorAndScore(DUT& dut, uint64_t tick) {
-        ShimmedExposerOutput output;
+        ShimmedExposerOutput output{0};
+        output.time = tick;
         pull_output(dut, output); // TODO apply backpressure?
+        if (output.is_notable())
+            outputs.push_back(output);
 
         if (output.keyManager.finishedEpoch) {
             if (expectedEpochCompletions.empty()) {
@@ -579,7 +602,22 @@ public:
             }
         }
 
-        // TODO verify performance counters
+        if (output.keyManager.bumpPerfCounterGoodWrite) {
+            fmt::println(stderr, "bumped good write at {}", tick);
+            signalledGoodWrite++;
+        }
+        if (output.keyManager.bumpPerfCounterBadWrite) {
+            fmt::println(stderr, "bumped bad write at {}", tick);
+            signalledBadWrite++;
+        }
+        if (output.keyManager.bumpPerfCounterGoodRead) {
+            fmt::println(stderr, "bumped good read at {}", tick);
+            signalledGoodRead++;
+        }
+        if (output.keyManager.bumpPerfCounterBadRead) {
+            fmt::println(stderr, "bumped bad read at {}", tick);
+            signalledBadRead++;
+        }
 
         if (output.clean_flit_aw) {
             if (expectedAw.empty()) {
@@ -643,8 +681,11 @@ public:
             }
         }
 
-        ShimmedExposerInput input;
+        ShimmedExposerInput input{0};
+        input.time = tick;
         observe_input(dut, input);
+        if (input.is_notable())
+            inputs.push_back(input);
 
         if (input.keyManager.newEpochRequest) {
             onKeyMngrNewEpoch(input.keyManager.newEpochRequest.value());
@@ -684,6 +725,7 @@ public:
     }
     // Should raise a test_failure on failure
     virtual void endTest() override {
+        // TODO log inputs and outputs
         if (
             !expectedEpochCompletions.empty() ||
             !awInProgress.empty() ||
@@ -694,9 +736,37 @@ public:
             !expectedAr.empty() ||
             // Check foreach ID in {B, R}
             std::any_of(expectedB.begin(), expectedB.end(), [](auto& expectedForId) { return !expectedForId.empty(); }) ||
-            std::any_of(expectedR.begin(), expectedR.end(), [](auto& expectedForId) { return !expectedForId.empty(); })
+            std::any_of(expectedR.begin(), expectedR.end(), [](auto& expectedForId) { return !expectedForId.empty(); }) ||
+            (expectedGoodWrite != signalledGoodWrite) ||
+            (expectedBadWrite != signalledBadWrite) ||
+            (expectedGoodRead != signalledGoodRead) ||
+            (expectedBadRead != signalledBadRead)
         ) {
-            throw test_failure(fmt::format("ExposerScoreboard expected more flits:\nepoch completions: {}\naw: {} in progress, {} expected\nw: {} in progress, {} expected\nar: {} in progress, {} expected\nb: {}\nr: {}\n", expectedEpochCompletions, awInProgress, expectedAw, wInProgress, expectedW, arInProgress, expectedAr, expectedB, expectedR));
+            throw test_failure(fmt::format(
+                "ExposerScoreboard expected more flits:\n"
+                "epoch completions: {}\n"
+                "aw: {} in progress, {} expected\n"
+                "w: {} in progress, {} expected\n"
+                "ar: {} in progress, {} expected\n"
+                "b: {}\n"
+                "r: {}\n"
+                "perf counters exp/act:\n"
+                "good write {}/{}\n"
+                "bad write {}/{}\n"
+                "good read {}/{}\n"
+                "bad read {}/{}\n"
+                ,
+                expectedEpochCompletions,
+                awInProgress, expectedAw,
+                wInProgress, expectedW,
+                arInProgress, expectedAr,
+                expectedB,
+                expectedR,
+                expectedGoodWrite, signalledGoodWrite,
+                expectedBadWrite, signalledBadWrite,
+                expectedGoodRead, signalledGoodRead,
+                expectedBadRead, signalledBadRead
+            ));
         }
     }
 };
