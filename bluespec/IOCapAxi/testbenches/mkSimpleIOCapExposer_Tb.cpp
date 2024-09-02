@@ -312,7 +312,7 @@ public:
 
 template<class DUT>
 class ExposerScoreboard : public Scoreboard<DUT> {
-    std::unordered_map<key_manager::KeyId, U128> secrets; // Fake keymanager proxy. THIS SCOREBOARD ASSUMES KEYS DONT CHANGE
+    std::unordered_map<key_manager::KeyId, U128>& secrets; // Fake keymanager proxy. THIS SCOREBOARD ASSUMES KEYS DONT CHANGE
 
     std::deque<key_manager::Epoch> expectedEpochCompletions;
 
@@ -523,7 +523,7 @@ class ExposerScoreboard : public Scoreboard<DUT> {
                 expectedR[arInProgress[0].arid].push_back(axi::IOCapAxi::RFlit_id4_data32 {
                     .rlast = 1,
                     .rresp = (uint8_t)axi::AXI4_Resp::SlvErr,
-                    .rdata = 0,
+                    .rdata = 0xaaaaaaaa, // Bluespec uses this to mean ?
                     .rid = arInProgress[0].arid,
                 });
                 // and expect the performance counter to bump
@@ -570,7 +570,7 @@ class ExposerScoreboard : public Scoreboard<DUT> {
     }
 
 public:
-    ExposerScoreboard(std::unordered_map<key_manager::KeyId, U128> secrets) : secrets(secrets),
+    ExposerScoreboard(std::unordered_map<key_manager::KeyId, U128>& secrets) : secrets(secrets),
         expectedEpochCompletions(),
         awInProgress(),
         expectedAw(),
@@ -603,19 +603,15 @@ public:
         }
 
         if (output.keyManager.bumpPerfCounterGoodWrite) {
-            fmt::println(stderr, "bumped good write at {}", tick);
             signalledGoodWrite++;
         }
         if (output.keyManager.bumpPerfCounterBadWrite) {
-            fmt::println(stderr, "bumped bad write at {}", tick);
             signalledBadWrite++;
         }
         if (output.keyManager.bumpPerfCounterGoodRead) {
-            fmt::println(stderr, "bumped good read at {}", tick);
             signalledGoodRead++;
         }
         if (output.keyManager.bumpPerfCounterBadRead) {
-            fmt::println(stderr, "bumped bad read at {}", tick);
             signalledBadRead++;
         }
 
@@ -782,25 +778,46 @@ public:
 };
 
 template<class DUT>
-class UVMValidKeyValidCapValidWrite : public ExposerStimulus<DUT> {
+class UVMValidKeyValidInitialCapValidAccess : public ExposerStimulus<DUT> {
+    CCapPerms perms;
+    
 public:
-    virtual ~UVMValidKeyValidCapValidWrite() = default;
-    virtual std::string_view name() override {
-        return "Valid-Key Valid-Cap Valid-Write";
+    virtual ~UVMValidKeyValidInitialCapValidAccess() = default;
+    virtual std::string name() override {
+        const char* perm_str = "Unk";
+        switch (perms) {
+            case CCapPerms_ReadWrite:
+                perm_str = "ReadWrite";
+                break;
+            case CCapPerms_Write:
+                perm_str = "Write";
+                break;
+            case CCapPerms_Read:
+                perm_str = "Read";
+                break;
+            default:
+                throw std::logic_error("Invalid perms");
+        }
+        return fmt::format("Valid-Key Valid-Cap Valid-{}", perm_str);
     }
-    UVMValidKeyValidCapValidWrite(uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
+    UVMValidKeyValidInitialCapValidAccess(CCapPerms perms, uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
         new BasicKeyManagerShimStimulus<DUT>(),
         new BasicSanitizedMemStimulus<DUT>(),
         seed
-    ) {
+    ), perms(perms) {
         const uint8_t axi_id = 0b1011;
         const key_manager::KeyId secret_id = 111;
         const U128 key = U128::random(this->rng);
 
         this->keyMgr->secrets[secret_id] = key;
-        auto cap_data = this->test_random_initial_resource_cap(secret_id, CCapPerms_Write);
+        auto cap_data = this->test_random_initial_resource_cap(secret_id, perms);
         auto axi_params = cap_data.valid_transfer_params(32, 20);
-        this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
+        if (perms & CCapPerms_Read) {
+            this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
+        }
+        if (perms & CCapPerms_Write) {
+            this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
+        }
     }
     virtual uint64_t getEndTime() override {
         // 100 cycles should do it
@@ -809,13 +826,112 @@ public:
 };
 
 template<class DUT>
-class UVMValidKeyValidCapValidRead : public ExposerStimulus<DUT> {
+class UVMValidKeyValidInitialCapOOBAccess : public ExposerStimulus<DUT> {
+    CCapPerms perms;
+    
 public:
-    virtual ~UVMValidKeyValidCapValidRead() = default;
-    virtual std::string_view name() override {
-        return "Valid-Key Valid-Cap Valid-Read";
+    virtual ~UVMValidKeyValidInitialCapOOBAccess() = default;
+    virtual std::string name() override {
+        const char* perm_str = "Unk";
+        switch (perms) {
+            case CCapPerms_ReadWrite:
+                perm_str = "ReadWrite";
+                break;
+            case CCapPerms_Write:
+                perm_str = "Write";
+                break;
+            case CCapPerms_Read:
+                perm_str = "Read";
+                break;
+            default:
+                throw std::logic_error("Invalid perms");
+        }
+        return fmt::format("Valid-Key Valid-Cap OOB-{}", perm_str);
     }
-    UVMValidKeyValidCapValidRead(uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
+    UVMValidKeyValidInitialCapOOBAccess(CCapPerms perms, uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
+        new BasicKeyManagerShimStimulus<DUT>(),
+        new BasicSanitizedMemStimulus<DUT>(),
+        seed
+    ), perms(perms) {
+        const uint8_t axi_id = 0b1011;
+        const key_manager::KeyId secret_id = 111;
+        const U128 key = U128::random(this->rng);
+
+        this->keyMgr->secrets[secret_id] = key;
+        auto cap_data = this->test_random_initial_resource_cap(secret_id, perms);
+        auto axi_params = cap_data.valid_transfer_params(32, 20);
+        axi_params.address = cap_data.cap_base - 4096;
+        if (perms & CCapPerms_Read) {
+            this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
+        }
+        if (perms & CCapPerms_Write) {
+            this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
+        }
+    }
+    virtual uint64_t getEndTime() override {
+        // 100 cycles should do it
+        return 1000;
+    }
+};
+
+template<class DUT>
+class UVMInvalidKeyAccess : public ExposerStimulus<DUT> {
+    CCapPerms perms;
+    
+public:
+    virtual ~UVMInvalidKeyAccess() = default;
+    virtual std::string name() override {
+        const char* perm_str = "Unk";
+        switch (perms) {
+            case CCapPerms_ReadWrite:
+                perm_str = "ReadWrite";
+                break;
+            case CCapPerms_Write:
+                perm_str = "Write";
+                break;
+            case CCapPerms_Read:
+                perm_str = "Read";
+                break;
+            default:
+                throw std::logic_error("Invalid perms");
+        }
+        return fmt::format("Invalid-Key {}", perm_str);
+    }
+    UVMInvalidKeyAccess(CCapPerms perms, uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
+        new BasicKeyManagerShimStimulus<DUT>(),
+        new BasicSanitizedMemStimulus<DUT>(),
+        seed
+    ), perms(perms) {
+        const uint8_t axi_id = 0b1011;
+        const key_manager::KeyId secret_id = 111;
+        const U128 key = U128::random(this->rng);
+
+        this->keyMgr->secrets[secret_id] = key;
+        // Use the wrong secret key ID
+        auto cap_data = this->test_random_initial_resource_cap(90, perms);
+        auto axi_params = cap_data.valid_transfer_params(32, 20);
+        axi_params.address = cap_data.cap_base - 4096;
+        if (perms & CCapPerms_Read) {
+            this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
+        }
+        if (perms & CCapPerms_Write) {
+            this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
+        }
+    }
+    virtual uint64_t getEndTime() override {
+        // 100 cycles should do it
+        return 1000;
+    }
+};
+
+template<class DUT>
+class UVMValidKeyValidCapBadPerms : public ExposerStimulus<DUT> {
+public:
+    virtual ~UVMValidKeyValidCapBadPerms() = default;
+    virtual std::string name() override {
+        return "Valid-Key Valid-Cap BadPerms";
+    }
+    UVMValidKeyValidCapBadPerms(uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
         new BasicKeyManagerShimStimulus<DUT>(),
         new BasicSanitizedMemStimulus<DUT>(),
         seed
@@ -825,9 +941,56 @@ public:
         const U128 key = U128::random(this->rng);
 
         this->keyMgr->secrets[secret_id] = key;
-        auto cap_data = this->test_random_initial_resource_cap(secret_id, CCapPerms_Read);
-        auto axi_params = cap_data.valid_transfer_params(32, 20);
-        this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
+        {
+            auto cap_data = this->test_random_initial_resource_cap(secret_id, CCapPerms_Read);
+            auto axi_params = cap_data.valid_transfer_params(32, 20);
+            this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
+        }
+        {
+            auto cap_data = this->test_random_initial_resource_cap(secret_id, CCapPerms_Write);
+            auto axi_params = cap_data.valid_transfer_params(32, 20);
+            this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
+        }
+    }
+    virtual uint64_t getEndTime() override {
+        // 100 cycles should do it
+        return 1000;
+    }
+};
+
+template<class DUT>
+class UVMValidKeyBadSigCap : public ExposerStimulus<DUT> {
+public:
+    virtual ~UVMValidKeyBadSigCap() = default;
+    virtual std::string name() override {
+        return "Valid-Key BadSig-Cap";
+    }
+    UVMValidKeyBadSigCap(uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
+        new BasicKeyManagerShimStimulus<DUT>(),
+        new BasicSanitizedMemStimulus<DUT>(),
+        seed
+    ) {
+        const uint8_t axi_id = 0b1011;
+        const key_manager::KeyId secret_id = 111;
+        const U128 key = U128::random(this->rng);
+
+        this->keyMgr->secrets[secret_id] = key;
+        const U128 badSignature = {
+            .top = 0x01020304050607,
+            .bottom = 0x08090a0b0c0d0e0f,
+        };
+        {
+            auto cap_data = this->test_random_initial_resource_cap(secret_id, CCapPerms_Read);
+            badSignature.to_le(cap_data.cap.signature);
+            auto axi_params = cap_data.valid_transfer_params(32, 20);
+            this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
+        }
+        {
+            auto cap_data = this->test_random_initial_resource_cap(secret_id, CCapPerms_Write);
+            badSignature.to_le(cap_data.cap.signature);
+            auto axi_params = cap_data.valid_transfer_params(32, 20);
+            this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
+        }
     }
     virtual uint64_t getEndTime() override {
         // 100 cycles should do it
@@ -837,7 +1000,7 @@ public:
 
 template<class DUT>
 struct ValidKeyValidCapValidWrite : public ExposerCycleTest<DUT> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "Valid-Key Valid-Cap Valid-Write";
     }
     virtual std::pair<ShimmedExposerInputs, ShimmedExposerOutputs> stimuli() {
@@ -926,7 +1089,7 @@ struct ValidKeyValidCapValidWrite : public ExposerCycleTest<DUT> {
 
 template<class DUT>
 struct ValidKeyValidCapValidRead : public ExposerCycleTest<DUT> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "Valid-Key Valid-Cap Valid-Read";
     }
     virtual std::pair<ShimmedExposerInputs, ShimmedExposerOutputs> stimuli() {
@@ -1000,7 +1163,7 @@ struct ValidKeyValidCapValidRead : public ExposerCycleTest<DUT> {
 
 template<class DUT>
 struct ValidReadThenValidWrite : public ExposerCycleTest<DUT> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "Valid-Key Valid-Cap Valid-Read then Valid-Key Valid-Cap Valid-Write";
     }
     virtual std::pair<ShimmedExposerInputs, ShimmedExposerOutputs> stimuli() {
@@ -1132,7 +1295,7 @@ struct ValidReadThenValidWrite : public ExposerCycleTest<DUT> {
 
 template<class DUT>
 struct OOBWrite_Passthrough : public ExposerCycleTest<DUT> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "Valid-Key Valid-Cap OOB-Write - Passthrough";
     }
     virtual std::pair<ShimmedExposerInputs, ShimmedExposerOutputs> stimuli() {
@@ -1212,7 +1375,7 @@ struct OOBWrite_Passthrough : public ExposerCycleTest<DUT> {
 
 template<class DUT>
 struct OOBRead_Passthrough : public ExposerCycleTest<DUT> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "Valid-Key Valid-Cap OOB-Read - Passthrough";
     }
     virtual std::pair<ShimmedExposerInputs, ShimmedExposerOutputs> stimuli() {
@@ -1288,7 +1451,7 @@ struct OOBRead_Passthrough : public ExposerCycleTest<DUT> {
 
 template<class DUT>
 struct MismatchedPerms_Passthrough : public ExposerCycleTest<DUT> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "Valid-Key Valid-Cap BadPerms - Passthrough";
     }
     virtual std::pair<ShimmedExposerInputs, ShimmedExposerOutputs> stimuli() {
@@ -1365,7 +1528,7 @@ struct MismatchedPerms_Passthrough : public ExposerCycleTest<DUT> {
 
 template<class DUT>
 struct InvalidSig_Passthrough : public ExposerCycleTest<DUT> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "Valid-Key BadSig-Cap Write - Passthrough";
     }
     virtual std::pair<ShimmedExposerInputs, ShimmedExposerOutputs> stimuli() {
@@ -1452,7 +1615,7 @@ struct InvalidSig_Passthrough : public ExposerCycleTest<DUT> {
 
 template<class DUT>
 struct NewEpoch_NoAccesses : public ExposerCycleTest<DUT> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "New Epoch - No Accesses";
     }
     virtual std::pair<ShimmedExposerInputs, ShimmedExposerOutputs> stimuli() {
@@ -1468,7 +1631,7 @@ struct NewEpoch_NoAccesses : public ExposerCycleTest<DUT> {
 
 template<class DUT>
 struct NewEpoch_PreAccess : public ExposerCycleTest<DUT> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "New Epoch - Pre-Access";
     }
     virtual std::pair<ShimmedExposerInputs, ShimmedExposerOutputs> stimuli() {
@@ -1585,7 +1748,7 @@ struct NewEpoch_PreAccess : public ExposerCycleTest<DUT> {
 
 template<class DUT>
 struct NewEpoch_SameCycle : public ExposerCycleTest<DUT> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "New Epoch - Same Cycle as Access";
     }
     virtual std::pair<ShimmedExposerInputs, ShimmedExposerOutputs> stimuli() {
@@ -1701,7 +1864,7 @@ struct NewEpoch_SameCycle : public ExposerCycleTest<DUT> {
 
 template<class DUT>
 struct NewEpoch_PostAccess : public ExposerCycleTest<DUT> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "New Epoch - Post-Access";
     }
     virtual std::pair<ShimmedExposerInputs, ShimmedExposerOutputs> stimuli() {
@@ -1817,7 +1980,7 @@ struct NewEpoch_PostAccess : public ExposerCycleTest<DUT> {
 
 template<class DUT>
 struct NewEpoch_BetweenAccesses : public ExposerCycleTest<DUT> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "Valid-Key Valid-Cap Valid-Read; New Epoch; Invalid-Key Write - Passthrough";
     }
     virtual std::pair<ShimmedExposerInputs, ShimmedExposerOutputs> stimuli() {
@@ -1982,7 +2145,7 @@ struct NewEpoch_BetweenAccesses : public ExposerCycleTest<DUT> {
 
 // template<class DUT>
 // struct TODO : public ExposerCycleTest<DUT> {
-//     virtual std::string_view name() override {
+//     virtual std::string name() override {
 //         return "TODO";
 //     }
 //     virtual std::pair<ShimmedExposerInputs, ShimmedExposerOutputs> stimuli() {
@@ -2003,7 +2166,7 @@ int main(int argc, char** argv) {
         new ValidKeyValidCapValidWrite<VmkSimpleIOCapExposer_Tb>(),
         new ValidKeyValidCapValidRead<VmkSimpleIOCapExposer_Tb>(),
         new ValidReadThenValidWrite<VmkSimpleIOCapExposer_Tb>(),
-        // TODO Test caps with invalid keys are rejected
+        // TODO Test caps with invalid keys are rejected - DONE below
         // TODO test valid cap with 1 cav
         // TODO test valid cap with 2 cav
         // Test valid cap with out-of-cap-bounds access
@@ -2014,8 +2177,8 @@ int main(int argc, char** argv) {
         // Test invalid caps (i.e. bad signatures) with valid keys are rejected
         new InvalidSig_Passthrough<VmkSimpleIOCapExposer_Tb>(),
 
-        // TODO test that invalid caps don't let their flits through (contingent on switch flip)
-        // TODO test the above for reads and writes
+        // TODO test that invalid caps don't let their flits through (contingent on switch flip) - DONE below
+        // TODO test the above for reads and writes - DONE? below
 
         // TODO test inbalanced completions > starts behaviour
 
@@ -2034,11 +2197,30 @@ int main(int argc, char** argv) {
 
 
         // UVM-style testing
+        // TODO add tests for above todos, consider revocation
         new ExposerUVMishTest(
-            new UVMValidKeyValidCapValidWrite<VmkSimpleIOCapExposer_Tb>()
+            new UVMValidKeyValidInitialCapValidAccess<VmkSimpleIOCapExposer_Tb>(CCapPerms_Read)
         ),
         new ExposerUVMishTest(
-            new UVMValidKeyValidCapValidRead<VmkSimpleIOCapExposer_Tb>()
+            new UVMValidKeyValidInitialCapValidAccess<VmkSimpleIOCapExposer_Tb>(CCapPerms_Write)
+        ),
+        new ExposerUVMishTest(
+            new UVMValidKeyValidInitialCapValidAccess<VmkSimpleIOCapExposer_Tb>(CCapPerms_ReadWrite)
+        ),
+        new ExposerUVMishTest(
+            new UVMValidKeyValidInitialCapOOBAccess<VmkSimpleIOCapExposer_Tb>(CCapPerms_Read)
+        ),
+        new ExposerUVMishTest(
+            new UVMValidKeyValidInitialCapOOBAccess<VmkSimpleIOCapExposer_Tb>(CCapPerms_Write)
+        ),
+        new ExposerUVMishTest(
+            new UVMValidKeyValidCapBadPerms<VmkSimpleIOCapExposer_Tb>()
+        ),
+        new ExposerUVMishTest(
+            new UVMValidKeyBadSigCap<VmkSimpleIOCapExposer_Tb>()
+        ),
+        new ExposerUVMishTest(
+            new UVMInvalidKeyAccess<VmkSimpleIOCapExposer_Tb>(CCapPerms_ReadWrite)
         )
     };
     for (auto* test : tests) {

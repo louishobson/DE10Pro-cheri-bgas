@@ -17,7 +17,7 @@
 struct TestBase {
     virtual ~TestBase() = default;
 
-    virtual std::string_view name() = 0;
+    virtual std::string name() = 0;
     virtual bool run(int argc, char** argv) = 0;
 };
 
@@ -208,7 +208,7 @@ template<class DUT>
 class StimulusGenerator {
 public:
     virtual ~StimulusGenerator() {}
-    virtual std::string_view name() = 0;
+    virtual std::string name() = 0;
     virtual void driveInputsForTick(DUT& dut, uint64_t tick) = 0;
     virtual uint64_t getEndTime() = 0;
 };
@@ -233,7 +233,7 @@ protected:
 public:
     UVMishTest(Scoreboard<DUT>* scoreboard, StimulusGenerator<DUT>* generator) : scoreboard(scoreboard), generator(generator) {}
     virtual ~UVMishTest() override = default;
-    virtual std::string_view name() {
+    virtual std::string name() override {
         return generator->name();
     }
     virtual bool run(int argc, char** argv) override {

@@ -14,7 +14,7 @@ using KeyManagerCycleTest = CycleTest<DUT, KeyManagerInput, KeyManagerOutput>;
 
 template<class DUT>
 struct WriteAndEnableKeyTest : public KeyManagerCycleTest<DUT> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "Write and enable key over AXI";
     }
     virtual std::pair<KeyManagerInputs, KeyManagerOutputs> stimuli() {
@@ -154,7 +154,7 @@ struct WriteAndEnableKeyTest : public KeyManagerCycleTest<DUT> {
 
 template<class DUT>
 struct WriteAndEnableKeyTest_EventBased : public KeyManagerCycleTest<DUT> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "Write and enable key over AXI - event-based construction";
     }
     virtual std::pair<KeyManagerInputs, KeyManagerOutputs> stimuli() {
@@ -229,7 +229,7 @@ struct WriteAndEnableKeyTest_EventBased : public KeyManagerCycleTest<DUT> {
 
 template<class DUT>
 struct InvalidationEpochs : public KeyManagerCycleTest<DUT> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "Invalidation Epochs";
     }
     virtual std::pair<KeyManagerInputs, KeyManagerOutputs> stimuli() {
@@ -347,7 +347,7 @@ struct InvalidationEpochs : public KeyManagerCycleTest<DUT> {
 
 template<class DUT>
 struct OneKeyRequestPerCycle : public KeyManagerCycleTest<DUT> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "Key Request - 1/cycle Throughput";
     }
     virtual std::pair<KeyManagerInputs, KeyManagerOutputs> stimuli() {
@@ -371,7 +371,7 @@ struct OneKeyRequestPerCycle : public KeyManagerCycleTest<DUT> {
 
 template<class DUT>
 struct PerformanceCounting : public CycleTest<DUT, KeyManagerInput, KeyManagerOutput> {
-    virtual std::string_view name() override {
+    virtual std::string name() override {
         return "Performance Counting";
     }
     virtual std::pair<KeyManagerInputs, KeyManagerOutputs> stimuli() override {
@@ -429,7 +429,7 @@ struct PerformanceCounting : public CycleTest<DUT, KeyManagerInput, KeyManagerOu
 // Template for further test creation
 
 // struct TODO : public KeyManagerCycleTest {
-//     virtual std::string_view name() override {
+//     virtual std::string name() override {
 //         return "TODO";
 //     }
 //     virtual std::pair<KeyManagerInputs, KeyManagerOutputs> stimuli() {
