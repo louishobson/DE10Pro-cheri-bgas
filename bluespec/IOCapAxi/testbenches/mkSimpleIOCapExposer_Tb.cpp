@@ -136,6 +136,7 @@ class BasicSanitizedMemStimulus : public SanitizedMemStimulus<DUT> {
     // Flits which have arrived before their corresponding AW
     std::deque<axi::SanitizedAxi::WFlit_data32> unexpectedWFlits;
     std::deque<uint64_t> wFlitsExpectedPerBurst;
+    std::deque<axi::SanitizedAxi::BFlit_id4> pendingBInputs;
     std::deque<axi::SanitizedAxi::BFlit_id4> bInputs;
     std::deque<axi::SanitizedAxi::RFlit_id4_data32> rInputs;
 public:
@@ -161,6 +162,10 @@ public:
             POP_OUTPUT(exposer4x32_sanitizedOut_aw, flit);
             auto awFlit = axi::SanitizedAxi::AWFlit_id4_addr64_user0::unpack(stdify_array(flit));
             wFlitsExpectedPerBurst.push_back(awFlit.awlen + 1);
+            pendingBInputs.push_back(axi::SanitizedAxi::BFlit_id4 {
+                .bresp = (uint8_t)axi::AXI4_Resp::Okay,
+                .bid = awFlit.awid
+            });
         }
 
         if (CANPEEK_OUTPUT(exposer4x32_sanitizedOut_w)) {
@@ -178,6 +183,12 @@ public:
             if (wFlitsExpectedPerBurst.front() == 0) {
                 throw std::logic_error("BasicSanitizedMemStimulus had a burst of 0 flits expected");
             } else if (wFlitsExpectedPerBurst.front() == 1) {
+                // There should be a pendingBInput as well, enqueue that for sending
+                if (pendingBInputs.empty()) {
+                    throw std::logic_error("BasicSanitizedMemStimulus popped off wFlitsExpectedPerBurst without a corresponding B input for that burst");
+                }
+                bInputs.push_back(pendingBInputs.front());
+                pendingBInputs.pop_front();
                 wFlitsExpectedPerBurst.pop_front();
                 assert(wFlit.wlast == 1);
             } else {
@@ -302,13 +313,6 @@ public:
     }
 };
 
-#undef POP_OUTPUT
-#undef PEEK_OUTPUT
-#undef CANPEEK_OUTPUT
-#undef NOPUT_INPUT
-#undef PUT_INPUT
-#undef CANPUT_INPUT
-
 
 template<class DUT>
 class ExposerScoreboard : public Scoreboard<DUT> {
@@ -348,8 +352,9 @@ class ExposerScoreboard : public Scoreboard<DUT> {
     std::vector<ShimmedExposerInput> inputs;
     std::vector<ShimmedExposerOutput> outputs;
 
-    virtual void onKeyMngrNewEpoch(key_manager::Epoch newEpoch) {
-        throw test_failure("ExposerScoreboard base class can't handle getting new key epoch!");
+    virtual void onKeyMngrNewEpoch(key_manager::Epoch nextEpoch) {
+        fmt::println(stderr, "Note - ExposerScoreboard base class doesn't automatically handle keys when getting new key epoch.");
+        expectedEpochCompletions.push_back((nextEpoch - 1) & 1);
     }
     virtual void onKeyMngrKeyResponse(key_manager::KeyResponse response) {
         std::optional<U128> expected = std::nullopt;
@@ -997,6 +1002,86 @@ public:
         return 1000;
     }
 };
+
+template<class DUT>
+class UVMTransactionsBetweenRevocations : public ExposerStimulus<DUT> {
+    uint64_t n_revocations;
+    uint8_t epoch = 0;
+public:
+    virtual ~UVMTransactionsBetweenRevocations() = default;
+    virtual std::string name() override {
+        return fmt::format("Valid-Key Valid-Cap Valid-ReadWrite with {} revocations", n_revocations);
+    }
+    UVMTransactionsBetweenRevocations(uint64_t n_revocations, uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
+        new BasicKeyManagerShimStimulus<DUT>(),
+        new BasicSanitizedMemStimulus<DUT>(),
+        seed
+    ), n_revocations(n_revocations) {
+    }
+    virtual void driveInputsForTick(DUT& dut, uint64_t tick) {
+        if (tick % 5000 == 0) {
+            // Enqueue 450 cycles worth of transactions, including creating secret keys
+            // TODO multiple transactions, mixing key ids?
+
+            const key_manager::KeyId secret_id = 111;
+            const U128 key = U128::random(this->rng);
+            const uint8_t axi_id = 0b1011;
+
+            this->keyMgr->secrets[secret_id] = key;
+            {
+                auto cap_data = this->test_random_initial_resource_cap(secret_id, CCapPerms_Read);
+                auto axi_params = cap_data.valid_transfer_params(32, 10);
+                this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
+            }
+            {
+                auto cap_data = this->test_random_initial_resource_cap(secret_id, CCapPerms_Write);
+                auto axi_params = cap_data.valid_transfer_params(32, 10);
+                this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
+            }
+        }
+
+        ExposerStimulus<DUT>::driveInputsForTick(dut, tick);
+
+        if (tick % 5000 == 4500) {
+            // Transactions should be over, drive the revocation signal
+            if (!this->awInputs.empty() || !this->arInputs.empty() || !this->wInputs.empty()) {
+                throw std::logic_error(
+                    fmt::format("Can't revoke yet - transactions still outstanding {} {} {}",
+                        this->awInputs,
+                        this->arInputs,
+                        this->wInputs
+                    )
+                );
+            }
+
+            if (CANPUT_INPUT(keyStoreShim_newEpochRequests)) {
+                epoch = (epoch + 1) & 1;
+                PUT_INPUT(keyStoreShim_newEpochRequests, epoch);
+            } else {
+                throw std::logic_error("Couldn't put into newEpochRequests!");
+            }
+
+            // Delete secret keys
+            this->keyMgr->secrets.clear();
+        } else {
+            NOPUT_INPUT(keyStoreShim_newEpochRequests);
+        }
+    }
+    virtual uint64_t getEndTime() override {
+        // Each revocation = 450 cycles of transactions then 50 for revocation
+        // Plus some spare cycles - TODO why???
+        return 5000 * (n_revocations) + 300;
+    }
+};
+
+
+#undef POP_OUTPUT
+#undef PEEK_OUTPUT
+#undef CANPEEK_OUTPUT
+#undef NOPUT_INPUT
+#undef PUT_INPUT
+#undef CANPUT_INPUT
+
 
 template<class DUT>
 struct ValidKeyValidCapValidWrite : public ExposerCycleTest<DUT> {
@@ -2221,6 +2306,10 @@ int main(int argc, char** argv) {
         ),
         new ExposerUVMishTest(
             new UVMInvalidKeyAccess<VmkSimpleIOCapExposer_Tb>(CCapPerms_ReadWrite)
+        ),
+        // 5 cycles of revocations
+        new ExposerUVMishTest(
+            new UVMTransactionsBetweenRevocations<VmkSimpleIOCapExposer_Tb>(5)
         )
     };
     for (auto* test : tests) {

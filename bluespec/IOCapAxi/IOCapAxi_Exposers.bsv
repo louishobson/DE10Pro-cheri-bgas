@@ -616,6 +616,9 @@ module mkSimpleIOCapExposerV2#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
         let initiated = (initiatedRead ? 1 : 0) + (initiatedWrite ? 1 : 0);
         let completed = (completedRead ? 1 : 0) + (completedWrite ? 1 : 0);
 
+        if (initiatedRead || initiatedWrite || completedRead || completedWrite) begin
+            $display("IOCap - track_epoch - outstandingAccesses = ", outstandingAccessesInCurrentEpoch, " initiated = ", initiated, " completed = ", completed, " init r/w ", fshow(initiatedRead), fshow(initiatedWrite), " comp r/w ", fshow(completedRead), fshow(completedWrite));
+        end
         let newOutstandingAccesses = outstandingAccessesInCurrentEpoch + initiated - completed;
         // TODO detect overflow? negative or positive?
 
@@ -625,6 +628,7 @@ module mkSimpleIOCapExposerV2#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
                 wantEpochIncrease <= False;
                 currentEpoch <= nextEpoch;
                 keyStore.finishedEpochs.put(currentEpoch);
+                $display("IOCap - track_epoch - Finishing after newOutstandingAccesses = 0");
             end
         end else begin
             // Otherwise start_epoch_change may have pulled a new request to transition,
@@ -632,16 +636,19 @@ module mkSimpleIOCapExposerV2#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
             case (requestedNextEpoch.wget()) matches 
                 tagged Invalid : noAction;
                 tagged Valid .requestedNextEpoch : begin
+                    $display("IOCap - track_epoch - wantEpochIncrease=False, requestedNextEpoch=", fshow(requestedNextEpoch));
                     // If there are no outstanding accesses, finish immediately
                     // TODO may create a too-long path
                     if (newOutstandingAccesses == 0) begin
                         wantEpochIncrease <= False;
                         currentEpoch <= requestedNextEpoch;
                         keyStore.finishedEpochs.put(currentEpoch);
+                        $display("IOCap - track_epoch - Immediately finishing");
                     end else begin
                         // If there are outstanding accesses, note that a new epoch is imminent
                         wantEpochIncrease <= True;
                         nextEpoch <= requestedNextEpoch;
+                        $display("IOCap - track_epoch - Delaying for newOutstandingAccesses = ", fshow(newOutstandingAccesses));
                     end
                 end
             endcase
@@ -864,7 +871,7 @@ module mkSimpleIOCapExposerV2#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
         // Pass the responses from the b channel
         bOut.enq(bIn.first);
         bIn.deq();
-        // Each B flit signals the end of a valid write transaction
+        // Each B flit signals the end of a write transaction we received an AW for - valid or not
         completedWrite.send();
     endrule
 
@@ -872,23 +879,26 @@ module mkSimpleIOCapExposerV2#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
         // Insert the b into the stream
         bOut.enq(invalidBToInsert.first);
         invalidBToInsert.deq();
-        // DON'T signal completedWrite, because that's for valid transactions only
+        completedWrite.send();
     endrule
 
-    // If there isn't an invalid-r-flit to insert, just pass through valid completions from bIn to bOut
+    // If there isn't an invalid-r-flit to insert, just pass through valid completions from rIn to rOut
     rule passthru_r if (!invalidRToInsert.notEmpty);
         // Pass the responses from the r channel
         rOut.enq(rIn.first);
         rIn.deq();
-        // Each R flit signals the end of a valid read transaction
-        completedRead.send();
+        // Each R flit signals the end of a read transaction we received an AR for - valid or not
+        // The read is only completed once the last flit in the burst has been sent
+        if (rIn.first.rlast) begin
+            completedRead.send();
+        end
     endrule
 
     rule insert_invalid_r if (invalidRToInsert.notEmpty);
         // Insert the r into the stream
         rOut.enq(invalidRToInsert.first);
         invalidRToInsert.deq();
-        // DON'T signal completedRead, because that's for valid transactions only
+        completedRead.send();
     endrule
 
     interface iocapsIn = interface IOCapAXI4_Slave;
