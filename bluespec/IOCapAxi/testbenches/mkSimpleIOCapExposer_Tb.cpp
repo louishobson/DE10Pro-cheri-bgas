@@ -2308,6 +2308,7 @@ int main(int argc, char** argv) {
             new UVMInvalidKeyAccess<VmkSimpleIOCapExposer_Tb>(CCapPerms_ReadWrite)
         ),
         // 5 cycles of revocations
+        // TODO test this with valid and invalid transactions!
         new ExposerUVMishTest(
             new UVMTransactionsBetweenRevocations<VmkSimpleIOCapExposer_Tb>(5)
         )
