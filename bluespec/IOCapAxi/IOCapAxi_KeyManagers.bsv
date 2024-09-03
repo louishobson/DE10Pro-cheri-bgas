@@ -6,11 +6,20 @@ import BRAM :: *;
 import Vector :: *;
 import BlueBasics :: *;
 import LeftShift :: *;
+import IOCapAxi_ErrorUnit :: *;
 
 typedef UInt#(1) Epoch;
 typedef Bit#(128) Key;
 // 0x1000 bytes => 4096 bytes => 256 keys => 8 bit ID
 typedef Bit#(8) KeyId;
+
+typedef union tagged {
+    void KeyValidWhileInvalidating;
+    void InvalidRead;
+    void InvalidStatusWrite;
+    void InvalidDataWrite;
+    void PrematurelyCompletedEpoch;
+} KeyManagerError deriving (Bits, FShow);
 
 interface IOCap_KeyManager#(numeric type t_data);
     method Action bumpPerfCounterGoodWrite();
@@ -25,6 +34,9 @@ interface IOCap_KeyManager#(numeric type t_data);
     interface Sink#(Epoch) finishedEpochs;
 
     interface AXI4Lite_Slave#(TLog#('h2000), t_data, 0, 0, 0, 0, 0) hostFacingSlave;
+
+    // There aren't 8 possible values, there are 5 - but KeyManagerError is encoded in 3 bits.
+    interface ErrorUnit#(KeyManagerError, 8) errorUnit;
 endinterface
 
 module mkSimpleIOCapKeyManager(IOCap_KeyManager#(t_data)) provisos (
@@ -46,6 +58,8 @@ module mkSimpleIOCapKeyManager(IOCap_KeyManager#(t_data)) provisos (
     //                                           - bad write
     //                                           - good read
     //                                           - bad read
+
+    ErrorUnit#(KeyManagerError, 8) error <- mkErrorUnit;
 
     // Need a BRAM with key data
     // Set up the secret BRAM
@@ -102,8 +116,7 @@ module mkSimpleIOCapKeyManager(IOCap_KeyManager#(t_data)) provisos (
     rule sanity_check;
         if (waitingForEpochToInvalidate matches tagged Valid .keyToInvalidate) begin
             if (keyValid[keyToInvalidate] == 1) begin
-                // TODO use errorunit
-                $error("Key marked as valid while we're trying to invalidate it");
+                error.assertError(tagged KeyValidWhileInvalidating);
             end
         end
     endrule
@@ -172,8 +185,7 @@ module mkSimpleIOCapKeyManager(IOCap_KeyManager#(t_data)) provisos (
                 response = tagged Valid truncate(contents);
             end
         end else begin
-            // TODO signal failure
-            $error("IOCap - mkSimpleIOCapKeyManager - Read to invalid address");
+            error.assertError(tagged InvalidRead);
         end
 
         let flit = ?;
@@ -246,8 +258,7 @@ module mkSimpleIOCapKeyManager(IOCap_KeyManager#(t_data)) provisos (
 
                 validWrite = True;
             end else begin
-                // TODO signal failure
-                $error("IOCap - mkSimpleIOCapKeyManager - Invalid status write");
+                error.assertError(tagged InvalidStatusWrite);
             end
 
         // Writes to [0x1000, 0x2000) write to key (requires the key is revoked)
@@ -287,8 +298,7 @@ module mkSimpleIOCapKeyManager(IOCap_KeyManager#(t_data)) provisos (
                 
                 validWrite = True;
             end else begin
-                // TODO signal failure
-                $error("IOCap - mkSimpleIOCapKeyManager - Invalid data write");
+                error.assertError(tagged InvalidDataWrite);
             end
         end
 
@@ -310,8 +320,7 @@ module mkSimpleIOCapKeyManager(IOCap_KeyManager#(t_data)) provisos (
 
     rule epoch_complete_sanitycheck(waitingForEpochToInvalidate matches tagged Invalid);
         epochCompleteResponse.deq();
-        // TODO signal failure
-        $error("IOCap - mkSimpleIOCapKeyManager - got epochCompleteResponse while not in the middle of an epoch.");
+        error.assertError(tagged PrematurelyCompletedEpoch);
     endrule 
 
     // Doesn't conflict with handle_write, which could *initiate* a new epoch,
@@ -381,4 +390,6 @@ module mkSimpleIOCapKeyManager(IOCap_KeyManager#(t_data)) provisos (
     interface newEpochRequests = toSource(newEpochRequest);
     interface finishedEpochs = toSink(epochCompleteResponse);
     interface hostFacingSlave = axiShim.slave;
+
+    interface errorUnit = error;
 endmodule
