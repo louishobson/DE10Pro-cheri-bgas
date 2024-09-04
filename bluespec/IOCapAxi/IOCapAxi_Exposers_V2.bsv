@@ -18,6 +18,8 @@ import Cap2024_02 :: *;
 // NOT AXI COMPLIAMT
 // - doesn't support WRAP bursts
 // - doesn't correctly handle ordering for same-ID transaction responses if one of those transactions is correctly authenticated and the other isn't.
+// Changes from V1
+// - correctly blocks invalid transactions
 module mkSimpleIOCapExposerV2#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCapSingleExposer#(t_id, t_data)) provisos (
     Mul#(TDiv#(t_keystore_data, 8), 8, t_keystore_data),
     Add#(t_keystore_data, a__, 128),
@@ -142,11 +144,8 @@ module mkSimpleIOCapExposerV2#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
     FIFOF#(AuthenticatedFlit#(AXI4_AWFlit#(t_id, 64, 0))) awPreCheckBuffer <- mkFIFOF;
     FIFOF#(AuthenticatedFlit#(AXI4_ARFlit#(t_id, 64, 0))) arPreCheckBuffer <- mkFIFOF;
 
-    NumProxy#(4) poolSize = ?;
-    // TODO test throughput of these vs non-pooled
-    IOCapAxiChecker#(AXI4_AWFlit#(t_id, 64, 0)) awChecker <- mkInOrderIOCapAxiCheckerPool(poolSize);
-    // TODO could do out-of-order for ar
-    IOCapAxiChecker#(AXI4_ARFlit#(t_id, 64, 0)) arChecker <- mkInOrderIOCapAxiCheckerPool(poolSize);
+    IOCapAxiChecker#(AXI4_AWFlit#(t_id, 64, 0)) awChecker <- mkSimpleIOCapAxiChecker;
+    IOCapAxiChecker#(AXI4_ARFlit#(t_id, 64, 0)) arChecker <- mkSimpleIOCapAxiChecker;
 
     function KeyId keyIdForFlit(AuthenticatedFlit#(t) authFlit);
         return truncate(authFlit.cap.secret_key_id);

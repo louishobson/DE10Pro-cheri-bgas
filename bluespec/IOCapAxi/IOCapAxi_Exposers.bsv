@@ -16,8 +16,11 @@ import Cap2024_02 :: *;
 
 import IOCapAxi_Exposers_V1 :: *;
 import IOCapAxi_Exposers_V2 :: *;
+import IOCapAxi_Exposers_V3 :: *;
+
 export IOCapAxi_Exposers_V1 :: *;
 export IOCapAxi_Exposers_V2 :: *;
+export IOCapAxi_Exposers_V3 :: *;
 
 // An IOCapSingleExposer that strips off capability metadata instead of using it
 module mkStrippingIOCapExposer(IOCapSingleExposer#(t_id, t_data));

@@ -1,10 +1,10 @@
 #include <verilated.h>
-#include "VmkSimpleIOCapExposerV2_Tb.h"
+#include "VmkSimpleIOCapExposerV3_Tb.h"
 
 #include "exposer_tests_uvm.h"
 #include "exposer_tests_legacy.h"
 
-using TheDUT = VmkSimpleIOCapExposerV2_Tb;
+using TheDUT = VmkSimpleIOCapExposerV3_Tb;
 
 int main(int argc, char** argv) {
     std::vector<TestBase*> tests = {

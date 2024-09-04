@@ -15,27 +15,48 @@ import IOCapAxi_Checkers :: *;
 import Cap2024_02 :: *;
 
 
-/// Doesn't support AXI WRAP bursts
-/// Doesn't block invalid transactions, just bumps performance counters
-module mkSimpleIOCapExposerV1#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCapSingleExposer#(t_id, t_data)) provisos (
+// NOT AXI COMPLIAMT
+// - doesn't support WRAP bursts
+// - doesn't correctly handle ordering for same-ID transaction responses if one of those transactions is correctly authenticated and the other isn't.
+// Changes from V1
+// - correctly blocks invalid transactions
+// Changes from V2
+// - uses a pool of checkers
+module mkSimpleIOCapExposerV3#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCapSingleExposer#(t_id, t_data)) provisos (
     Mul#(TDiv#(t_keystore_data, 8), 8, t_keystore_data),
     Add#(t_keystore_data, a__, 128),
     Add#(TDiv#(t_keystore_data, 8), b__, 16)
 );
     // Doesn't support WRAP bursts right now
 
+    // AW transactions come in encoding an IOCap with a standard AW flit. The IOCap and flit are examined, and if verified they are passed on through awOut.
     AddressChannelCapUnwrapper#(AXI4_AWFlit#(t_id, 64, 3), AXI4_AWFlit#(t_id, 64, 0)) awIn <- mkSimpleAddressChannelCapUnwrapper;
     FIFOF#(AXI4_AWFlit#(t_id, 64, 0)) awOut <- mkFIFOF;
 
-    FIFOF#(AXI4_WFlit#(t_data, 0)) wff <- mkFIFOF;
+    // W flits are passed through or dropped depending on the AW transactions they map to - if the AW transaction is valid, its w flits go through.
+    // If the AW transaction is invalid, the w flits are dropped.
+    // This is managed by a credit system in wValve.
+    FIFOF#(AXI4_WFlit#(t_data, 0)) wIn <- mkSizedFIFOF(50); // TODO figure out the correct size
+    CreditValve#(AXI4_WFlit#(t_data, 0), 32) wValve <- mkSimpleCreditValve(toSource(wIn));
 
+    // B responses from the subordinate (de facto for *valid* requests) are sent through to the master, interleaved with responses from invalid requests.
+    // This interleaving is currently done without considering order.
+    // TODO that's bad! - I need to track the outstanding IDs and make sure that "Transaction responses with the same ID are returned in the same order as the requests were issued."
+    // as per the AXI Spec Issue K A6.3
     FIFOF#(AXI4_BFlit#(t_id, 0)) bIn <- mkFIFOF;
+    FIFOF#(AXI4_BFlit#(t_id, 0)) invalidBToInsert <- mkFIFOF;
     FIFOF#(AXI4_BFlit#(t_id, 0)) bOut <- mkFIFOF;
 
+    // AR transactions come in encoding an IOCap with a standard AR flit. The IOCap and flit are examined, and if verified they are passed on through arOut.
     AddressChannelCapUnwrapper#(AXI4_ARFlit#(t_id, 64, 3), AXI4_ARFlit#(t_id, 64, 0)) arIn <- mkSimpleAddressChannelCapUnwrapper;
     FIFOF#(AXI4_ARFlit#(t_id, 64, 0)) arOut <- mkFIFOF;
 
+    // R responses from the subordinate (de facto for *valid* requests) are sent through to the master, interleaved with responses from invalid requests.
+    // This interleaving is currently done without considering order.
+    // TODO that's bad! - I need to track the outstanding IDs and make sure that "Transaction responses with the same ID are returned in the same order as the requests were issued."
+    // as per the AXI Spec Issue K A6.3
     FIFOF#(AXI4_RFlit#(t_id, t_data, 0)) rIn <- mkFIFOF;
+    FIFOF#(AXI4_RFlit#(t_id, t_data, 0)) invalidRToInsert <- mkFIFOF;
     FIFOF#(AXI4_RFlit#(t_id, t_data, 0)) rOut <- mkFIFOF;
 
     // Epoch checking: every time a capability is revoked, the current epoch changes.
@@ -56,6 +77,8 @@ module mkSimpleIOCapExposerV1#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
     endrule
 
     // Track the initiated and completed transactions for each cycle
+    // These are all initiated/completed *valid* transactions - ones which were correctly authenticated with an IOcap.
+    // TODO rename these pulsewires to reflect that!
     PulseWire initiatedWrite <- mkPulseWire;
     PulseWire initiatedRead <- mkPulseWire;
     PulseWire completedWrite <- mkPulseWire;
@@ -68,6 +91,9 @@ module mkSimpleIOCapExposerV1#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
         let initiated = (initiatedRead ? 1 : 0) + (initiatedWrite ? 1 : 0);
         let completed = (completedRead ? 1 : 0) + (completedWrite ? 1 : 0);
 
+        if (initiatedRead || initiatedWrite || completedRead || completedWrite) begin
+            $display("IOCap - track_epoch - outstandingAccesses = ", outstandingAccessesInCurrentEpoch, " initiated = ", initiated, " completed = ", completed, " init r/w ", fshow(initiatedRead), fshow(initiatedWrite), " comp r/w ", fshow(completedRead), fshow(completedWrite));
+        end
         let newOutstandingAccesses = outstandingAccessesInCurrentEpoch + initiated - completed;
         // TODO detect overflow? negative or positive?
 
@@ -77,6 +103,7 @@ module mkSimpleIOCapExposerV1#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
                 wantEpochIncrease <= False;
                 currentEpoch <= nextEpoch;
                 keyStore.finishedEpochs.put(currentEpoch);
+                $display("IOCap - track_epoch - Finishing after newOutstandingAccesses = 0");
             end
         end else begin
             // Otherwise start_epoch_change may have pulled a new request to transition,
@@ -84,16 +111,19 @@ module mkSimpleIOCapExposerV1#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
             case (requestedNextEpoch.wget()) matches 
                 tagged Invalid : noAction;
                 tagged Valid .requestedNextEpoch : begin
+                    $display("IOCap - track_epoch - wantEpochIncrease=False, requestedNextEpoch=", fshow(requestedNextEpoch));
                     // If there are no outstanding accesses, finish immediately
                     // TODO may create a too-long path
                     if (newOutstandingAccesses == 0) begin
                         wantEpochIncrease <= False;
                         currentEpoch <= requestedNextEpoch;
                         keyStore.finishedEpochs.put(currentEpoch);
+                        $display("IOCap - track_epoch - Immediately finishing");
                     end else begin
                         // If there are outstanding accesses, note that a new epoch is imminent
                         wantEpochIncrease <= True;
                         nextEpoch <= requestedNextEpoch;
+                        $display("IOCap - track_epoch - Delaying for newOutstandingAccesses = ", fshow(newOutstandingAccesses));
                     end
                 end
             endcase
@@ -116,8 +146,11 @@ module mkSimpleIOCapExposerV1#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
     FIFOF#(AuthenticatedFlit#(AXI4_AWFlit#(t_id, 64, 0))) awPreCheckBuffer <- mkFIFOF;
     FIFOF#(AuthenticatedFlit#(AXI4_ARFlit#(t_id, 64, 0))) arPreCheckBuffer <- mkFIFOF;
 
-    IOCapAxiChecker#(AXI4_AWFlit#(t_id, 64, 0)) awChecker <- mkSimpleIOCapAxiChecker;
-    IOCapAxiChecker#(AXI4_ARFlit#(t_id, 64, 0)) arChecker <- mkSimpleIOCapAxiChecker;
+    NumProxy#(4) poolSize = ?;
+    // TODO test throughput of these vs non-pooled
+    IOCapAxiChecker#(AXI4_AWFlit#(t_id, 64, 0)) awChecker <- mkInOrderIOCapAxiCheckerPool(poolSize);
+    // TODO could do out-of-order for ar
+    IOCapAxiChecker#(AXI4_ARFlit#(t_id, 64, 0)) arChecker <- mkInOrderIOCapAxiCheckerPool(poolSize);
 
     function KeyId keyIdForFlit(AuthenticatedFlit#(t) authFlit);
         return truncate(authFlit.cap.secret_key_id);
@@ -252,67 +285,104 @@ module mkSimpleIOCapExposerV1#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
         end
     endrule
 
-    rule check_aw;
+    rule check_aw if (awChecker.checkResponse.canPeek && (
+        (tpl_2(awChecker.checkResponse.peek) == True && wValve.canUpdateCredits(Pass)) || (tpl_2(awChecker.checkResponse.peek) == False && wValve.canUpdateCredits(Drop))
+    ));
         // Pull the AW check result out of the awChecker
         let awResp <- get(awChecker.checkResponse);
         $display("IOCap - check_aw ", fshow(awResp));
         // If valid, pass on and increment send credits (if wDropCredited = True, don't dequeue - wait for wSendCredits == 0 so we can set it to False)
-        // If invalid, also pass on and increment send credits
-        //      TODO flip the switch to block these transactions and send a failure response, and to not actually dequeue but wait for wSendCredits == 0 so we can set wDropCredited
+        // If invalid, drop the AW flit and increment drop credits
+        
         case (awResp) matches
             { .flit, .allowed } : begin
-                awOut.enq(flit);
-                if (allowed)
+                Bit#(8) awlen = flit.awlen;
+                Bit#(9) nCredits = zeroExtend(awlen) + 1;
+                if (allowed) begin
                     keyStore.bumpPerfCounterGoodWrite();
-                else
+                    awOut.enq(flit);
+                    // Tell the W valve to let through the right number of flits
+                    wValve.updateCredits(Pass, extend(unpack(nCredits)));
+                end else begin
                     keyStore.bumpPerfCounterBadWrite();
+                    // Drop the AW flit, insert an invalid-write response
+                    invalidBToInsert.enq(AXI4_BFlit {
+                        bid: flit.awid,
+                        bresp: SLVERR,
+                        buser: ?
+                    });
+                    // Tell the W valve to drop the right number of flits
+                    wValve.updateCredits(Drop, extend(unpack(nCredits)));
+                end
             end
         endcase
     endrule
-    
-    // rule send_w;
-    //     // Pass W flits through using the credit system shown above
-    // endrule
 
     rule check_ar;
         // Pull the AR check result out of the arChecker
         let arResp <- get(arChecker.checkResponse);
         $display("IOCap - check_ar ", fshow(arResp));
         // If valid, pass on
-        // If invalid, also pass on TODO flip the switch to block these transactions and send a failure response
+        // If invalid, send a failure response
         case (arResp) matches
             { .flit, .allowed } : begin
-                arOut.enq(flit);
-                if (allowed)
+                if (allowed) begin
                     keyStore.bumpPerfCounterGoodRead();
-                else
+                    arOut.enq(flit);
+                end else begin
                     keyStore.bumpPerfCounterBadRead();
+                    // Drop the AR flit, insert an invalid-read response
+                    invalidRToInsert.enq(AXI4_RFlit {
+                        rid: flit.arid,
+                        rresp: SLVERR,
+                        ruser: ?,
+                        rdata: ?,
+                        rlast: True
+                    });
+                end
             end
         endcase
     endrule
 
-    rule recv_b;
-        // Pass the responses from the b channel, TODO interleaved with failure responses from check_aw
+    // If there isn't an invalid-b-flit to insert, just pass through valid completions from bIn to bOut
+    rule passthru_b if (!invalidBToInsert.notEmpty);
+        // Pass the responses from the b channel
         bOut.enq(bIn.first);
         bIn.deq();
-        // Each B flit signals the end of a write transaction
+        // Each B flit signals the end of a write transaction we received an AW for - valid or not
         completedWrite.send();
     endrule
 
-    rule recv_r;
-        // Pass the responses from the r channel, TODO interleaved with failure responses from check_ar
+    rule insert_invalid_b if (invalidBToInsert.notEmpty);
+        // Insert the b into the stream
+        bOut.enq(invalidBToInsert.first);
+        invalidBToInsert.deq();
+        completedWrite.send();
+    endrule
+
+    // If there isn't an invalid-r-flit to insert, just pass through valid completions from rIn to rOut
+    rule passthru_r if (!invalidRToInsert.notEmpty);
+        // Pass the responses from the r channel
         rOut.enq(rIn.first);
         rIn.deq();
+        // Each R flit signals the end of a read transaction we received an AR for - valid or not
         // The read is only completed once the last flit in the burst has been sent
         if (rIn.first.rlast) begin
             completedRead.send();
         end
     endrule
 
+    rule insert_invalid_r if (invalidRToInsert.notEmpty);
+        // Insert the r into the stream
+        rOut.enq(invalidRToInsert.first);
+        invalidRToInsert.deq();
+        completedRead.send();
+    endrule
+
     interface iocapsIn = interface IOCapAXI4_Slave;
         interface axiSignals = interface AXI4_Slave;
             interface aw = toSink(awIn.in);
-            interface  w = toSink(wff);
+            interface  w = toSink(wIn);
             interface  b = toSource(bOut);
             interface ar = toSink(arIn.in);
             interface  r = toSource(rOut);
@@ -321,7 +391,7 @@ module mkSimpleIOCapExposerV1#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
 
     interface sanitizedOut = interface AXI4_Master;
         interface aw = toSource(awOut);
-        interface  w = toSource(wff);
+        interface  w = toSource(wValve.out);
         interface  b = toSink(bIn);
         interface ar = toSource(arOut);
         interface  r = toSink(rIn);

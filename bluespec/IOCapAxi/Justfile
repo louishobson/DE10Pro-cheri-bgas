@@ -23,3 +23,4 @@ test-keymgr: (sim-v "mkSimpleIOCapKeyManager_Tb")
 
 test-exposer-v1: (sim-v "mkSimpleIOCapExposerV1_Tb")
 test-exposer-v2: (sim-v "mkSimpleIOCapExposerV2_Tb")
+test-exposer-v3: (sim-v "mkSimpleIOCapExposerV3_Tb")
