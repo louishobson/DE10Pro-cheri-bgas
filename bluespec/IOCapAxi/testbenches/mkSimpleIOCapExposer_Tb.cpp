@@ -2247,20 +2247,20 @@ int main(int argc, char** argv) {
     int ccapresult_success = EXIT_SUCCESS;
 
     std::vector<TestBase*> tests = {
-        // Test valid caps are accepted
-        new ValidKeyValidCapValidWrite<VmkSimpleIOCapExposer_Tb>(),
-        new ValidKeyValidCapValidRead<VmkSimpleIOCapExposer_Tb>(),
-        new ValidReadThenValidWrite<VmkSimpleIOCapExposer_Tb>(),
+        // Test valid caps are accepted - DONE below
+        // new ValidKeyValidCapValidWrite<VmkSimpleIOCapExposer_Tb>(),
+        // new ValidKeyValidCapValidRead<VmkSimpleIOCapExposer_Tb>(),
+        // new ValidReadThenValidWrite<VmkSimpleIOCapExposer_Tb>(),
         // TODO Test caps with invalid keys are rejected - DONE below
         // TODO test valid cap with 1 cav
         // TODO test valid cap with 2 cav
-        // Test valid cap with out-of-cap-bounds access
-        new OOBWrite_Passthrough<VmkSimpleIOCapExposer_Tb>(),
-        new OOBRead_Passthrough<VmkSimpleIOCapExposer_Tb>(),
-        // Test valid cap with mismatched perms
-        new MismatchedPerms_Passthrough<VmkSimpleIOCapExposer_Tb>(),
-        // Test invalid caps (i.e. bad signatures) with valid keys are rejected
-        new InvalidSig_Passthrough<VmkSimpleIOCapExposer_Tb>(),
+        // Test valid cap with out-of-cap-bounds access - DONE below
+        // new OOBWrite_Passthrough<VmkSimpleIOCapExposer_Tb>(),
+        // new OOBRead_Passthrough<VmkSimpleIOCapExposer_Tb>(),
+        // Test valid cap with mismatched perms - DONE below
+        // new MismatchedPerms_Passthrough<VmkSimpleIOCapExposer_Tb>(),
+        // Test invalid caps (i.e. bad signatures) with valid keys are rejected - DONE below
+        // new InvalidSig_Passthrough<VmkSimpleIOCapExposer_Tb>(),
 
         // TODO test that invalid caps don't let their flits through (contingent on switch flip) - DONE below
         // TODO test the above for reads and writes - DONE? below
