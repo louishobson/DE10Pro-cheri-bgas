@@ -210,7 +210,7 @@ public:
     virtual ~StimulusGenerator() {}
     virtual std::string name() = 0;
     virtual void driveInputsForTick(DUT& dut, uint64_t tick) = 0;
-    virtual uint64_t getEndTime() = 0;
+    virtual bool shouldFinish(uint64_t tick) = 0;
 };
 
 using test_failure = std::logic_error;
@@ -238,7 +238,6 @@ public:
     }
     virtual bool run(int argc, char** argv) override {
         fmt::println(stderr, "\033[1;33mTest: {}\033[0m", name());
-        uint64_t end_time = generator->getEndTime();
         try {
             VerilatedContext ctx{};
             ctx.commandArgs(argc, argv);    // remember args
@@ -251,7 +250,7 @@ public:
             dut.RST_N = 1;
             dut.CLK = 0;
 
-            while ((!ctx.gotFinish()) && (main_time <= end_time) ) { // $finish executed
+            while ((!ctx.gotFinish()) && (!generator->shouldFinish(main_time)) ) { // $finish executed
                 if (main_time == 2) {
                     dut.RST_N = 0;    // assert reset
                 }

@@ -824,9 +824,9 @@ public:
             this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
         }
     }
-    virtual uint64_t getEndTime() override {
+    virtual bool shouldFinish(uint64_t tick) override {
         // 100 cycles should do it
-        return 1000;
+        return tick >= 1000;
     }
 };
 
@@ -873,9 +873,9 @@ public:
             this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
         }
     }
-    virtual uint64_t getEndTime() override {
+    virtual bool shouldFinish(uint64_t tick) override {
         // 100 cycles should do it
-        return 1000;
+        return tick >= 1000;
     }
 };
 
@@ -923,9 +923,9 @@ public:
             this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
         }
     }
-    virtual uint64_t getEndTime() override {
+    virtual bool shouldFinish(uint64_t tick) override {
         // 100 cycles should do it
-        return 1000;
+        return tick >= 1000;
     }
 };
 
@@ -957,9 +957,9 @@ public:
             this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
         }
     }
-    virtual uint64_t getEndTime() override {
+    virtual bool shouldFinish(uint64_t tick) override {
         // 100 cycles should do it
-        return 1000;
+        return tick >= 1000;
     }
 };
 
@@ -997,9 +997,9 @@ public:
             this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
         }
     }
-    virtual uint64_t getEndTime() override {
+    virtual bool shouldFinish(uint64_t tick) override {
         // 100 cycles should do it
-        return 1000;
+        return tick >= 1000;
     }
 };
 
@@ -1067,10 +1067,10 @@ public:
             NOPUT_INPUT(keyStoreShim_newEpochRequests);
         }
     }
-    virtual uint64_t getEndTime() override {
+    virtual bool shouldFinish(uint64_t tick) override {
         // Each revocation = 450 cycles of transactions then 50 for revocation
         // Plus some spare cycles - TODO why???
-        return 5000 * (n_revocations) + 300;
+        return tick >= (5000 * (n_revocations) + 350);
     }
 };
 
