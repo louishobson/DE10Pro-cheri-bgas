@@ -232,6 +232,59 @@ endmodule
     // Technically this doesn't apply to reads - could take a shortcut there?
     // TODO this is worth thinking about in the write-up! In PCIe land where data+address arrive at once, do we also have this latency dependency? Likely worse because writes and reads are ordered together?
 
+// Can't use Integer for n because "Integer" != "numeric type"
+module mkInOrderIOCapAxiCheckerPool#(NumProxy#(n) n_proxy)(IOCapAxiChecker#(no_iocap_flit)) provisos (Bits#(AuthenticatedFlit#(no_iocap_flit), a__), AxiCtrlFlit64#(no_iocap_flit), FShow#(no_iocap_flit));    
+    Vector#(n, IOCapAxiChecker#(no_iocap_flit)) checkers <- replicateM(mkSimpleIOCapAxiChecker);
+    // Separately track the insert and retrieve pointers.
+    // insertPointer is allowed to wrap around past retrievePointer multiple times
+    // - although that likely isn't possible in normal cases -
+    // because the baseChecker is expected to spit out checkResponses in the same order as checkRequests.
+    // This could be done differently, TODO construct a mkOutOfOrderIOCapAxiCheckerPool?
+    Reg#(Bit#(TLog#(n))) insertPointer <- mkReg(0);
+    PulseWire incrementInsert <- mkPulseWire;
+    Reg#(Bit#(TLog#(n))) retrievePointer <- mkReg(0);
+    PulseWire incrementRetrieve <- mkPulseWire;
+
+    rule increment_counters;
+        if (incrementInsert) begin
+            let newInsertPointer = insertPointer + 1;
+            if (inLiteralRange(insertPointer, valueOf(n)) && newInsertPointer >= fromInteger(valueOf(n)))
+                insertPointer <= 0;
+            else
+                insertPointer <= newInsertPointer;
+        end
+        if (incrementRetrieve) begin
+            let newRetrievePointer = retrievePointer + 1;
+            if (inLiteralRange(insertPointer, valueOf(n)) && newRetrievePointer >= fromInteger(valueOf(n)))
+                retrievePointer <= 0;
+            else
+                retrievePointer <= newRetrievePointer;
+        end
+    endrule
+
+    interface checkRequest = interface Sink#(Tuple2#(AuthenticatedFlit#(no_iocap_flit), Maybe#(Key)));
+        method Bool canPut;
+            return checkers[insertPointer].checkRequest.canPut();
+        endmethod
+        method Action put (Tuple2#(AuthenticatedFlit#(no_iocap_flit), Maybe#(Key)) val);
+            checkers[insertPointer].checkRequest.put(val);
+            incrementInsert.send();
+        endmethod
+    endinterface;
+    interface checkResponse = interface Source#(Tuple2#(no_iocap_flit, Bool));
+        method Bool canPeek;
+            return checkers[retrievePointer].checkResponse.canPeek();
+        endmethod
+        method Tuple2#(no_iocap_flit, Bool) peek;
+            return checkers[retrievePointer].checkResponse.peek();
+        endmethod
+        method Action drop;
+            checkers[retrievePointer].checkResponse.drop();
+            incrementRetrieve.send();
+        endmethod
+    endinterface;
+endmodule
+
 module mkSimpleIOCapExposerV1#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCapSingleExposer#(t_id, t_data)) provisos (
     Mul#(TDiv#(t_keystore_data, 8), 8, t_keystore_data),
     Add#(t_keystore_data, a__, 128),
@@ -671,8 +724,11 @@ module mkSimpleIOCapExposerV2#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
     FIFOF#(AuthenticatedFlit#(AXI4_AWFlit#(t_id, 64, 0))) awPreCheckBuffer <- mkFIFOF;
     FIFOF#(AuthenticatedFlit#(AXI4_ARFlit#(t_id, 64, 0))) arPreCheckBuffer <- mkFIFOF;
 
-    IOCapAxiChecker#(AXI4_AWFlit#(t_id, 64, 0)) awChecker <- mkSimpleIOCapAxiChecker;
-    IOCapAxiChecker#(AXI4_ARFlit#(t_id, 64, 0)) arChecker <- mkSimpleIOCapAxiChecker;
+    NumProxy#(4) poolSize = ?;
+    // TODO test throughput of these vs non-pooled
+    IOCapAxiChecker#(AXI4_AWFlit#(t_id, 64, 0)) awChecker <- mkInOrderIOCapAxiCheckerPool(poolSize);
+    // TODO could do out-of-order for ar
+    IOCapAxiChecker#(AXI4_ARFlit#(t_id, 64, 0)) arChecker <- mkInOrderIOCapAxiCheckerPool(poolSize);
 
     function KeyId keyIdForFlit(AuthenticatedFlit#(t) authFlit);
         return truncate(authFlit.cap.secret_key_id);
