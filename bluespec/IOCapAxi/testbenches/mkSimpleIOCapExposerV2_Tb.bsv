@@ -2,7 +2,7 @@ import IOCapAxi_Exposers :: *;
 import Tests :: *;
 
 (* synthesize *)
-module mkSimpleIOCapExposer_Tb(SimpleIOCapExposerTb);
+module mkSimpleIOCapExposerV2_Tb(SimpleIOCapExposerTb);
     let keyStores <- mkKeyStoreShim;
     let exposer4x32Impl <- mkSimpleIOCapExposerV2(tpl_2(keyStores));
 

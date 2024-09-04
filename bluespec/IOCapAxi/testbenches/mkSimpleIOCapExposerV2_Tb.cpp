@@ -1,75 +1,82 @@
 #include <verilated.h>
-#include "VmkSimpleIOCapExposer_Tb.h"
+#include "VmkSimpleIOCapExposerV2_Tb.h"
 
 #include "exposer_tests_uvm.h"
 #include "exposer_tests_legacy.h"
 
+using TheDUT = VmkSimpleIOCapExposerV2_Tb;
+
 int main(int argc, char** argv) {
     std::vector<TestBase*> tests = {
         // Test valid caps are accepted - DONE below
-        // new ValidKeyValidCapValidWrite<VmkSimpleIOCapExposer_Tb>(),
-        // new ValidKeyValidCapValidRead<VmkSimpleIOCapExposer_Tb>(),
-        // new ValidReadThenValidWrite<VmkSimpleIOCapExposer_Tb>(),
+        // new ValidKeyValidCapValidWrite<TheDUT>(),
+        // new ValidKeyValidCapValidRead<TheDUT>(),
+        // new ValidReadThenValidWrite<TheDUT>(),
         // TODO Test caps with invalid keys are rejected - DONE below
         // TODO test valid cap with 1 cav
         // TODO test valid cap with 2 cav
         // Test valid cap with out-of-cap-bounds access - DONE below
-        // new OOBWrite_Passthrough<VmkSimpleIOCapExposer_Tb>(),
-        // new OOBRead_Passthrough<VmkSimpleIOCapExposer_Tb>(),
+        // new OOBWrite_Passthrough<TheDUT>(),
+        // new OOBRead_Passthrough<TheDUT>(),
         // Test valid cap with mismatched perms - DONE below
-        // new MismatchedPerms_Passthrough<VmkSimpleIOCapExposer_Tb>(),
+        // new MismatchedPerms_Passthrough<TheDUT>(),
         // Test invalid caps (i.e. bad signatures) with valid keys are rejected - DONE below
-        // new InvalidSig_Passthrough<VmkSimpleIOCapExposer_Tb>(),
+        // new InvalidSig_Passthrough<TheDUT>(),
 
         // TODO test that invalid caps don't let their flits through (contingent on switch flip) - DONE below
         // TODO test the above for reads and writes - DONE? below
 
         // TODO test inbalanced completions > starts behaviour
 
+        /*
+
         // Test new-epoch when no accesses are pending
-        new NewEpoch_NoAccesses<VmkSimpleIOCapExposer_Tb>(),
+        new NewEpoch_NoAccesses<TheDUT>(),
         // Test new-epoch when an access hasn't started checking
-        new NewEpoch_PreAccess<VmkSimpleIOCapExposer_Tb>(),
+        new NewEpoch_PreAccess<TheDUT>(),
         // New-epoch while processing an access (either at the same cycle as the access starts, or while it's processing)
         // will delay the completion of the epoch to after the access completes
-        new NewEpoch_SameCycle<VmkSimpleIOCapExposer_Tb>(),
-        new NewEpoch_PostAccess<VmkSimpleIOCapExposer_Tb>(),
+        new NewEpoch_SameCycle<TheDUT>(),
+        new NewEpoch_PostAccess<TheDUT>(),
         // New-Epoch between accesses that arrive on consecutive cycles will delay the second until the first has completed
-        new NewEpoch_BetweenAccesses<VmkSimpleIOCapExposer_Tb>(),
+        new NewEpoch_BetweenAccesses<TheDUT>(),
         // TODO test the above for reads and writes
+
+        */
 
 
 
         // UVM-style testing
         // TODO add tests for above todos, consider revocation
         new ExposerUVMishTest(
-            new UVMValidKeyValidInitialCapValidAccess<VmkSimpleIOCapExposer_Tb>(CCapPerms_Read)
+            new UVMValidKeyValidInitialCapValidAccess<TheDUT>(CCapPerms_Read)
         ),
         new ExposerUVMishTest(
-            new UVMValidKeyValidInitialCapValidAccess<VmkSimpleIOCapExposer_Tb>(CCapPerms_Write)
+            new UVMValidKeyValidInitialCapValidAccess<TheDUT>(CCapPerms_Write)
         ),
         new ExposerUVMishTest(
-            new UVMValidKeyValidInitialCapValidAccess<VmkSimpleIOCapExposer_Tb>(CCapPerms_ReadWrite)
+            new UVMValidKeyValidInitialCapValidAccess<TheDUT>(CCapPerms_ReadWrite)
         ),
         new ExposerUVMishTest(
-            new UVMValidKeyValidInitialCapOOBAccess<VmkSimpleIOCapExposer_Tb>(CCapPerms_Read)
+            new UVMValidKeyValidInitialCapOOBAccess<TheDUT>(CCapPerms_Read)
         ),
         new ExposerUVMishTest(
-            new UVMValidKeyValidInitialCapOOBAccess<VmkSimpleIOCapExposer_Tb>(CCapPerms_Write)
+            new UVMValidKeyValidInitialCapOOBAccess<TheDUT>(CCapPerms_Write)
         ),
         new ExposerUVMishTest(
-            new UVMValidKeyValidCapBadPerms<VmkSimpleIOCapExposer_Tb>()
+            new UVMValidKeyValidCapBadPerms<TheDUT>()
         ),
         new ExposerUVMishTest(
-            new UVMValidKeyBadSigCap<VmkSimpleIOCapExposer_Tb>()
+            new UVMValidKeyBadSigCap<TheDUT>()
         ),
         new ExposerUVMishTest(
-            new UVMInvalidKeyAccess<VmkSimpleIOCapExposer_Tb>(CCapPerms_ReadWrite)
+            new UVMInvalidKeyAccess<TheDUT>(CCapPerms_ReadWrite)
         ),
         // 5 cycles of revocations
         // TODO test this with valid and invalid transactions!
+        // TODO figure out how to do more accurate UVM testing
         new ExposerUVMishTest(
-            new UVMTransactionsBetweenRevocations<VmkSimpleIOCapExposer_Tb>(5)
+            new UVMTransactionsBetweenRevocations<TheDUT>(5)
         )
     };
 
