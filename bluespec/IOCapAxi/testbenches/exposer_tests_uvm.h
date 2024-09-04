@@ -81,6 +81,25 @@ struct CapWithRange {
     into = dut. from ##_peek;
 
 /**
+ * Tracking information for throughput on a given port
+ */
+struct ThroughputTracker {
+    uint64_t n_accepted = 0;
+    uint64_t n_cycles_where_attempting_to_push_input = 0;
+
+    void trackAccepted() {
+        n_accepted++;
+    }
+    void trackCycleWithAvailableInput() {
+        n_cycles_where_attempting_to_push_input++;
+    }
+
+    double asDouble() const {
+        return n_accepted * 1.0 / n_cycles_where_attempting_to_push_input;
+    }
+};
+
+/**
  * Generic stimulus generator for the key manager parts of ShimmedExposer DUTs.
  * Dynamically reacts to the DUT outputs (e.g. requests for key data) to generate inputs
  * (e.g. responding with the requested key data).
@@ -94,6 +113,7 @@ public:
     KeyManagerShimStimulus() : secrets() {}
     // Observe the key manager inputs (epoch fulfilments and key responses)
     virtual void driveInputsForKeyMgr(DUT& dut, uint64_t tick) = 0;
+    virtual void dump_stats(){}
 };
 
 /**
@@ -142,6 +162,7 @@ class SanitizedMemStimulus {
 public:
     // Observe the sanitized AW/W/AR outputs and drive the sanitize B/R inputs in response
     virtual void driveBAndRInputs(DUT& dut, uint64_t tick) = 0;
+    virtual void dump_stats(){}
 };
 
 /**
@@ -156,22 +177,31 @@ class BasicSanitizedMemStimulus : public SanitizedMemStimulus<DUT> {
     std::deque<axi::SanitizedAxi::BFlit_id4> pendingBInputs;
     std::deque<axi::SanitizedAxi::BFlit_id4> bInputs;
     std::deque<axi::SanitizedAxi::RFlit_id4_data32> rInputs;
+
+    ThroughputTracker b_throughput;
+    ThroughputTracker r_throughput;
 public:
     virtual void driveBAndRInputs(DUT& dut, uint64_t tick) {
-        if (!bInputs.empty() && CANPUT_INPUT(exposer4x32_sanitizedOut_b)) {
-            auto bInput = bInputs.front();
-            bInputs.pop_front();
-            PUT_INPUT(exposer4x32_sanitizedOut_b, bInput.pack());
-        } else {
-            NOPUT_INPUT(exposer4x32_sanitizedOut_b);
+        NOPUT_INPUT(exposer4x32_sanitizedOut_b);
+        if (!bInputs.empty()) {
+            if (CANPUT_INPUT(exposer4x32_sanitizedOut_b)) {
+                auto bInput = bInputs.front();
+                bInputs.pop_front();
+                PUT_INPUT(exposer4x32_sanitizedOut_b, bInput.pack());
+                b_throughput.trackAccepted();
+            }
+            b_throughput.trackCycleWithAvailableInput();
         }
 
-        if (!rInputs.empty() && CANPUT_INPUT(exposer4x32_sanitizedOut_r)) {
-            auto rInput = rInputs.front();
-            rInputs.pop_front();
-            PUT_INPUT(exposer4x32_sanitizedOut_r, rInput.pack());
-        } else {
-            NOPUT_INPUT(exposer4x32_sanitizedOut_r);
+        NOPUT_INPUT(exposer4x32_sanitizedOut_r);
+        if (!rInputs.empty()) {
+            if (CANPUT_INPUT(exposer4x32_sanitizedOut_r)) {
+                auto rInput = rInputs.front();
+                rInputs.pop_front();
+                PUT_INPUT(exposer4x32_sanitizedOut_r, rInput.pack());
+                r_throughput.trackAccepted();
+            }
+            r_throughput.trackCycleWithAvailableInput();
         }
 
         if (CANPEEK_OUTPUT(exposer4x32_sanitizedOut_aw)) {
@@ -229,6 +259,10 @@ public:
             }
         }
     }
+    virtual void dump_stats() override {
+        fmt::println(stderr, "b_throughput, {}", b_throughput.asDouble());
+        fmt::println(stderr, "r_throughput, {}", r_throughput.asDouble());
+    }
 };
 
 /**
@@ -244,6 +278,10 @@ protected:
     std::deque<axi::IOCapAxi::AWFlit_id4_addr64_user3> awInputs;
     std::deque<axi::IOCapAxi::WFlit_data32> wInputs;
     std::deque<axi::IOCapAxi::ARFlit_id4_addr64_user3> arInputs;
+
+    ThroughputTracker aw_throughput;
+    ThroughputTracker w_throughput;
+    ThroughputTracker ar_throughput;
 
     /// Use these functions in subclasses!
 
@@ -307,32 +345,79 @@ public:
         keyMgr->driveInputsForKeyMgr(dut, tick);
         sanitizedMem->driveBAndRInputs(dut, tick);
 
-        if (!awInputs.empty() && CANPUT_INPUT(exposer4x32_iocapsIn_axiSignals_aw)) {
-            auto awInput = awInputs.front();
-            awInputs.pop_front();
-            PUT_INPUT(exposer4x32_iocapsIn_axiSignals_aw, verilate_array(awInput.pack()));
-        } else {
-            NOPUT_INPUT(exposer4x32_iocapsIn_axiSignals_aw);
+        NOPUT_INPUT(exposer4x32_iocapsIn_axiSignals_aw);
+        if (!awInputs.empty()) {
+            if (CANPUT_INPUT(exposer4x32_iocapsIn_axiSignals_aw)) {
+                auto awInput = awInputs.front();
+                awInputs.pop_front();
+                PUT_INPUT(exposer4x32_iocapsIn_axiSignals_aw, verilate_array(awInput.pack()));
+                aw_throughput.trackAccepted();
+            }
+            aw_throughput.trackCycleWithAvailableInput();
         }
 
-        if (!wInputs.empty() && CANPUT_INPUT(exposer4x32_iocapsIn_axiSignals_w)) {
-            auto wInput = wInputs.front();
-            wInputs.pop_front();
-            PUT_INPUT(exposer4x32_iocapsIn_axiSignals_w, wInput.pack());
-        } else {
-            NOPUT_INPUT(exposer4x32_iocapsIn_axiSignals_w);
+        NOPUT_INPUT(exposer4x32_iocapsIn_axiSignals_w);
+        if (!wInputs.empty()) {
+            if (CANPUT_INPUT(exposer4x32_iocapsIn_axiSignals_w)) {
+                auto wInput = wInputs.front();
+                wInputs.pop_front();
+                PUT_INPUT(exposer4x32_iocapsIn_axiSignals_w, wInput.pack());
+                w_throughput.trackAccepted();
+            }
+            w_throughput.trackCycleWithAvailableInput();
         }
 
-        if (!arInputs.empty() && CANPUT_INPUT(exposer4x32_iocapsIn_axiSignals_ar)) {
-            auto arInput = arInputs.front();
-            arInputs.pop_front();
-            PUT_INPUT(exposer4x32_iocapsIn_axiSignals_ar, verilate_array(arInput.pack()));
-        } else {
-            NOPUT_INPUT(exposer4x32_iocapsIn_axiSignals_ar);
+        NOPUT_INPUT(exposer4x32_iocapsIn_axiSignals_ar);
+        if (!arInputs.empty()) {
+            if (CANPUT_INPUT(exposer4x32_iocapsIn_axiSignals_ar)) {
+                auto arInput = arInputs.front();
+                arInputs.pop_front();
+                PUT_INPUT(exposer4x32_iocapsIn_axiSignals_ar, verilate_array(arInput.pack()));
+                ar_throughput.trackAccepted();
+            }
+            ar_throughput.trackCycleWithAvailableInput();
         }
+    }
+    virtual void dump_stats() override {
+        fmt::println(stderr, "aw_throughput, {}", aw_throughput.asDouble());
+        fmt::println(stderr, "w_throughput, {}", w_throughput.asDouble());
+        fmt::println(stderr, "ar_throughput, {}", ar_throughput.asDouble());
+        sanitizedMem->dump_stats();
+        keyMgr->dump_stats();
     }
 };
 
+template<typename T>
+struct LatencyTracked {
+    uint64_t tick_initiated;
+    T value;
+};
+
+template <typename T> class fmt::formatter<LatencyTracked<T>> {
+    public:
+    constexpr auto parse (fmt::format_parse_context& ctx) { return ctx.begin(); }
+    template <typename Context>
+    constexpr auto format (LatencyTracked<T> const& x, Context& ctx) const {
+        return format_to(ctx.out(), "{{ .tick_initiated = {}, .value = {} }}", x.tick_initiated, x.value);
+    }
+};
+
+// Used for B and R flits which may be associated with unauthenticated (capability was bad) AW/AR flits or correct AW/AR flits which received a response from the sanitized side
+template<typename T>
+struct LatencyTrackedWithAuthCorrectness {
+    uint64_t tick_initiated;
+    bool was_correct;
+    T value;
+};
+
+template <typename T> class fmt::formatter<LatencyTrackedWithAuthCorrectness<T>> {
+    public:
+    constexpr auto parse (fmt::format_parse_context& ctx) { return ctx.begin(); }
+    template <typename Context>
+    constexpr auto format (LatencyTrackedWithAuthCorrectness<T> const& x, Context& ctx) const {
+        return format_to(ctx.out(), "{{ .tick_initiated = {}, .was_correct = {}, .value = {} }}", x.tick_initiated, x.was_correct, x.value);
+    }
+};
 
 /**
  * Scoreboard for ShimmedExposer tests.
@@ -347,24 +432,27 @@ class ExposerScoreboard : public Scoreboard<DUT> {
     std::deque<key_manager::Epoch> expectedEpochCompletions;
 
     std::vector<axi::IOCapAxi::AWFlit_id4_addr64_user3> awInProgress;
-    std::deque<axi::SanitizedAxi::AWFlit_id4_addr64_user0> expectedAw;
+    // tick_initiated = the tick on which the last AW flit was put-ed into the unit
+    std::deque<LatencyTracked<axi::SanitizedAxi::AWFlit_id4_addr64_user0>> expectedAw;
 
     // W flits received on the input where we don't know if their associated AWs were correctly authed.
     // The DUT cannot possibly know if W flits in this queue are correctly authed or not.
-    std::deque<axi::IOCapAxi::WFlit_data32> wInProgress;
+    std::deque<LatencyTracked<axi::IOCapAxi::WFlit_data32>> wInProgress;
     // The status of future groups of W flits. e.g. if you recieve a valid AW transaction specifying 3 W flits, store (true, 3) so the next 3 W flits received will automatically be counted as valid.
     std::deque<std::pair<bool, uint64_t>> wflitValidity; // tuple[0] = is valid, tuple[1] = count
     // The W flits we expect to see on the output, i.e. only valid ones
-    std::deque<axi::SanitizedAxi::WFlit_data32> expectedW;
+    std::deque<LatencyTracked<axi::SanitizedAxi::WFlit_data32>> expectedW;
 
     std::vector<axi::IOCapAxi::ARFlit_id4_addr64_user3> arInProgress;
-    std::deque<axi::SanitizedAxi::ARFlit_id4_addr64_user0> expectedAr;
+    // tick_initiated = the tick on which the last AW flit was put-ed into the unit
+    std::deque<LatencyTracked<axi::SanitizedAxi::ARFlit_id4_addr64_user0>> expectedAr;
 
     // B and R responses have no ordering guarantees *except* B is ordered w.r.t. B when the IDs are the same, ditto for R.
     // => for each, keep a map of ID -> ordered list of responses.
     // Whenever we receive a response, look in the map at the given ID. if the vector is empty, there wasn't supposed to be a response. Otherwise the first pop()-ed element must match.
-    std::array<std::deque<axi::IOCapAxi::BFlit_id4>, 16> expectedB;
-    std::array<std::deque<axi::IOCapAxi::RFlit_id4_data32>, 16> expectedR;
+    // tick_initiated = the tick on which the 
+    std::array<std::deque<LatencyTrackedWithAuthCorrectness<axi::IOCapAxi::BFlit_id4>>, 16> expectedB;
+    std::array<std::deque<LatencyTrackedWithAuthCorrectness<axi::IOCapAxi::RFlit_id4_data32>>, 16> expectedR;
 
     uint64_t expectedGoodWrite = 0;
     uint64_t expectedBadWrite = 0;
@@ -377,6 +465,14 @@ class ExposerScoreboard : public Scoreboard<DUT> {
 
     std::vector<ShimmedExposerInput> inputs;
     std::vector<ShimmedExposerOutput> outputs;
+
+    std::vector<uint64_t> aw_aw_latency;
+    std::vector<uint64_t> aw_b_latency;
+    std::vector<uint64_t> ar_ar_latency;
+    std::vector<uint64_t> ar_r_latency;
+    std::vector<uint64_t> w_w_latency;
+    std::vector<uint64_t> b_b_latency;
+    std::vector<uint64_t> r_r_latency;
 
     virtual void onKeyMngrNewEpoch(key_manager::Epoch nextEpoch) {
         fmt::println(stderr, "Note - ExposerScoreboard base class doesn't automatically handle keys when getting new key epoch.");
@@ -392,7 +488,7 @@ class ExposerScoreboard : public Scoreboard<DUT> {
         }
     }
 
-    void resolveAwFlit(std::optional<axi::IOCapAxi::AWFlit_id4_addr64_user3> newIncomingFlit) {
+    void resolveAwFlit(uint64_t tick, std::optional<axi::IOCapAxi::AWFlit_id4_addr64_user3> newIncomingFlit) {
         if (newIncomingFlit) {
             awInProgress.push_back(newIncomingFlit.value());
         }
@@ -447,17 +543,20 @@ class ExposerScoreboard : public Scoreboard<DUT> {
             bool rangeIsValid = len64 || (axiBase >= base && axiTop <= (base + len));
             // If the capability and ranges are valid, expect an AW flit to come out *and* the right number of W flits!
             if (capIsValid && rangeIsValid) {
-                expectedAw.push_back(axi::SanitizedAxi::AWFlit_id4_addr64_user0 {
-                    .awregion = awInProgress[0].awregion,
-                    .awqos = awInProgress[0].awqos,
-                    .awprot = awInProgress[0].awprot,
-                    .awcache = awInProgress[0].awcache,
-                    .awlock = awInProgress[0].awlock,
-                    .awburst = awInProgress[0].awburst,
-                    .awsize = awInProgress[0].awsize,
-                    .awlen = awInProgress[0].awlen,
-                    .awaddr = awInProgress[0].awaddr,
-                    .awid = awInProgress[0].awid,
+                expectedAw.push_back({
+                    tick,
+                    axi::SanitizedAxi::AWFlit_id4_addr64_user0 {
+                        .awregion = awInProgress[0].awregion,
+                        .awqos = awInProgress[0].awqos,
+                        .awprot = awInProgress[0].awprot,
+                        .awcache = awInProgress[0].awcache,
+                        .awlock = awInProgress[0].awlock,
+                        .awburst = awInProgress[0].awburst,
+                        .awsize = awInProgress[0].awsize,
+                        .awlen = awInProgress[0].awlen,
+                        .awaddr = awInProgress[0].awaddr,
+                        .awid = awInProgress[0].awid,
+                    }
                 });
                 // and expect the right number of W flits to be passed through
                 wflitValidity.push_back(std::make_pair(true, axi::len_to_n_transfers(awInProgress[0].awlen)));
@@ -465,9 +564,13 @@ class ExposerScoreboard : public Scoreboard<DUT> {
                 expectedGoodWrite++;
             } else {
                 // Otherwise expect a B flit with a BAD response to come out
-                expectedB[awInProgress[0].awid].push_back(axi::IOCapAxi::BFlit_id4 {
-                    .bresp = (uint8_t)axi::AXI4_Resp::SlvErr,
-                    .bid = awInProgress[0].awid
+                expectedB[awInProgress[0].awid].push_back({
+                    tick,
+                    false, // This is from an invalid AW flit, not a valid B response from the sanitized side
+                    axi::IOCapAxi::BFlit_id4 {
+                        .bresp = (uint8_t)axi::AXI4_Resp::SlvErr,
+                        .bid = awInProgress[0].awid
+                    }
                 });
                 // and drop the W flits
                 wflitValidity.push_back(std::make_pair(false, axi::len_to_n_transfers(awInProgress[0].awlen)));
@@ -480,7 +583,7 @@ class ExposerScoreboard : public Scoreboard<DUT> {
         }
     }
 
-    void resolveArFlit(std::optional<axi::IOCapAxi::ARFlit_id4_addr64_user3> newIncomingFlit) {
+    void resolveArFlit(uint64_t tick, std::optional<axi::IOCapAxi::ARFlit_id4_addr64_user3> newIncomingFlit) {
         if (newIncomingFlit) {
             arInProgress.push_back(newIncomingFlit.value());
         }
@@ -535,27 +638,34 @@ class ExposerScoreboard : public Scoreboard<DUT> {
             bool rangeIsValid = len64 || (axiBase >= base && axiTop <= (base + len));
             // If the capability and ranges are valid, expect an AR flit to come out
             if (capIsValid && rangeIsValid) {
-                expectedAr.push_back(axi::SanitizedAxi::ARFlit_id4_addr64_user0 {
-                    .arregion = arInProgress[0].arregion,
-                    .arqos = arInProgress[0].arqos,
-                    .arprot = arInProgress[0].arprot,
-                    .arcache = arInProgress[0].arcache,
-                    .arlock = arInProgress[0].arlock,
-                    .arburst = arInProgress[0].arburst,
-                    .arsize = arInProgress[0].arsize,
-                    .arlen = arInProgress[0].arlen,
-                    .araddr = arInProgress[0].araddr,
-                    .arid = arInProgress[0].arid,
+                expectedAr.push_back({
+                    tick,
+                    axi::SanitizedAxi::ARFlit_id4_addr64_user0 {
+                        .arregion = arInProgress[0].arregion,
+                        .arqos = arInProgress[0].arqos,
+                        .arprot = arInProgress[0].arprot,
+                        .arcache = arInProgress[0].arcache,
+                        .arlock = arInProgress[0].arlock,
+                        .arburst = arInProgress[0].arburst,
+                        .arsize = arInProgress[0].arsize,
+                        .arlen = arInProgress[0].arlen,
+                        .araddr = arInProgress[0].araddr,
+                        .arid = arInProgress[0].arid,
+                    }
                 });
                 // and expect the performance counter to bump
                 expectedGoodRead++;
             } else {
                 // Otherwise expect a B flit with a BAD response to come out
-                expectedR[arInProgress[0].arid].push_back(axi::IOCapAxi::RFlit_id4_data32 {
-                    .rlast = 1,
-                    .rresp = (uint8_t)axi::AXI4_Resp::SlvErr,
-                    .rdata = 0xaaaaaaaa, // Bluespec uses this to mean ?
-                    .rid = arInProgress[0].arid,
+                expectedR[arInProgress[0].arid].push_back({
+                    tick,
+                    false, // This is from an invalid AR flit, not a valid R response from the sanitized side
+                    axi::IOCapAxi::RFlit_id4_data32 {
+                        .rlast = 1,
+                        .rresp = (uint8_t)axi::AXI4_Resp::SlvErr,
+                        .rdata = 0xaaaaaaaa, // Bluespec uses this to mean ?
+                        .rid = arInProgress[0].arid,
+                    }
                 });
                 // and expect the performance counter to bump
                 expectedBadRead++;
@@ -566,22 +676,28 @@ class ExposerScoreboard : public Scoreboard<DUT> {
         }
     }
 
-    void resolveWFlits(std::optional<axi::IOCapAxi::WFlit_data32> newIncomingFlit) {
+    void resolveWFlits(uint64_t tick, std::optional<axi::IOCapAxi::WFlit_data32> newIncomingFlit) {
         if (newIncomingFlit) {
-            wInProgress.push_back(newIncomingFlit.value());
+            wInProgress.push_back({
+                tick,
+                newIncomingFlit.value()
+            });
         }
         // If there are outstanding future groups of W flits, compare them to the wInProgress.
         while (!wflitValidity.empty() && !wInProgress.empty()) {
             auto [groupValid, groupLen] = *wflitValidity.begin();
             while (!wInProgress.empty() && groupLen > 0) {
-                const axi::IOCapAxi::WFlit_data32 iocapFlit = wInProgress.front();
+                const LatencyTracked<axi::IOCapAxi::WFlit_data32> iocapFlit = wInProgress.front();
                 wInProgress.pop_front();
                 // Handle the w flit: if it's in a valid group make a new expected flit
                 if (groupValid) {
-                    expectedW.push_back(axi::SanitizedAxi::WFlit_data32 {
-                        .wlast = iocapFlit.wlast,
-                        .wstrb = iocapFlit.wstrb,
-                        .wdata = iocapFlit.wdata,
+                    expectedW.push_back({
+                        iocapFlit.tick_initiated,
+                        axi::SanitizedAxi::WFlit_data32 {
+                            .wlast = iocapFlit.value.wlast,
+                            .wstrb = iocapFlit.value.wstrb,
+                            .wdata = iocapFlit.value.wdata,
+                        }
                     });
                 }
                 // Otherwise drop it and do nothing!
@@ -652,9 +768,10 @@ public:
             } else {
                 auto expected = expectedAw.front();
                 expectedAw.pop_front();
-                if (output.clean_flit_aw.value() != expected) {
+                if (output.clean_flit_aw.value() != expected.value) {
                     throw test_failure(fmt::format("ExposerScoreboard got unexpected aw flit:\nexpected: {}\ngot: {}\n", expected, output.clean_flit_aw.value()));
                 }
+                aw_aw_latency.push_back(tick - expected.tick_initiated);
             }
         }
 
@@ -664,9 +781,10 @@ public:
             } else {
                 auto expected = expectedAr.front();
                 expectedAr.pop_front();
-                if (output.clean_flit_ar.value() != expected) {
+                if (output.clean_flit_ar.value() != expected.value) {
                     throw test_failure(fmt::format("ExposerScoreboard got unexpected ar flit:\nexpected: {}\ngot: {}\n", expected, output.clean_flit_ar.value()));
                 }
+                ar_ar_latency.push_back(tick - expected.tick_initiated);
             }
         }
 
@@ -676,9 +794,10 @@ public:
             } else {
                 auto expected = expectedW.front();
                 expectedW.pop_front();
-                if (output.clean_flit_w.value() != expected) {
+                if (output.clean_flit_w.value() != expected.value) {
                     throw test_failure(fmt::format("ExposerScoreboard got unexpected w flit:\nexpected {}, had {} unresolved and {} groups\ngot: {}\n", expected, wInProgress, wflitValidity, output.clean_flit_w.value()));
                 }
+                w_w_latency.push_back(tick - expected.tick_initiated);
             }
         }
 
@@ -689,8 +808,13 @@ public:
             } else {
                 auto expected = expectedForId.front();
                 expectedForId.pop_front();
-                if (output.iocap_flit_b.value() != expected) {
+                if (output.iocap_flit_b.value() != expected.value) {
                     throw test_failure(fmt::format("ExposerScoreboard got unexpected b flit:\nexpected: {}\nall expected: {}\ngot: {}\n", expected, expectedB, output.iocap_flit_b.value()));
+                }
+                if (expected.was_correct) {
+                    b_b_latency.push_back(tick - expected.tick_initiated);
+                } else {
+                    aw_b_latency.push_back(tick - expected.tick_initiated);
                 }
             }
         }
@@ -702,8 +826,13 @@ public:
             } else {
                 auto expected = expectedForId.front();
                 expectedForId.pop_front();
-                if (output.iocap_flit_r.value() != expected) {
+                if (output.iocap_flit_r.value() != expected.value) {
                     throw test_failure(fmt::format("ExposerScoreboard got unexpected r flit:\nexpected: {}\nall expected: {}\ngot: {}\n", expected, expectedR, output.iocap_flit_r.value()));
+                }
+                if (expected.was_correct) {
+                    r_r_latency.push_back(tick - expected.tick_initiated);
+                } else {
+                    ar_r_latency.push_back(tick - expected.tick_initiated);
                 }
             }
         }
@@ -725,30 +854,38 @@ public:
         // Add incoming B and R flits from the sanitized-side to the list of expected outputs
         if (input.clean_flit_b) {
             auto expected = input.clean_flit_b.value();
-            expectedB[expected.bid].push_back(axi::IOCapAxi::BFlit_id4 {
-                .bresp = expected.bresp,
-                .bid = expected.bid
+            expectedB[expected.bid].push_back({
+                tick, 
+                true, // This is from a valid B flit from the sanitized side
+                axi::IOCapAxi::BFlit_id4 {
+                    .bresp = expected.bresp,
+                    .bid = expected.bid
+                }
             });
         }
         if (input.clean_flit_r) {
             auto expected = input.clean_flit_r.value();
-            expectedR[expected.rid].push_back(axi::IOCapAxi::RFlit_id4_data32 {
-                .rlast = expected.rlast,
-                .rresp = expected.rresp,
-                .rdata = expected.rdata,
-                .rid = expected.rid,
+            expectedR[expected.rid].push_back({
+                tick,
+                true, // This is from a valid R flit from the sanitized side
+                axi::IOCapAxi::RFlit_id4_data32 {
+                    .rlast = expected.rlast,
+                    .rresp = expected.rresp,
+                    .rdata = expected.rdata,
+                    .rid = expected.rid
+                }
             });
         }
 
         // Resolve AW flits to see if there's a new valid/invalid burst
         // If invalid, it should return a B flit. If we received a staitized B flit with the same ID on the same cycle, that one comes first in the ordering because it must be the result of a valid AW on a previous cycle/came before.
-        resolveAwFlit(input.iocap_flit_aw);
+        resolveAwFlit(tick, input.iocap_flit_aw);
         // Resolve AR flits to see if there's a new valid/invalid burst
         // Same as above for R flits
-        resolveArFlit(input.iocap_flit_ar);
+        resolveArFlit(tick, input.iocap_flit_ar);
 
         // Add incoming W flits from the IOCap-side to the list of expected output W flits, if possible.
-        resolveWFlits(input.iocap_flit_w);
+        resolveWFlits(tick, input.iocap_flit_w);
     }
     // Should raise a test_failure on failure
     virtual void endTest() override {
@@ -796,6 +933,21 @@ public:
             ));
         }
     }
+    #define STRINGIFY(x) STRINGIFY2(x)
+    #define STRINGIFY2(x) #x
+    #define DUMP_MEAN_OF(x) fmt::println(stderr, STRINGIFY(x) ", {}", mean_of(x));
+    virtual void dump_stats() override {
+        DUMP_MEAN_OF(aw_aw_latency);
+        DUMP_MEAN_OF(aw_b_latency);
+        DUMP_MEAN_OF(ar_ar_latency);
+        DUMP_MEAN_OF(ar_r_latency);
+        DUMP_MEAN_OF(w_w_latency);
+        DUMP_MEAN_OF(b_b_latency);
+        DUMP_MEAN_OF(r_r_latency);
+    }
+    #undef DUMP_MEAN_OF
+    #undef STRINGIFY2
+    #undef STRINGIFY
 };
 
 template<class DUT>
@@ -1071,6 +1223,52 @@ public:
         // Each revocation = 450 cycles of transactions then 50 for revocation
         // Plus some spare cycles - TODO why???
         return tick >= (5000 * (n_revocations) + 350);
+    }
+};
+
+template<class DUT>
+class UVMStreamOfNValidTransactions : public ExposerStimulus<DUT> {
+    CCapPerms perms;
+    uint64_t n_transactions;
+
+    uint64_t final_tick = 0;
+    
+public:
+    virtual ~UVMStreamOfNValidTransactions() = default;
+    virtual std::string name() override {
+        return fmt::format("Stream of {} {} transactions", n_transactions, perms_to_str(perms));
+    }
+    UVMStreamOfNValidTransactions(CCapPerms perms, uint64_t n_transactions) : ExposerStimulus<DUT>(
+        new BasicKeyManagerShimStimulus<DUT>(),
+        new BasicSanitizedMemStimulus<DUT>()
+    ), perms(perms), n_transactions(n_transactions) {}
+    virtual void setup(std::mt19937& rng) override {
+        const key_manager::KeyId secret_id = 111;
+        const U128 key = U128::random(rng);
+
+        this->keyMgr->secrets[secret_id] = key;
+        for (uint64_t i = 0; i < n_transactions; i++) {
+            uint8_t axi_id = i & 0xF;
+            auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, perms);
+            auto axi_params = cap_data.valid_transfer_params(32, 20);
+            if (perms & CCapPerms_Read) {
+                this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
+            }
+            if (perms & CCapPerms_Write) {
+                this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
+            }
+        }
+    }
+    virtual bool shouldFinish(uint64_t tick) override {
+        if (final_tick == 0) {
+            if (this->awInputs.empty() && this->wInputs.empty() && this->arInputs.empty()) {
+                // Give 1000 cycles of buffer
+                final_tick = tick + 10000;
+            }
+            return false;
+        } else {
+            return tick >= final_tick;
+        }
     }
 };
 

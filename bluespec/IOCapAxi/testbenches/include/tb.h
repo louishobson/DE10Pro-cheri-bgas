@@ -23,6 +23,7 @@ struct TestBase {
     // Handle parameters which may be supplied post-initialization, like the random seed
     virtual void setup(std::mt19937&& rng) {}
     virtual bool run(int argc, char** argv) = 0;
+    virtual void dump_stats() {}
 };
 
 int tb_main(std::vector<TestBase*> tests, int argc, char** argv) __attribute__ ((warn_unused_result));
@@ -38,6 +39,8 @@ int tb_main(std::vector<TestBase*> tests, int argc, char** argv) {
         if (!test->run(argc, argv)) {
             result = EXIT_FAILURE;
         }
+        // TODO only do this if a command-line option is set
+        test->dump_stats();
     }
 
     return result;
@@ -240,6 +243,7 @@ public:
     virtual void setup(std::mt19937& rng) {}
     virtual void driveInputsForTick(std::mt19937& rng, DUT& dut, uint64_t tick) = 0;
     virtual bool shouldFinish(uint64_t tick) = 0;
+    virtual void dump_stats() {}
 };
 
 using test_failure = std::logic_error;
@@ -248,10 +252,11 @@ template<class DUT>
 class Scoreboard {
 public:
     virtual ~Scoreboard() {}
-    // Should raise a test_failure
+    // Should raise a test_failure if the test should fal
     virtual void monitorAndScore(DUT& dut, uint64_t tick) = 0;
-    // Should raise a test_failure
+    // Should raise a test_failure if the test should fail
     virtual void endTest() {}
+    virtual void dump_stats() {}
 };
 
 template<class DUT>
@@ -323,6 +328,10 @@ public:
         }
         fmt::println(stderr, "\033[1;32mTest-Success\033[0m");
         return true;
+    }
+    virtual void dump_stats() {
+        generator->dump_stats();
+        scoreboard->dump_stats();
     }
 };
 

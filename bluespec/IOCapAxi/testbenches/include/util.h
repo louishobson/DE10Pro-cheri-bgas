@@ -90,4 +90,13 @@ template <> class fmt::formatter<U128> {
     }
 };
 
+template<class T>
+double mean_of(std::vector<T>& ts) {
+    double sum = 0.0;
+    for (auto& t : ts) {
+        sum += (1.0 * t);
+    }
+    return sum / ts.size();
+}
+
 #endif // UTIL_H
