@@ -429,7 +429,7 @@ provisos (
     NumProxy #(2) proxyBufSz = ?;
     t_router_port noRouteRaw <- mkCHERI_BGAS_NoRouteTile;
     Global_Port #(t_global_flit)
-      noRouteIfc <- mkCHERI_BGAS_StreamBridge (proxyBufSz, noRouteRaw);
+      noRouteIfc <- mkCHERI_BGAS_StreamBridge (proxyBufSz, False, noRouteRaw);
     return noRouteIfc;
   endmodule
   // for 2 or 3 system cases:

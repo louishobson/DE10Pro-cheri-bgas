@@ -238,7 +238,8 @@ module mkAXI4StreamBridge
      , Sink #(t_r_flit)  rSnk )
    , AXI4_Router_Port #( t_id, t_addr, t_data
                        , t_awuser, t_wuser, t_buser
-                       , t_aruser, t_ruser ) rPort )
+                       , t_aruser, t_ruser ) rPort
+   , Bool guard )
   (Global_Port #(t_global_flit_container))
   provisos (
   // local type aliases
@@ -339,13 +340,15 @@ module mkAXI4StreamBridge
     unpack (zeroExtend (pack (x)));
   function t_global_flit fromContainer (t_global_flit_container x) =
     unpack (truncate (pack (x)));
-  interface tx = mapSource (toContainer, toSource (globalOutFF));
+  interface tx = guardSource( mapSource (toContainer, toSource (globalOutFF))
+                            , guard);
   interface rx = mapSink (fromContainer, toSink (globalInFF));
 
 endmodule
 
 module mkCHERI_BGAS_StreamBridge
  #( parameter NumProxy #(t_max_credit) maxCreditProxy
+  , Bool guard
   , AXI4_Router_Port #( t_id, t_addr, t_data
                       , t_awuser, t_wuser, t_buser
                       , t_aruser, t_ruser ) inPort )
@@ -466,7 +469,11 @@ module mkCHERI_BGAS_StreamBridge
     endrule
   endmodule
   // wrap ports and return interface
-  let outPort <- mkAXI4StreamBridge (maxCreditProxy, bundle, unbundle, inPort);
+  let outPort <- mkAXI4StreamBridge ( maxCreditProxy
+                                    , bundle
+                                    , unbundle
+                                    , inPort
+                                    , guard );
   return outPort;
 endmodule
 
@@ -600,7 +607,8 @@ module mkCHERI_BGAS_Router #(Maybe #(RouterId #(t_x_sz, t_y_sz)) initRouterId)
   // wrap ports and return interface
   NumProxy #(32) maxCreditProxy = ?;
   Vector #(4, Global_Port #(t_global_flit_container))
-    remotePorts <- mapM ( mkCHERI_BGAS_StreamBridge (maxCreditProxy)
+    remotePorts <- mapM ( mkCHERI_BGAS_StreamBridge ( maxCreditProxy
+                                                    , !isValid (routerId) )
                         , tail (ports) );
   // interfaces
   interface mngmntSubordinate = mngntShim.slave;
