@@ -14,8 +14,6 @@
 #include <memory>
 #include <random>
 
-#define DEFAULT_SEED 12398723198234ull
-
 struct AxiParams {
     uint64_t address;
     uint8_t transfer_width;
@@ -238,8 +236,6 @@ public:
  */
 template<class DUT>
 class ExposerStimulus : public StimulusGenerator<DUT> {
-protected:
-    std::mt19937 rng;
 public:
     std::unique_ptr<KeyManagerShimStimulus<DUT>> keyMgr;
 protected:
@@ -251,10 +247,10 @@ protected:
 
     /// Use these functions in subclasses!
 
-    virtual CapWithRange test_random_initial_resource_cap(uint32_t secret_id, CCapPerms perms) {
+    virtual CapWithRange test_random_initial_resource_cap(std::mt19937& rng, uint32_t secret_id, CCapPerms perms) {
         CapWithRange data{};
 
-        data.cap = random_initial_resource_cap(this->rng, keyMgr->secrets[secret_id], secret_id, perms);
+        data.cap = random_initial_resource_cap(rng, keyMgr->secrets[secret_id], secret_id, perms);
         if (ccap_read_range(&data.cap, &data.cap_base, &data.cap_len, &data.cap_is_almighty) != CCapResult_Success) {
             throw std::runtime_error("Failed to ccap_read_range");
         }
@@ -303,11 +299,11 @@ protected:
     }
 
 public:
-    ExposerStimulus(KeyManagerShimStimulus<DUT>* keyMgr, SanitizedMemStimulus<DUT>* sanitizedMem, uint64_t seed = DEFAULT_SEED) :
-        rng(seed), keyMgr(keyMgr), sanitizedMem(sanitizedMem), awInputs(), wInputs(), arInputs() {}
+    ExposerStimulus(KeyManagerShimStimulus<DUT>* keyMgr, SanitizedMemStimulus<DUT>* sanitizedMem) :
+        keyMgr(keyMgr), sanitizedMem(sanitizedMem), awInputs(), wInputs(), arInputs() {}
 
     virtual ~ExposerStimulus() = default;
-    virtual void driveInputsForTick(DUT& dut, uint64_t tick) {
+    virtual void driveInputsForTick(std::mt19937& rng, DUT& dut, uint64_t tick) {
         keyMgr->driveInputsForKeyMgr(dut, tick);
         sanitizedMem->driveBAndRInputs(dut, tick);
 
@@ -839,17 +835,17 @@ public:
     virtual std::string name() override {
         return fmt::format("Valid-Key Valid-Cap Valid-{}", perms_to_str(perms));
     }
-    UVMValidKeyValidInitialCapValidAccess(CCapPerms perms, uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
+    UVMValidKeyValidInitialCapValidAccess(CCapPerms perms) : ExposerStimulus<DUT>(
         new BasicKeyManagerShimStimulus<DUT>(),
-        new BasicSanitizedMemStimulus<DUT>(),
-        seed
-    ), perms(perms) {
+        new BasicSanitizedMemStimulus<DUT>()
+    ), perms(perms) {}
+    virtual void setup(std::mt19937& rng) override {
         const uint8_t axi_id = 0b1011;
         const key_manager::KeyId secret_id = 111;
-        const U128 key = U128::random(this->rng);
+        const U128 key = U128::random(rng);
 
         this->keyMgr->secrets[secret_id] = key;
-        auto cap_data = this->test_random_initial_resource_cap(secret_id, perms);
+        auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, perms);
         auto axi_params = cap_data.valid_transfer_params(32, 20);
         if (perms & CCapPerms_Read) {
             this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
@@ -873,17 +869,17 @@ public:
     virtual std::string name() override {
         return fmt::format("Valid-Key Valid-Cap OOB-{}", perms_to_str(perms));
     }
-    UVMValidKeyValidInitialCapOOBAccess(CCapPerms perms, uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
+    UVMValidKeyValidInitialCapOOBAccess(CCapPerms perms) : ExposerStimulus<DUT>(
         new BasicKeyManagerShimStimulus<DUT>(),
-        new BasicSanitizedMemStimulus<DUT>(),
-        seed
-    ), perms(perms) {
+        new BasicSanitizedMemStimulus<DUT>()
+    ), perms(perms) {}
+    virtual void setup(std::mt19937& rng) override {        
         const uint8_t axi_id = 0b1011;
         const key_manager::KeyId secret_id = 111;
-        const U128 key = U128::random(this->rng);
+        const U128 key = U128::random(rng);
 
         this->keyMgr->secrets[secret_id] = key;
-        auto cap_data = this->test_random_initial_resource_cap(secret_id, perms);
+        auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, perms);
         auto axi_params = cap_data.valid_transfer_params(32, 20);
         axi_params.address = cap_data.cap_base - 4096;
         if (perms & CCapPerms_Read) {
@@ -908,18 +904,18 @@ public:
     virtual std::string name() override {
         return fmt::format("Invalid-Key {}", perms_to_str(perms));
     }
-    UVMInvalidKeyAccess(CCapPerms perms, uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
+    UVMInvalidKeyAccess(CCapPerms perms) : ExposerStimulus<DUT>(
         new BasicKeyManagerShimStimulus<DUT>(),
-        new BasicSanitizedMemStimulus<DUT>(),
-        seed
-    ), perms(perms) {
+        new BasicSanitizedMemStimulus<DUT>()
+    ), perms(perms) {}
+    virtual void setup(std::mt19937& rng) override {        
         const uint8_t axi_id = 0b1011;
         const key_manager::KeyId secret_id = 111;
-        const U128 key = U128::random(this->rng);
+        const U128 key = U128::random(rng);
 
         this->keyMgr->secrets[secret_id] = key;
         // Use the wrong secret key ID
-        auto cap_data = this->test_random_initial_resource_cap(90, perms);
+        auto cap_data = this->test_random_initial_resource_cap(rng, 90, perms);
         auto axi_params = cap_data.valid_transfer_params(32, 20);
         axi_params.address = cap_data.cap_base - 4096;
         if (perms & CCapPerms_Read) {
@@ -942,23 +938,23 @@ public:
     virtual std::string name() override {
         return "Valid-Key Valid-Cap BadPerms";
     }
-    UVMValidKeyValidCapBadPerms(uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
+    UVMValidKeyValidCapBadPerms() : ExposerStimulus<DUT>(
         new BasicKeyManagerShimStimulus<DUT>(),
-        new BasicSanitizedMemStimulus<DUT>(),
-        seed
-    ) {
+        new BasicSanitizedMemStimulus<DUT>()
+    ) {}
+    virtual void setup(std::mt19937& rng) override {        
         const uint8_t axi_id = 0b1011;
         const key_manager::KeyId secret_id = 111;
-        const U128 key = U128::random(this->rng);
+        const U128 key = U128::random(rng);
 
         this->keyMgr->secrets[secret_id] = key;
         {
-            auto cap_data = this->test_random_initial_resource_cap(secret_id, CCapPerms_Read);
+            auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, CCapPerms_Read);
             auto axi_params = cap_data.valid_transfer_params(32, 20);
             this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
         }
         {
-            auto cap_data = this->test_random_initial_resource_cap(secret_id, CCapPerms_Write);
+            auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, CCapPerms_Write);
             auto axi_params = cap_data.valid_transfer_params(32, 20);
             this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
         }
@@ -976,14 +972,14 @@ public:
     virtual std::string name() override {
         return "Valid-Key BadSig-Cap";
     }
-    UVMValidKeyBadSigCap(uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
+    UVMValidKeyBadSigCap() : ExposerStimulus<DUT>(
         new BasicKeyManagerShimStimulus<DUT>(),
-        new BasicSanitizedMemStimulus<DUT>(),
-        seed
-    ) {
+        new BasicSanitizedMemStimulus<DUT>()
+    ) {}
+    virtual void setup(std::mt19937& rng) override {        
         const uint8_t axi_id = 0b1011;
         const key_manager::KeyId secret_id = 111;
-        const U128 key = U128::random(this->rng);
+        const U128 key = U128::random(rng);
 
         this->keyMgr->secrets[secret_id] = key;
         const U128 badSignature = {
@@ -991,13 +987,13 @@ public:
             .bottom = 0x08090a0b0c0d0e0f,
         };
         {
-            auto cap_data = this->test_random_initial_resource_cap(secret_id, CCapPerms_Read);
+            auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, CCapPerms_Read);
             badSignature.to_le(cap_data.cap.signature);
             auto axi_params = cap_data.valid_transfer_params(32, 20);
             this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
         }
         {
-            auto cap_data = this->test_random_initial_resource_cap(secret_id, CCapPerms_Write);
+            auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, CCapPerms_Write);
             badSignature.to_le(cap_data.cap.signature);
             auto axi_params = cap_data.valid_transfer_params(32, 20);
             this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
@@ -1018,35 +1014,33 @@ public:
     virtual std::string name() override {
         return fmt::format("Valid-Key Valid-Cap Valid-ReadWrite with {} revocations", n_revocations);
     }
-    UVMTransactionsBetweenRevocations(uint64_t n_revocations, uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
+    UVMTransactionsBetweenRevocations(uint64_t n_revocations) : ExposerStimulus<DUT>(
         new BasicKeyManagerShimStimulus<DUT>(),
-        new BasicSanitizedMemStimulus<DUT>(),
-        seed
-    ), n_revocations(n_revocations) {
-    }
-    virtual void driveInputsForTick(DUT& dut, uint64_t tick) {
+        new BasicSanitizedMemStimulus<DUT>()
+    ), n_revocations(n_revocations) {}
+    virtual void driveInputsForTick(std::mt19937& rng, DUT& dut, uint64_t tick) {
         if (tick % 5000 == 0) {
             // Enqueue 450 cycles worth of transactions, including creating secret keys
             // TODO multiple transactions, mixing key ids?
 
             const key_manager::KeyId secret_id = 111;
-            const U128 key = U128::random(this->rng);
+            const U128 key = U128::random(rng);
             const uint8_t axi_id = 0b1011;
 
             this->keyMgr->secrets[secret_id] = key;
             {
-                auto cap_data = this->test_random_initial_resource_cap(secret_id, CCapPerms_Read);
+                auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, CCapPerms_Read);
                 auto axi_params = cap_data.valid_transfer_params(32, 10);
                 this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
             }
             {
-                auto cap_data = this->test_random_initial_resource_cap(secret_id, CCapPerms_Write);
+                auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, CCapPerms_Write);
                 auto axi_params = cap_data.valid_transfer_params(32, 10);
                 this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
             }
         }
 
-        ExposerStimulus<DUT>::driveInputsForTick(dut, tick);
+        ExposerStimulus<DUT>::driveInputsForTick(rng, dut, tick);
 
         if (tick % 5000 == 4500) {
             // Transactions should be over, drive the revocation signal

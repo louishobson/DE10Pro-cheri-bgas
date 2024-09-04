@@ -443,20 +443,14 @@ struct PerformanceCounting : public CycleTest<DUT, KeyManagerInput, KeyManagerOu
 // };
 
 int main(int argc, char** argv) {
-    int success = EXIT_SUCCESS;
-
-    std::vector<KeyManagerCycleTest<VmkSimpleIOCapKeyManager_Tb>*> tests = {
-        new WriteAndEnableKeyTest<VmkSimpleIOCapKeyManager_Tb>(),
-        new WriteAndEnableKeyTest_EventBased<VmkSimpleIOCapKeyManager_Tb>(),
-        new InvalidationEpochs<VmkSimpleIOCapKeyManager_Tb>(),
-        new OneKeyRequestPerCycle<VmkSimpleIOCapKeyManager_Tb>(),
-        new PerformanceCounting<VmkSimpleIOCapKeyManager_Tb>(),
-    };
-    for (auto* test : tests) {
-        if (!test->run(argc, argv)) {
-            success = EXIT_FAILURE;
-        }
-    }
-    
-    return success;
+    return tb_main(
+        {
+            new WriteAndEnableKeyTest<VmkSimpleIOCapKeyManager_Tb>(),
+            new WriteAndEnableKeyTest_EventBased<VmkSimpleIOCapKeyManager_Tb>(),
+            new InvalidationEpochs<VmkSimpleIOCapKeyManager_Tb>(),
+            new OneKeyRequestPerCycle<VmkSimpleIOCapKeyManager_Tb>(),
+            new PerformanceCounting<VmkSimpleIOCapKeyManager_Tb>(),
+        },
+        argc, argv
+    );
 }

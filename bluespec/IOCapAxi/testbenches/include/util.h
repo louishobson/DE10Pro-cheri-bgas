@@ -33,7 +33,7 @@ struct U128 {
     uint64_t bottom;
 
     bool operator==(const U128& other) const = default;
-    template<class Generator>
+    template<class Generator> requires std::uniform_random_bit_generator<Generator>
     static U128 random(Generator& g) {
         auto dist = std::uniform_int_distribution<uint64_t>();
         return U128 {

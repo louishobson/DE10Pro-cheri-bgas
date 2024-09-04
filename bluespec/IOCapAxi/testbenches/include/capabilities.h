@@ -44,7 +44,7 @@ CCap2024_02 initial_resource_cap_exact(const U128& key, uint64_t base, uint64_t 
 /**
  * Generate a random Cap2024_02 with a uniformly distributed log(length).
  */
-template<class Generator>
+template<class Generator> requires std::uniform_random_bit_generator<Generator>
 CCap2024_02 random_initial_resource_cap(Generator& g, const U128& key, uint32_t secret_id, CCapPerms perms) {
     // Generate a random length with uniform log(length)
     // Generate log(length)

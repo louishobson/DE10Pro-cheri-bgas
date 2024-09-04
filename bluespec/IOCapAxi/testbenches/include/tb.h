@@ -14,12 +14,34 @@
 
 #include "util.h"
 
+#define DEFAULT_SEED 12398723198234ull
+
 struct TestBase {
     virtual ~TestBase() = default;
 
     virtual std::string name() = 0;
+    // Handle parameters which may be supplied post-initialization, like the random seed
+    virtual void setup(std::mt19937&& rng) {}
     virtual bool run(int argc, char** argv) = 0;
 };
+
+int tb_main(std::vector<TestBase*> tests, int argc, char** argv) __attribute__ ((warn_unused_result));
+int tb_main(std::vector<TestBase*> tests, int argc, char** argv) {
+    int result = EXIT_SUCCESS;
+
+    uint64_t seed = DEFAULT_SEED;
+
+    // TODO parse some of the args to setup e.g. which tests to run, which seed to use
+
+    for (auto* test : tests) {
+        test->setup(std::move(std::mt19937(seed)));
+        if (!test->run(argc, argv)) {
+            result = EXIT_FAILURE;
+        }
+    }
+
+    return result;
+}
 
 template<class T>
 concept ValidTbStim = requires(T out) {
@@ -33,11 +55,16 @@ template<class DUT, class TbInput, class TbOutput>
         {pull_output(dut, out)} -> std::same_as<void>;
     }
 struct CycleTest : TestBase {
+    // SHOULD NOT BE USED UNTIL setup() IS CALLED, WHICH SHOULD ALWAYS BE BEFORE run()
     std::mt19937 rng;
-
-    CycleTest(int seed = 123908104) : rng(seed) {}
+    CycleTest() : rng(0) {}
     virtual ~CycleTest() override = default;
 
+    virtual void setup(std::mt19937&& rng) override {
+        this->rng = rng;
+    }
+
+    // Will only be called in run(), which is after setup(), so can use this->rng.
     virtual std::pair<std::vector<TbInput>, std::vector<TbOutput>> stimuli() = 0;
 
     /**
@@ -209,7 +236,9 @@ class StimulusGenerator {
 public:
     virtual ~StimulusGenerator() {}
     virtual std::string name() = 0;
-    virtual void driveInputsForTick(DUT& dut, uint64_t tick) = 0;
+    // Handle parameters which may be supplied post-initialization, like the random seed
+    virtual void setup(std::mt19937& rng) {}
+    virtual void driveInputsForTick(std::mt19937& rng, DUT& dut, uint64_t tick) = 0;
     virtual bool shouldFinish(uint64_t tick) = 0;
 };
 
@@ -228,13 +257,19 @@ public:
 template<class DUT>
 struct UVMishTest : public TestBase {
 protected:
+    // SHOULD NOT BE USED UNTIL setup() IS CALLED, WHICH SHOULD ALWAYS BE BEFORE run()
+    std::mt19937 rng;
     std::unique_ptr<Scoreboard<DUT>> scoreboard;
     std::unique_ptr<StimulusGenerator<DUT>> generator;
 public:
-    UVMishTest(Scoreboard<DUT>* scoreboard, StimulusGenerator<DUT>* generator) : scoreboard(scoreboard), generator(generator) {}
+    UVMishTest(Scoreboard<DUT>* scoreboard, StimulusGenerator<DUT>* generator) : rng(0), scoreboard(scoreboard), generator(generator) {}
     virtual ~UVMishTest() override = default;
     virtual std::string name() override {
         return generator->name();
+    }
+    virtual void setup(std::mt19937&& rng) {
+        this->rng = rng;
+        generator->setup(this->rng);
     }
     virtual bool run(int argc, char** argv) override {
         fmt::println(stderr, "\033[1;33mTest: {}\033[0m", name());
@@ -268,7 +303,7 @@ public:
                     
                     // Only start driving at 20 to let the reset status settle
                     if (main_time >= 20) {
-                        generator->driveInputsForTick(dut, main_time);
+                        generator->driveInputsForTick(this->rng, dut, main_time);
                         scoreboard->monitorAndScore(dut, main_time);
                     }
                 }

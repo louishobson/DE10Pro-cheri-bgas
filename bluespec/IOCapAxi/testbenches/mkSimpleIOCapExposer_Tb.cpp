@@ -5,8 +5,6 @@
 #include "exposer_tests_legacy.h"
 
 int main(int argc, char** argv) {
-    int ccapresult_success = EXIT_SUCCESS;
-
     std::vector<TestBase*> tests = {
         // Test valid caps are accepted - DONE below
         // new ValidKeyValidCapValidWrite<VmkSimpleIOCapExposer_Tb>(),
@@ -74,11 +72,6 @@ int main(int argc, char** argv) {
             new UVMTransactionsBetweenRevocations<VmkSimpleIOCapExposer_Tb>(5)
         )
     };
-    for (auto* test : tests) {
-        if (!test->run(argc, argv)) {
-            ccapresult_success = EXIT_FAILURE;
-        }
-    }
 
-    return ccapresult_success;
+    return tb_main(tests, argc, argv);
 }
