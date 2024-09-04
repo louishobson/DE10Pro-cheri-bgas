@@ -51,20 +51,21 @@ struct CapWithRange {
     }
 };
 
-template<class DUT>
-struct ExposerCycleTest : public CycleTest<DUT, ShimmedExposerInput, ShimmedExposerOutput> {
-    virtual CapWithRange test_random_initial_resource_cap(const U128& key, uint32_t secret_id, CCapPerms perms) {
-        CapWithRange data{};
+/**
+ * UVM-style testing is more dynamic than fixed per-cycle expected-input expected-output testing.
+ * This implementation uses two components per test: a Stimulus Generator to twiddle the inputs on the DUT,
+ * and a Scoreboard which monitors the inputs and outputs of the DUT to determine if the behaviour was correct.
+ * This structure allows the same Scoreboard to be reused for different tests, and the Scoreboard is designed to be timing-independent.
+ * The Stimulus Generator changes for each test, and usually just specifies the kinds of transactions tested
+ * (e.g. a simple test may say "shove this queue of AW transactions into the unit as fast as possible")
+ * which don't react to the output of the DUT (e.g. the DUT will expect to pass transactions on to memory and have them complete at some point - those completions aren't pre-planned.)
+ * KeyManagerShimStimulus and SanitizedMemStimulus are convenience interfaces which objects can implement to observe the outputs of the DUT and dynamically generate relevant inputs.
+ * 
+ * The ExposerStimulus stimulus generator class is the base class for ShimmedExposer UVM tests,
+ * and subclasses should pass instances of KeyManagerShimStimulus and SanitizedMemStimulus to its base constructor.
+ */
 
-        data.cap = random_initial_resource_cap(this->rng, key, secret_id, perms);
-        if (ccap_read_range(&data.cap, &data.cap_base, &data.cap_len, &data.cap_is_almighty) != CCapResult_Success) {
-            throw std::runtime_error("Failed to ccap_read_range");
-        }
-        
-        return data;
-    }
-};
-
+// Helper macros for generating stimulus
 #define CANPUT_INPUT(name) ((dut.RDY_## name ##_put != 0) && (dut. name ##_canPut != 0))
 #define PUT_INPUT(name, value) do {                  \
     dut.EN_## name ##_put = 1;        \
@@ -81,16 +82,26 @@ struct ExposerCycleTest : public CycleTest<DUT, ShimmedExposerInput, ShimmedExpo
     dut.EN_## from ##_drop = 1; \
     into = dut. from ##_peek;
 
+/**
+ * Generic stimulus generator for the key manager parts of ShimmedExposer DUTs.
+ * Dynamically reacts to the DUT outputs (e.g. requests for key data) to generate inputs
+ * (e.g. responding with the requested key data).
+ * Intended for use inside a ExposerStimulus.
+ */
 template<class DUT>
 class KeyManagerShimStimulus {
 public:
     std::unordered_map<key_manager::KeyId, U128> secrets; // Fake keymanager proxy.
 
     KeyManagerShimStimulus() : secrets() {}
-    // Observe the key manager inputs (epoch fulfilments and )
+    // Observe the key manager inputs (epoch fulfilments and key responses)
     virtual void driveInputsForKeyMgr(DUT& dut, uint64_t tick) = 0;
 };
 
+/**
+ * Implementation of KeyManagerShimStimulus that assumes revocation never occurs.
+ * Simply responds to key requests with the contents of the `secrets` field of the parent class.
+ */
 template<class DUT>
 class BasicKeyManagerShimStimulus : public KeyManagerShimStimulus<DUT> {
     std::deque<key_manager::KeyResponse> keyResponses;
@@ -124,6 +135,10 @@ public:
     }
 };
 
+/**
+ * Generic stimulus generator for the sanitized memory outputs of ShimmedExposer DUTs.
+ * Intended for use inside a ExposerStimulus.
+ */
 template<class DUT>
 class SanitizedMemStimulus {
 public:
@@ -131,6 +146,10 @@ public:
     virtual void driveBAndRInputs(DUT& dut, uint64_t tick) = 0;
 };
 
+/**
+ * Implementation of SanitizedMemStimulus.
+ * Immediately responds to AW and AR requests from the memory outputs with no cycle delay.
+ */
 template<class DUT>
 class BasicSanitizedMemStimulus : public SanitizedMemStimulus<DUT> {
     // Flits which have arrived before their corresponding AW
@@ -214,6 +233,9 @@ public:
     }
 };
 
+/**
+ * Base class for all ShimmedExposer stimulus generators
+ */
 template<class DUT>
 class ExposerStimulus : public StimulusGenerator<DUT> {
 protected:
@@ -226,6 +248,8 @@ protected:
     std::deque<axi::IOCapAxi::AWFlit_id4_addr64_user3> awInputs;
     std::deque<axi::IOCapAxi::WFlit_data32> wInputs;
     std::deque<axi::IOCapAxi::ARFlit_id4_addr64_user3> arInputs;
+
+    /// Use these functions in subclasses!
 
     virtual CapWithRange test_random_initial_resource_cap(uint32_t secret_id, CCapPerms perms) {
         CapWithRange data{};
@@ -314,6 +338,12 @@ public:
 };
 
 
+/**
+ * Scoreboard for ShimmedExposer tests.
+ * Can be instantiated directly or subclassed.
+ * Does not do anything to handle revocation, but revocation can be simulated by modifying the KeyID -> Key map `secrets` the scoreboard uses
+ * to determine if incoming requests will be valid or not.
+ */
 template<class DUT>
 class ExposerScoreboard : public Scoreboard<DUT> {
     std::unordered_map<key_manager::KeyId, U128>& secrets; // Fake keymanager proxy. THIS SCOREBOARD ASSUMES KEYS DONT CHANGE
@@ -782,6 +812,24 @@ public:
         ) {}
 };
 
+const char* perms_to_str(CCapPerms perms) {
+    const char* perm_str = "Unk";
+    switch (perms) {
+        case CCapPerms_ReadWrite:
+            perm_str = "ReadWrite";
+            break;
+        case CCapPerms_Write:
+            perm_str = "Write";
+            break;
+        case CCapPerms_Read:
+            perm_str = "Read";
+            break;
+        default:
+            throw std::logic_error("Invalid perms");
+    }
+    return perm_str;
+}
+
 template<class DUT>
 class UVMValidKeyValidInitialCapValidAccess : public ExposerStimulus<DUT> {
     CCapPerms perms;
@@ -789,21 +837,7 @@ class UVMValidKeyValidInitialCapValidAccess : public ExposerStimulus<DUT> {
 public:
     virtual ~UVMValidKeyValidInitialCapValidAccess() = default;
     virtual std::string name() override {
-        const char* perm_str = "Unk";
-        switch (perms) {
-            case CCapPerms_ReadWrite:
-                perm_str = "ReadWrite";
-                break;
-            case CCapPerms_Write:
-                perm_str = "Write";
-                break;
-            case CCapPerms_Read:
-                perm_str = "Read";
-                break;
-            default:
-                throw std::logic_error("Invalid perms");
-        }
-        return fmt::format("Valid-Key Valid-Cap Valid-{}", perm_str);
+        return fmt::format("Valid-Key Valid-Cap Valid-{}", perms_to_str(perms));
     }
     UVMValidKeyValidInitialCapValidAccess(CCapPerms perms, uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
         new BasicKeyManagerShimStimulus<DUT>(),
@@ -837,21 +871,7 @@ class UVMValidKeyValidInitialCapOOBAccess : public ExposerStimulus<DUT> {
 public:
     virtual ~UVMValidKeyValidInitialCapOOBAccess() = default;
     virtual std::string name() override {
-        const char* perm_str = "Unk";
-        switch (perms) {
-            case CCapPerms_ReadWrite:
-                perm_str = "ReadWrite";
-                break;
-            case CCapPerms_Write:
-                perm_str = "Write";
-                break;
-            case CCapPerms_Read:
-                perm_str = "Read";
-                break;
-            default:
-                throw std::logic_error("Invalid perms");
-        }
-        return fmt::format("Valid-Key Valid-Cap OOB-{}", perm_str);
+        return fmt::format("Valid-Key Valid-Cap OOB-{}", perms_to_str(perms));
     }
     UVMValidKeyValidInitialCapOOBAccess(CCapPerms perms, uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
         new BasicKeyManagerShimStimulus<DUT>(),
@@ -886,21 +906,7 @@ class UVMInvalidKeyAccess : public ExposerStimulus<DUT> {
 public:
     virtual ~UVMInvalidKeyAccess() = default;
     virtual std::string name() override {
-        const char* perm_str = "Unk";
-        switch (perms) {
-            case CCapPerms_ReadWrite:
-                perm_str = "ReadWrite";
-                break;
-            case CCapPerms_Write:
-                perm_str = "Write";
-                break;
-            case CCapPerms_Read:
-                perm_str = "Read";
-                break;
-            default:
-                throw std::logic_error("Invalid perms");
-        }
-        return fmt::format("Invalid-Key {}", perm_str);
+        return fmt::format("Invalid-Key {}", perms_to_str(perms));
     }
     UVMInvalidKeyAccess(CCapPerms perms, uint64_t seed = DEFAULT_SEED) : ExposerStimulus<DUT>(
         new BasicKeyManagerShimStimulus<DUT>(),
@@ -1082,6 +1088,19 @@ public:
 #undef PUT_INPUT
 #undef CANPUT_INPUT
 
+template<class DUT>
+struct ExposerCycleTest : public CycleTest<DUT, ShimmedExposerInput, ShimmedExposerOutput> {
+    virtual CapWithRange test_random_initial_resource_cap(const U128& key, uint32_t secret_id, CCapPerms perms) {
+        CapWithRange data{};
+
+        data.cap = random_initial_resource_cap(this->rng, key, secret_id, perms);
+        if (ccap_read_range(&data.cap, &data.cap_base, &data.cap_len, &data.cap_is_almighty) != CCapResult_Success) {
+            throw std::runtime_error("Failed to ccap_read_range");
+        }
+        
+        return data;
+    }
+};
 
 template<class DUT>
 struct ValidKeyValidCapValidWrite : public ExposerCycleTest<DUT> {
