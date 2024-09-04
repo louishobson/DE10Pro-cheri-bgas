@@ -9,7 +9,8 @@ interface CreditValve#(type t, numeric type count_n);
     (* always_ready, always_enabled *)
     method Bool canUpdateCredits(CreditMode mode);
 
-    // Has implicit condition on canUpdateCredits(mode)
+    // Must ONLY be called if canUpdateCredits() is true.
+// I can't put an actual condition on this function in the impl because it is argument-dependent?
     // TODO calculations/reasoning on how to choose count_n that will never overflow
     method Action updateCredits(CreditMode mode, UInt#(count_n) credits);
 
@@ -62,7 +63,7 @@ module mkSimpleCreditValve#(Source#(t) in)(CreditValve#(t, count_n));
 
     method Bool canUpdateCredits(CreditMode newMode) = (mode == newMode) || (credits == 0);
     
-    method Action updateCredits(CreditMode newMode, UInt#(count_n) newCredits);
+    method Action updateCredits(CreditMode newMode, UInt#(count_n) newCredits) /* if canUpdateCredits(newMode) */;
         if (mode != newMode) begin
             modeToUpdate.wset(newMode);
         end
