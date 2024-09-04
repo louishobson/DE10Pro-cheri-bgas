@@ -8,6 +8,7 @@ import BlueBasics :: *;
 import LeftShift :: *;
 import IOCapAxi_ErrorUnit :: *;
 
+// TODO maybe move some of these into IOCapAxi_Types?
 typedef UInt#(1) Epoch;
 typedef Bit#(128) Key;
 // 0x1000 bytes => 4096 bytes => 256 keys => 8 bit ID

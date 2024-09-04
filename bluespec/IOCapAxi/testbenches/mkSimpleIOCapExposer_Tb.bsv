@@ -2,6 +2,7 @@ import BlueAXI4 :: *;
 import FIFOF :: *;
 import SourceSink :: *;
 
+import IOCapAxi_Types :: *;
 import IOCapAxi_Exposers :: *;
 import IOCapAxi_KeyManagers :: *;
 
