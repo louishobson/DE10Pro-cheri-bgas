@@ -106,6 +106,7 @@ interface InternalCalc;
     interface Put#(CalcInput) in;
 endinterface
 
+(* synthesize *)
 module mkInternalCalc(InternalCalc);
     // Inputs are clocked, outputs are not
     // Use vReg so we only do computations when requested
