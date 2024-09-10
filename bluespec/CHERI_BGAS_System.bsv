@@ -376,7 +376,7 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
     tuple2 (h2fWindow.windowCtrl, Range { base: 'h0000_5000, size: 'h0000_1000 });
   // Connect the h2fWindow to an IOCap Exposer, which checks the IOCap against the keys written in by the host.
   IOCap_KeyManager#(Wd_Data_Periph) iocapKeyStore <- mkSimpleIOCapKeyManager(reset_by newRst.new_rst);
-  let iocapExposer <- mkSimpleIOCapExposer(iocapKeyStore, reset_by newRst.new_rst);
+  let iocapExposer <- mkSimpleIOCapExposerV1(iocapKeyStore, reset_by newRst.new_rst); // TODO upgrade
   mkConnection(iocapExposer.iocapsIn.axiSignals, h2fWindow.postWindow, reset_by newRst.new_rst);
 
   // Virtual device for emulating control registers, e.g. for virtio.
