@@ -5,3 +5,9 @@ bluespec/build/
 bluespec/.depends.mk
 cheri-bgas-rtl/
 .qsys_edit/
+
+# Intermediate files?
+ip/
+tmp-clearbox/
+toplevel/
+mkCHERI_BGAS_Top_Sig_hw.tcl
