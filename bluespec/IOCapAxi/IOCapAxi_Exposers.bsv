@@ -22,6 +22,8 @@ export IOCapAxi_Exposers_V1 :: *;
 export IOCapAxi_Exposers_V2 :: *;
 export IOCapAxi_Exposers_V3 :: *;
 
+export mkStrippingIOCapExposer;
+
 // An IOCapSingleExposer that strips off capability metadata instead of using it
 module mkStrippingIOCapExposer(IOCapSingleExposer#(t_id, t_data));
     // This doesn't have any key storage or checking logic yet! It just receives IOCapAXI and converts it back to plain AXI.

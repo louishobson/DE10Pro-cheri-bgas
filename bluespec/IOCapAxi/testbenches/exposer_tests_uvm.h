@@ -797,6 +797,7 @@ public:
                 if (output.clean_flit_w.value() != expected.value) {
                     throw test_failure(fmt::format("ExposerScoreboard got unexpected w flit:\nexpected {}, had {} unresolved and {} groups\ngot: {}\n", expected, wInProgress, wflitValidity, output.clean_flit_w.value()));
                 }
+                // TODO: note that this is the latency of entering the pipe e.g. the latency from the input port being *ready* to it coming out the other end. Not the latency from the input becoming available.
                 w_w_latency.push_back(tick - expected.tick_initiated);
             }
         }

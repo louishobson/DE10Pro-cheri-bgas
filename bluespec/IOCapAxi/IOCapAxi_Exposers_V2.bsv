@@ -34,7 +34,7 @@ module mkSimpleIOCapExposerV2#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
     // W flits are passed through or dropped depending on the AW transactions they map to - if the AW transaction is valid, its w flits go through.
     // If the AW transaction is invalid, the w flits are dropped.
     // This is managed by a credit system in wValve.
-    FIFOF#(AXI4_WFlit#(t_data, 0)) wIn <- mkSizedFIFOF(50); // TODO figure out the correct size
+    FIFOF#(AXI4_WFlit#(t_data, 0)) wIn <- mkSizedFIFOF(2); // TODO figure out the correct size
     CreditValve#(AXI4_WFlit#(t_data, 0), 32) wValve <- mkSimpleCreditValve(toSource(wIn));
 
     // B responses from the subordinate (de facto for *valid* requests) are sent through to the master, interleaved with responses from invalid requests.

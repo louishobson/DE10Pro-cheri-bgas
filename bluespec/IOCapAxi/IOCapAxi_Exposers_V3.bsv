@@ -22,6 +22,7 @@ import Cap2024_02 :: *;
 // - correctly blocks invalid transactions
 // Changes from V2
 // - uses a pool of checkers
+// - has a 50-depth FIFO for w flits
 module mkSimpleIOCapExposerV3#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCapSingleExposer#(t_id, t_data)) provisos (
     Mul#(TDiv#(t_keystore_data, 8), 8, t_keystore_data),
     Add#(t_keystore_data, a__, 128),
