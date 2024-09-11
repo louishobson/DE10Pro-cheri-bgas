@@ -1,4 +1,4 @@
-all: $(addprefix $(CURDIR)/tools/, cheri-bgas-fuse-devfs forever-splice jtagvpi_to_fmemdmi openocd)
+all: $(addprefix $(CURDIR)/tools/, cheri-bgas-fuse-devfs forever-splice jtagvpi_to_fmemdmi openocd fmem)
 
 mrproper: mrproper-cheri-bgas-fuse-devfs mrproper-forever-splice mrproper-jtagvpi_to_fmemdmi mrproper-openocd
 
@@ -62,3 +62,20 @@ $(CURDIR)/tools/openocd: /tmp/openocd/src/openocd
 mrproper-openocd:
 	rm -rf $(CURDIR)/tools/openocd
 	$(MAKE) -C /tmp/openocd clean
+
+####
+
+gen-fmem: $(CURDIR)/tools/fmem
+$(CURDIR)/tools/fmem: /tmp/fmem/fmem
+	mkdir -p $(CURDIR)/tools
+	cp $< $@
+
+/tmp/fmem/fmem:
+	rm -rf /tmp/fmem
+	git clone --depth=1 --branch main https://github.com/CTSRD-CHERI/fmem.git /tmp/fmem
+	cd /tmp/fmem && git submodule update --init --recursive && \
+	$(MAKE) -C /tmp/fmem
+
+mrproper-fmem:
+	rm -rf $(CURDIR)/tools/fmem
+	$(MAKE) -C /tmp/fmem clean
