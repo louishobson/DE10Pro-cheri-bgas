@@ -44,7 +44,7 @@ import DE10Pro_bsv_shell :: *;
 // Concrete parameters definitions
 // -------------------------------
 
-`define H2F_LW_ADDR   20 // from 20 (1MB) to 21 (2MB)
+`define H2F_LW_ADDR   21 // from 20 (1MB) to 21 (2MB)
 `define H2F_LW_DATA   32
 `define H2F_LW_AWUSER  0
 `define H2F_LW_WUSER   0
