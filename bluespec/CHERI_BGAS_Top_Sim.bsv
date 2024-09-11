@@ -31,6 +31,7 @@
 package CHERI_BGAS_Top_Sim;
 
 import FIFOF :: *;
+import Vector :: *;
 import BlueBasics :: *;
 import BlueAXI4 :: *;
 import BlueAvalon :: *;
@@ -144,8 +145,28 @@ module mkCHERI_BGAS_Top_Sim (Empty);
                , `H2F_LW_AWUSER, `H2F_LW_WUSER, `H2F_LW_BUSER
                , `H2F_LW_ARUSER, `H2F_LW_RUSER )
     h2f_lw_mngr <- mkUnixFifo_AXI4_Master ("simports/h2f_lw");
-  mkConnection ( debugAXI4_Master (h2f_lw_mngr, $format ("h2f_lw_mngr"))
-               , cheri_bgas_top.axls_h2f_lw );
+  function route_lw (addr);
+    Vector #(5, Bool) res = replicate (False);
+    case (addr[20:0] & ~'hfff) matches
+      21'h14_0000: res[0] = True;
+      21'h14_1000: res[1] = True;
+      21'h14_2000: res[2] = True;
+      21'h14_3000: res[3] = True;
+      default: res[4] = True;
+    endcase
+    return res;
+  endfunction
+  mkAXI4LiteBus ( route_lw
+                , cons (
+                    fromAXI4ToAXI4Lite_Master(
+                      debugAXI4_Master (h2f_lw_mngr, $format ("h2f_lw_mngr")))
+                    , nil)
+                ,   cons (prepend_AXI4Lite_Slave_addr(0, bertEast.mem_csrs)
+                  , cons (prepend_AXI4Lite_Slave_addr(0, bertNorth.mem_csrs)
+                  , cons (prepend_AXI4Lite_Slave_addr(0, bertSouth.mem_csrs)
+                  , cons (prepend_AXI4Lite_Slave_addr(0, bertWest.mem_csrs)
+                  , cons (cheri_bgas_top.axls_h2f_lw, nil)))))
+                );
 
   // H2F port
   AXI4_Master #( `H2F_ID, `H2F_ADDR, `H2F_DATA
