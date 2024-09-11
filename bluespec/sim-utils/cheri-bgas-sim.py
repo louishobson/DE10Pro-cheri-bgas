@@ -161,7 +161,7 @@ def spawn_devfs( workdir
   if not stderr_path: stderr_path = Path(workdir) / 'devfs_stderr'
   sim_ports_dir = test_and_create_dir(Path(workdir) / sim_ports_dir)
   sim_dev_dir = test_and_create_dir(Path(workdir) / sim_dev_dir)
-  p = verbosePopen( [bin, sim_ports_dir, sim_dev_dir]
+  p = verbosePopen( [bin, sim_ports_dir, '-s', sim_dev_dir]
                   , cwd = workdir
                   , stdout = test_and_open_file(stdout_path)
                   , stderr = test_and_open_file(stderr_path)
