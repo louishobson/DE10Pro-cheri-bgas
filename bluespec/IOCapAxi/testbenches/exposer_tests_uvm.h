@@ -429,6 +429,9 @@ template<class DUT>
 class ExposerScoreboard : public Scoreboard<DUT> {
     std::unordered_map<key_manager::KeyId, U128>& secrets; // Fake keymanager proxy. THIS SCOREBOARD ASSUMES KEYS DONT CHANGE
 
+    // Early versions of the exposer will always pass transactions through, even if it later registers them as "invalid" with the performance counters.
+    bool expectPassthroughInvalidTransactions;
+
     std::deque<key_manager::Epoch> expectedEpochCompletions;
 
     std::vector<axi::IOCapAxi::AWFlit_id4_addr64_user3> awInProgress;
@@ -491,6 +494,29 @@ class ExposerScoreboard : public Scoreboard<DUT> {
     void resolveAwFlit(uint64_t tick, std::optional<axi::IOCapAxi::AWFlit_id4_addr64_user3> newIncomingFlit) {
         if (newIncomingFlit) {
             awInProgress.push_back(newIncomingFlit.value());
+            if (awInProgress.size() == 1 && expectPassthroughInvalidTransactions) {
+                // No matter what, this AW transaction *will* be passed through, so do it immediately
+                if (awInProgress[0].awuser != (uint8_t)axi::IOCapAxi::IOCapAxi_User::Start) {
+                    throw test_failure(fmt::format("ExposerScoreboard got nonsensical initial aw flit - incorrect user flags {}", awInProgress));
+                }
+                expectedAw.push_back({
+                    tick,
+                    axi::SanitizedAxi::AWFlit_id4_addr64_user0 {
+                        .awregion = awInProgress[0].awregion,
+                        .awqos = awInProgress[0].awqos,
+                        .awprot = awInProgress[0].awprot,
+                        .awcache = awInProgress[0].awcache,
+                        .awlock = awInProgress[0].awlock,
+                        .awburst = awInProgress[0].awburst,
+                        .awsize = awInProgress[0].awsize,
+                        .awlen = awInProgress[0].awlen,
+                        .awaddr = awInProgress[0].awaddr,
+                        .awid = awInProgress[0].awid,
+                    }
+                });
+                // and expect the right number of W flits to be passed through
+                wflitValidity.push_back(std::make_pair(true, axi::len_to_n_transfers(awInProgress[0].awlen)));
+            }
         }
         if (awInProgress.size() > 4) {
             throw test_failure(fmt::format("ExposerScoreboard got nonsensical set of aw flits - too many somehow? {}", awInProgress));
@@ -541,41 +567,47 @@ class ExposerScoreboard : public Scoreboard<DUT> {
 
             // TODO this might not work if axiBase+axiLen = end of addrspace?
             bool rangeIsValid = len64 || (axiBase >= base && axiTop <= (base + len));
-            // If the capability and ranges are valid, expect an AW flit to come out *and* the right number of W flits!
+            // The performance counters should reflect the validity of the capability/access in all cases
             if (capIsValid && rangeIsValid) {
-                expectedAw.push_back({
-                    tick,
-                    axi::SanitizedAxi::AWFlit_id4_addr64_user0 {
-                        .awregion = awInProgress[0].awregion,
-                        .awqos = awInProgress[0].awqos,
-                        .awprot = awInProgress[0].awprot,
-                        .awcache = awInProgress[0].awcache,
-                        .awlock = awInProgress[0].awlock,
-                        .awburst = awInProgress[0].awburst,
-                        .awsize = awInProgress[0].awsize,
-                        .awlen = awInProgress[0].awlen,
-                        .awaddr = awInProgress[0].awaddr,
-                        .awid = awInProgress[0].awid,
-                    }
-                });
-                // and expect the right number of W flits to be passed through
-                wflitValidity.push_back(std::make_pair(true, axi::len_to_n_transfers(awInProgress[0].awlen)));
-                // and expect the performance counter to bump
                 expectedGoodWrite++;
             } else {
-                // Otherwise expect a B flit with a BAD response to come out
-                expectedB[awInProgress[0].awid].push_back({
-                    tick,
-                    false, // This is from an invalid AW flit, not a valid B response from the sanitized side
-                    axi::IOCapAxi::BFlit_id4 {
-                        .bresp = (uint8_t)axi::AXI4_Resp::SlvErr,
-                        .bid = awInProgress[0].awid
-                    }
-                });
-                // and drop the W flits
-                wflitValidity.push_back(std::make_pair(false, axi::len_to_n_transfers(awInProgress[0].awlen)));
-                // and expect the performance counter to bump
                 expectedBadWrite++;
+            }
+            // If the capability and ranges are valid,
+            // expect an AW flit to come out *and* the right number of W flits!
+            // If `expectPassthroughInvalidTransactions` is true then these will already be expected, so do nothing.
+            if (!expectPassthroughInvalidTransactions) {
+                if (capIsValid && rangeIsValid) {
+                    expectedAw.push_back({
+                        tick,
+                        axi::SanitizedAxi::AWFlit_id4_addr64_user0 {
+                            .awregion = awInProgress[0].awregion,
+                            .awqos = awInProgress[0].awqos,
+                            .awprot = awInProgress[0].awprot,
+                            .awcache = awInProgress[0].awcache,
+                            .awlock = awInProgress[0].awlock,
+                            .awburst = awInProgress[0].awburst,
+                            .awsize = awInProgress[0].awsize,
+                            .awlen = awInProgress[0].awlen,
+                            .awaddr = awInProgress[0].awaddr,
+                            .awid = awInProgress[0].awid,
+                        }
+                    });
+                    // and expect the right number of W flits to be passed through
+                    wflitValidity.push_back(std::make_pair(true, axi::len_to_n_transfers(awInProgress[0].awlen)));
+                } else {
+                    // Otherwise expect a B flit with a BAD response to come out
+                    expectedB[awInProgress[0].awid].push_back({
+                        tick,
+                        false, // This is from an invalid AW flit, not a valid B response from the sanitized side
+                        axi::IOCapAxi::BFlit_id4 {
+                            .bresp = (uint8_t)axi::AXI4_Resp::SlvErr,
+                            .bid = awInProgress[0].awid
+                        }
+                    });
+                    // and drop the W flits
+                    wflitValidity.push_back(std::make_pair(false, axi::len_to_n_transfers(awInProgress[0].awlen)));
+                }
             }
 
             // We've now handled the set of AW flits, and can drop them
@@ -586,6 +618,27 @@ class ExposerScoreboard : public Scoreboard<DUT> {
     void resolveArFlit(uint64_t tick, std::optional<axi::IOCapAxi::ARFlit_id4_addr64_user3> newIncomingFlit) {
         if (newIncomingFlit) {
             arInProgress.push_back(newIncomingFlit.value());
+            if (arInProgress.size() == 1 && expectPassthroughInvalidTransactions) {
+                // No matter what, this AR transaction *will* be passed through, so do it immediately
+                if (arInProgress[0].aruser != (uint8_t)axi::IOCapAxi::IOCapAxi_User::Start) {
+                    throw test_failure(fmt::format("ExposerScoreboard got nonsensical initial ar flit - incorrect user flags {}", awInProgress));
+                }
+                expectedAr.push_back({
+                    tick,
+                    axi::SanitizedAxi::ARFlit_id4_addr64_user0 {
+                        .arregion = arInProgress[0].arregion,
+                        .arqos = arInProgress[0].arqos,
+                        .arprot = arInProgress[0].arprot,
+                        .arcache = arInProgress[0].arcache,
+                        .arlock = arInProgress[0].arlock,
+                        .arburst = arInProgress[0].arburst,
+                        .arsize = arInProgress[0].arsize,
+                        .arlen = arInProgress[0].arlen,
+                        .araddr = arInProgress[0].araddr,
+                        .arid = arInProgress[0].arid,
+                    }
+                });
+            }
         }
         if (arInProgress.size() > 4) {
             throw test_failure(fmt::format("ExposerScoreboard got nonsensical set of ar flits - too many somehow? {}", arInProgress));
@@ -636,39 +689,44 @@ class ExposerScoreboard : public Scoreboard<DUT> {
 
             // TODO this might not work if axiBase+axiLen = end of addrspace?
             bool rangeIsValid = len64 || (axiBase >= base && axiTop <= (base + len));
-            // If the capability and ranges are valid, expect an AR flit to come out
+            // The performance counters should reflect the validity of the capability/access in all cases
             if (capIsValid && rangeIsValid) {
-                expectedAr.push_back({
-                    tick,
-                    axi::SanitizedAxi::ARFlit_id4_addr64_user0 {
-                        .arregion = arInProgress[0].arregion,
-                        .arqos = arInProgress[0].arqos,
-                        .arprot = arInProgress[0].arprot,
-                        .arcache = arInProgress[0].arcache,
-                        .arlock = arInProgress[0].arlock,
-                        .arburst = arInProgress[0].arburst,
-                        .arsize = arInProgress[0].arsize,
-                        .arlen = arInProgress[0].arlen,
-                        .araddr = arInProgress[0].araddr,
-                        .arid = arInProgress[0].arid,
-                    }
-                });
-                // and expect the performance counter to bump
                 expectedGoodRead++;
             } else {
-                // Otherwise expect a B flit with a BAD response to come out
-                expectedR[arInProgress[0].arid].push_back({
-                    tick,
-                    false, // This is from an invalid AR flit, not a valid R response from the sanitized side
-                    axi::IOCapAxi::RFlit_id4_data32 {
-                        .rlast = 1,
-                        .rresp = (uint8_t)axi::AXI4_Resp::SlvErr,
-                        .rdata = 0xaaaaaaaa, // Bluespec uses this to mean ?
-                        .rid = arInProgress[0].arid,
-                    }
-                });
-                // and expect the performance counter to bump
                 expectedBadRead++;
+            }
+            // If the capability and ranges are valid, expect an AR flit to come out
+            // If `expectPassthroughInvalidTransactions` is true then these will already be expected, so do nothing.
+            if (!expectPassthroughInvalidTransactions) {
+                if (capIsValid && rangeIsValid) {
+                    expectedAr.push_back({
+                        tick,
+                        axi::SanitizedAxi::ARFlit_id4_addr64_user0 {
+                            .arregion = arInProgress[0].arregion,
+                            .arqos = arInProgress[0].arqos,
+                            .arprot = arInProgress[0].arprot,
+                            .arcache = arInProgress[0].arcache,
+                            .arlock = arInProgress[0].arlock,
+                            .arburst = arInProgress[0].arburst,
+                            .arsize = arInProgress[0].arsize,
+                            .arlen = arInProgress[0].arlen,
+                            .araddr = arInProgress[0].araddr,
+                            .arid = arInProgress[0].arid,
+                        }
+                    });
+                } else {
+                    // Otherwise expect a B flit with a BAD response to come out
+                    expectedR[arInProgress[0].arid].push_back({
+                        tick,
+                        false, // This is from an invalid AR flit, not a valid R response from the sanitized side
+                        axi::IOCapAxi::RFlit_id4_data32 {
+                            .rlast = 1,
+                            .rresp = (uint8_t)axi::AXI4_Resp::SlvErr,
+                            .rdata = 0xaaaaaaaa, // Bluespec uses this to mean ?
+                            .rid = arInProgress[0].arid,
+                        }
+                    });
+                }
             }
 
             // We've now handled the set of AR flits, and can drop them
@@ -717,7 +775,8 @@ class ExposerScoreboard : public Scoreboard<DUT> {
     }
 
 public:
-    ExposerScoreboard(std::unordered_map<key_manager::KeyId, U128>& secrets) : secrets(secrets),
+    ExposerScoreboard(std::unordered_map<key_manager::KeyId, U128>& secrets, bool expectPassthroughInvalidTransactions = false) : secrets(secrets),
+        expectPassthroughInvalidTransactions(expectPassthroughInvalidTransactions),
         expectedEpochCompletions(),
         awInProgress(),
         expectedAw(),
@@ -954,9 +1013,9 @@ public:
 template<class DUT>
 class ExposerUVMishTest: public UVMishTest<DUT> {
 public:
-    ExposerUVMishTest(ExposerStimulus<DUT>* stimulus) :
+    ExposerUVMishTest(ExposerStimulus<DUT>* stimulus, bool expectPassthroughInvalidTransactions = false) :
         UVMishTest<DUT>(
-            new ExposerScoreboard<DUT>(stimulus->keyMgr->secrets),
+            new ExposerScoreboard<DUT>(stimulus->keyMgr->secrets, expectPassthroughInvalidTransactions),
             stimulus
         ) {}
 };

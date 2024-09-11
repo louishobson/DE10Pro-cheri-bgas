@@ -6,6 +6,11 @@
 
 using TheDUT = VmkSimpleIOCapExposerV1_Tb;
 
+TestBase* exposerUVMishTestAssumeInvalidPassthrough(ExposerStimulus<TheDUT>* stimulus) {
+    return new ExposerUVMishTest<TheDUT>(stimulus, /* expectPassthroughInvalidTransactions = */ true);
+
+}
+
 int main(int argc, char** argv) {
     std::vector<TestBase*> tests = {
         // Test valid caps are accepted
@@ -13,19 +18,18 @@ int main(int argc, char** argv) {
         new ValidKeyValidCapValidRead<TheDUT>(),
         new ValidReadThenValidWrite<TheDUT>(),
         // UVM-style testing
-        /*
-        new ExposerUVMishTest( // This will fail because the W flits are accepted too early
+        exposerUVMishTestAssumeInvalidPassthrough(
             new UVMValidKeyValidInitialCapValidAccess<TheDUT>(CCapPerms_Read)
         ),
-        new ExposerUVMishTest( // This will fail because the W flits are accepted too early
+        exposerUVMishTestAssumeInvalidPassthrough(
             new UVMValidKeyValidInitialCapValidAccess<TheDUT>(CCapPerms_Write)
         ),
-        new ExposerUVMishTest( // This will fail because the W flits are accepted too early
+        exposerUVMishTestAssumeInvalidPassthrough(
             new UVMValidKeyValidInitialCapValidAccess<TheDUT>(CCapPerms_ReadWrite)
         ),
-        */
+    
         // Test caps with invalid keys are rejected
-        new ExposerUVMishTest( // This will fail because it can't assume passthrough
+        exposerUVMishTestAssumeInvalidPassthrough(
             new UVMInvalidKeyAccess<TheDUT>(CCapPerms_ReadWrite)
         ),
 
@@ -35,29 +39,24 @@ int main(int argc, char** argv) {
         new OOBWrite_Passthrough<TheDUT>(),
         new OOBRead_Passthrough<TheDUT>(),
 
-        /*
-        new ExposerUVMishTest(
+        exposerUVMishTestAssumeInvalidPassthrough(
             new UVMValidKeyValidInitialCapOOBAccess<TheDUT>(CCapPerms_Read)
         ),
-        new ExposerUVMishTest(
+        exposerUVMishTestAssumeInvalidPassthrough(
             new UVMValidKeyValidInitialCapOOBAccess<TheDUT>(CCapPerms_Write)
         ),
-        */
 
         // Test valid cap with mismatched perms - DONE below
         new MismatchedPerms_Passthrough<TheDUT>(),
-        /*
-        new ExposerUVMishTest( // This will fail because it can't assume passthrough
+        exposerUVMishTestAssumeInvalidPassthrough(
             new UVMValidKeyValidCapBadPerms<TheDUT>()
         ),
-        */
+
         // Test invalid caps (i.e. bad signatures) with valid keys are rejected - DONE below
         new InvalidSig_Passthrough<TheDUT>(),
-        /*
-        new ExposerUVMishTest( // This will fail because it can't assume passthrough
+        exposerUVMishTestAssumeInvalidPassthrough(
             new UVMValidKeyBadSigCap<TheDUT>()
         ),
-        */
 
         // TODO test that invalid caps don't let their flits through (contingent on switch flip) - DONE below
         // TODO test the above for reads and writes - DONE? below
@@ -78,8 +77,12 @@ int main(int argc, char** argv) {
 
         // 5 cycles of revocations
         // TODO test this with valid and invalid transactions!
-        new ExposerUVMishTest(
+        exposerUVMishTestAssumeInvalidPassthrough(
             new UVMTransactionsBetweenRevocations<TheDUT>(5)
+        ),
+
+        exposerUVMishTestAssumeInvalidPassthrough(
+            new UVMStreamOfNValidTransactions<TheDUT>(CCapPerms_ReadWrite, 100)
         )
     };
 
