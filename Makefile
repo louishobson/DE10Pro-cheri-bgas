@@ -135,6 +135,22 @@ clean-ip-gen:
 	rm -rf $(CURDIR)/ip/toplevel/hps/
 	rm -rf $(CURDIR)/ip/toplevel/reset_in/
 	rm -rf $(CURDIR)/toplevel/
+	rm -rf $(CURDIR)/ip/seriallite3_wrapper/axi4lite_management_bridge/
+	rm -rf $(CURDIR)/ip/seriallite3_wrapper/iopll/
+	rm -rf $(CURDIR)/ip/seriallite3_wrapper/mkBERT_Instance_a/
+	rm -rf $(CURDIR)/ip/seriallite3_wrapper/mkBERT_Instance_b/
+	rm -rf $(CURDIR)/ip/seriallite3_wrapper/mkBERT_Instance_c/
+	rm -rf $(CURDIR)/ip/seriallite3_wrapper/mkBERT_Instance_d/
+	rm -rf $(CURDIR)/ip/seriallite3_wrapper/mkSerialLite3_Instance_a/
+	rm -rf $(CURDIR)/ip/seriallite3_wrapper/mkSerialLite3_Instance_b/
+	rm -rf $(CURDIR)/ip/seriallite3_wrapper/mkSerialLite3_Instance_c/
+	rm -rf $(CURDIR)/ip/seriallite3_wrapper/mkSerialLite3_Instance_d/
+	rm -rf $(CURDIR)/ip/seriallite3_wrapper/mkStatusDevice_Instance_Status15_0/
+	rm -rf $(CURDIR)/ip/seriallite3_wrapper/reset50/
+	rm -rf $(CURDIR)/ip/seriallite3_wrapper/reset200/
+	rm -rf $(CURDIR)/ip/seriallite3_wrapper/reset_bridge/
+	rm -rf $(CURDIR)/ip/seriallite3_wrapper/seriallite3_wrapper_clock_in/
+	rm -rf $(CURDIR)/seriallite3_wrapper/
 
 clean: clean-bluespec-rtl clean-bluespec-quartus-ip clean-vipbundle clean-ip-gen
 	rm -rf $(CURDIR)/synth_dumps $(CURDIR)/tmp-clearbox $(UBOOTBUILDDIR)
@@ -145,7 +161,5 @@ mrproper-vipbundle:
 mrproper-bluespec-rtl:
 	$(MAKE) -C $(BSVSRCDIR) mrproper
 
-mrproper-seriallite3: mrproper-bert mrproper-seriallite3 mrproper-status_dev_15
-
-mrproper: clean mrproper-bluespec-rtl mrproper-vipbundle mrproper-seriallite3
+mrproper: clean mrproper-bluespec-rtl mrproper-vipbundle mrproper-bert mrproper-seriallite3 mrproper-status_dev_15
 	rm -rf $(CURDIR)/qdb $(CURDIR)/output_files
