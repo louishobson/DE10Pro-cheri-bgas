@@ -48,7 +48,7 @@ endif
 # => if (the list of goals in MAKECMDGOALS that are equal to bluesim) is not nothing
 # => if `bluesim` is one of the goals, include these defines.
 ifneq ($(filter bluesim,$(MAKECMDGOALS)),)
-RVFI = true
+RVFI ?= true
 endif
 
 TOPFILE = $(CURDIR)/CHERI_BGAS_Top.bsv
