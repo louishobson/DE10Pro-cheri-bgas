@@ -58,9 +58,6 @@ int main(int argc, char** argv) {
             new UVMValidKeyBadSigCap<TheDUT>()
         ),
 
-        // TODO test that invalid caps don't let their flits through (contingent on switch flip) - DONE below
-        // TODO test the above for reads and writes - DONE? below
-
         // TODO test inbalanced completions > starts behaviour
 
         // Test new-epoch when no accesses are pending

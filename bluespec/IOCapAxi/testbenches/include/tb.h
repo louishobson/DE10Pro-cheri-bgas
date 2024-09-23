@@ -33,15 +33,19 @@ int tb_main(std::vector<TestBase*> tests, int argc, char** argv) {
     uint64_t seed = DEFAULT_SEED;
 
     // TODO parse some of the args to setup e.g. which tests to run, which seed to use
+    uint64_t failures = 0;
 
     for (auto* test : tests) {
         test->setup(std::move(std::mt19937(seed)));
         if (!test->run(argc, argv)) {
+            failures++;
             result = EXIT_FAILURE;
         }
         // TODO only do this if a command-line option is set
         test->dump_stats();
     }
+
+    fmt::println(stderr, "\033[1;36mPass Rate {}/{} ({:3.1f}% pass)\033[0m", tests.size() - failures, tests.size(), (1 - (failures * 1.0 / tests.size())) * 100.0);
 
     return result;
 }

@@ -13,8 +13,6 @@ int main(int argc, char** argv) {
         // new ValidKeyValidCapValidRead<TheDUT>(),
         // new ValidReadThenValidWrite<TheDUT>(),
         // TODO Test caps with invalid keys are rejected - DONE below
-        // TODO test valid cap with 1 cav
-        // TODO test valid cap with 2 cav
         // Test valid cap with out-of-cap-bounds access - DONE below
         // new OOBWrite_Passthrough<TheDUT>(),
         // new OOBRead_Passthrough<TheDUT>(),
@@ -23,9 +21,8 @@ int main(int argc, char** argv) {
         // Test invalid caps (i.e. bad signatures) with valid keys are rejected - DONE below
         // new InvalidSig_Passthrough<TheDUT>(),
 
-        // TODO test that invalid caps don't let their flits through (contingent on switch flip) - DONE below
-        // TODO test the above for reads and writes - DONE? below
-
+        // TODO test valid cap with 1 cav
+        // TODO test valid cap with 2 cav
         // TODO test inbalanced completions > starts behaviour
 
         /*
@@ -74,7 +71,7 @@ int main(int argc, char** argv) {
         ),
         // 5 cycles of revocations
         // TODO test this with valid and invalid transactions!
-        // TODO figure out how to do more accurate UVM testing
+        // TODO figure out how to do more accurate UVM revocation testing
         new ExposerUVMishTest(
             new UVMTransactionsBetweenRevocations<TheDUT>(5)
         ),
