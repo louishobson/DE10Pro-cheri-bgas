@@ -231,28 +231,33 @@ def spawn_connections( ctxt
                        , stderr = test_and_open_file(stderr_path)
                        , text = True )
 
+  #  east -> a
+  # north -> b
+  # south -> c
+  #  west -> d
+
   conns = []
   for (x0, y0), (x1, y1) in ctxt.connections:
 
     conn01 = lambda tx, rx: connect((x0, y0), (x1, y1), tx, rx)
     conn10 = lambda tx, rx: connect((x1, y1), (x0, y0), tx, rx)
 
-    # S <-> N
+    # South (c) <-> North (b)
     if x0 == x1 and y0 < y1:
-      conns.append(conn01('north/tx', 'south/rx'))
-      conns.append(conn10('south/tx', 'north/rx'))
-    # N <-> S
+      conns.append(conn01('b/tx', 'c/rx'))
+      conns.append(conn10('c/tx', 'b/rx'))
+    # North (b) <-> South (c)
     elif x0 == x1 and y0 > y1:
-      conns.append(conn01('south/tx', 'north/rx'))
-      conns.append(conn10('north/tx', 'south/rx'))
-    # W <-> E
+      conns.append(conn01('c/tx', 'b/rx'))
+      conns.append(conn10('b/tx', 'c/rx'))
+    # West (d) <-> East (a)
     elif y0 == y1 and x0 < x1:
-      conns.append(conn01('east/tx', 'west/rx'))
-      conns.append(conn10('west/tx', 'east/rx'))
-    # E <-> W
+      conns.append(conn01('a/tx', 'd/rx'))
+      conns.append(conn10('d/tx', 'a/rx'))
+    # East (a) <-> West (d)
     elif y0 == y1 and x0 > x1:
-      conns.append(conn01('west/tx', 'east/rx'))
-      conns.append(conn10('east/tx', 'west/rx'))
+      conns.append(conn01('d/tx', 'a/rx'))
+      conns.append(conn10('a/tx', 'd/rx'))
     else: raise ValueError(f"Unhandled connection {((x0, y0),(x1, y1))}")
 
   return conns
