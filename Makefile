@@ -24,8 +24,8 @@
 
 BSVSRCDIR = $(CURDIR)/bluespec
 BLUESTUFFDIR = $(BSVSRCDIR)/Toooba/libs/BlueStuff
-VIPBUNDLEDIR = $(CURDIR)/vipbundle
-VIPBUNDLE = $(VIPBUNDLEDIR)/vipbundle
+export VIPBUNDLEDIR = $(CURDIR)/vipbundle
+export VIPBUNDLE = $(VIPBUNDLEDIR)/vipbundle
 DE10SERIALLITE3DIR = $(CURDIR)/de10pro-seriallite3
 QPF = $(CURDIR)/DE10Pro-cheri-bgas.qpf
 export VDIR = $(CURDIR)/cheri-bgas-rtl
