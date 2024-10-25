@@ -92,6 +92,7 @@ $(VDIR)/mkCHERI_BGAS_Top_Sig.v: $(TOOOBA_SOURCE_FILES)
 
 clean-bluespec-rtl:
 	$(MAKE) -C $(BSVSRCDIR) clean
+	rm -rf $(VDIR)
 
 clean-vipbundle:
 	$(MAKE) -C $(VIPBUNDLEDIR) clean
@@ -111,6 +112,7 @@ clean-ip-gen:
 	rm -rf $(CURDIR)/ip/toplevel/hps/
 	rm -rf $(CURDIR)/ip/toplevel/reset_in/
 	rm -rf $(CURDIR)/toplevel/
+	rm -rf $(CURDIR)/qdb/
 
 clean: clean-bluespec-rtl clean-bluespec-quartus-ip clean-vipbundle clean-ip-gen
 	rm -rf $(CURDIR)/synth_dumps $(CURDIR)/tmp-clearbox $(UBOOTBUILDDIR)
