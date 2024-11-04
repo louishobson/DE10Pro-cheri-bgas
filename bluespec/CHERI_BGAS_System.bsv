@@ -369,15 +369,15 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   // - H2F_LW AXI4Lite subordinate `h2fWindow.windowCtrl`, exposing a 64-bit "window" register
   // - H2F AXI4 subordinate `h2fWindow.preWindow` which converts 32-bit h2f accesses to 64-bit accesses offset by the window
   // - H2F AXI4 manager `h2fWindow.postWindow` which puts out the converted accesses + an IOCap authenticating each one
-  let h2fWindow <- mkAddrOffsetAxiWindow(reset_by newRst.new_rst);
-  // let h2fWindow <- mkSimpleIOCapWindow(reset_by newRst.new_rst);
+  // let h2fWindow <- mkAddrOffsetAxiWindow(reset_by newRst.new_rst);
+  let h2fWindow <- mkSimpleIOCapWindow(reset_by newRst.new_rst);
   // Expose the windowCtrl on the AXI4 lite bus
   let ctrSubH2FAddrCtrl =
     tuple2 (h2fWindow.windowCtrl, Range { base: 'h0000_5000, size: 'h0000_1000 });
   // Connect the h2fWindow to an IOCap Exposer, which checks the IOCap against the keys written in by the host.
   IOCap_KeyManager#(Wd_Data_Periph) iocapKeyStore <- mkSimpleIOCapKeyManager(reset_by newRst.new_rst);
-  // let iocapExposer <- mkSimpleIOCapExposerV1(iocapKeyStore, reset_by newRst.new_rst); // TODO upgrade
-  // mkConnection(iocapExposer.iocapsIn.axiSignals, h2fWindow.postWindow, reset_by newRst.new_rst);
+  let iocapExposer <- mkSimpleIOCapExposerV1(iocapKeyStore, reset_by newRst.new_rst); // TODO upgrade
+  mkConnection(iocapExposer.iocapsIn.axiSignals, h2fWindow.postWindow, reset_by newRst.new_rst);
 
   // Virtual device for emulating control registers, e.g. for virtio.
   // (Has both a control interface and a virtualised interface;
@@ -578,8 +578,8 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   // iocapExposer.sanitizedOut initiates the requests recieved from h2f
   // after they've passed through the three layers shown above.
   mkAXI4Bus ( constFn (cons (True, nil))
-            // , cons (iocapExposer.sanitizedOut, cons (globalShim.master, nil))
-            , cons (h2fWindow.postWindow, cons (globalShim.master, nil))
+            , cons (iocapExposer.sanitizedOut, cons (globalShim.master, nil))
+            // , cons (h2fWindow.postWindow, cons (globalShim.master, nil))
             , cons (core.subordinate_0, nil)
             , reset_by newRst.new_rst );
 
