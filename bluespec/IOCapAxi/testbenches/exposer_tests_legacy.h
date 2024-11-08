@@ -14,8 +14,8 @@ struct ExposerCycleTest : public CycleTest<DUT, ShimmedExposerInput, ShimmedExpo
         CapWithRange data{};
 
         data.cap = random_initial_resource_cap(this->rng, key, secret_id, perms);
-        if (ccap_read_range(&data.cap, &data.cap_base, &data.cap_len, &data.cap_is_almighty) != CCapResult_Success) {
-            throw std::runtime_error("Failed to ccap_read_range");
+        if (ccap2024_02_read_range(&data.cap, &data.cap_base, &data.cap_len, &data.cap_is_almighty) != CCapResult_Success) {
+            throw std::runtime_error("Failed to ccap2024_02_read_range");
         }
         
         return data;
@@ -668,8 +668,8 @@ struct NewEpoch_PreAccess : public ExposerCycleTest<DUT> {
         uint64_t cap_base = 0;
         uint64_t cap_len = 0;
         bool cap_is_almighty = false;
-        if (ccap_read_range(&cap, &cap_base, &cap_len, &cap_is_almighty) != CCapResult_Success) {
-            throw std::runtime_error("Failed to ccap_read_range");
+        if (ccap2024_02_read_range(&cap, &cap_base, &cap_len, &cap_is_almighty) != CCapResult_Success) {
+            throw std::runtime_error("Failed to ccap2024_02_read_range");
         }
         uint8_t transfer_width = 32;
         uint8_t n_transfers = 20;
@@ -785,8 +785,8 @@ struct NewEpoch_SameCycle : public ExposerCycleTest<DUT> {
         uint64_t cap_base = 0;
         uint64_t cap_len = 0;
         bool cap_is_almighty = false;
-        if (ccap_read_range(&cap, &cap_base, &cap_len, &cap_is_almighty) != CCapResult_Success) {
-            throw std::runtime_error("Failed to ccap_read_range");
+        if (ccap2024_02_read_range(&cap, &cap_base, &cap_len, &cap_is_almighty) != CCapResult_Success) {
+            throw std::runtime_error("Failed to ccap2024_02_read_range");
         }
         uint8_t transfer_width = 32;
         uint8_t n_transfers = 20;
@@ -901,8 +901,8 @@ struct NewEpoch_PostAccess : public ExposerCycleTest<DUT> {
         uint64_t cap_base = 0;
         uint64_t cap_len = 0;
         bool cap_is_almighty = false;
-        if (ccap_read_range(&cap, &cap_base, &cap_len, &cap_is_almighty) != CCapResult_Success) {
-            throw std::runtime_error("Failed to ccap_read_range");
+        if (ccap2024_02_read_range(&cap, &cap_base, &cap_len, &cap_is_almighty) != CCapResult_Success) {
+            throw std::runtime_error("Failed to ccap2024_02_read_range");
         }
         uint8_t transfer_width = 32;
         uint8_t n_transfers = 20;
@@ -1017,8 +1017,8 @@ struct NewEpoch_BetweenAccesses : public ExposerCycleTest<DUT> {
         uint64_t cap_base = 0;
         uint64_t cap_len = 0;
         bool cap_is_almighty = false;
-        if (ccap_read_range(&cap, &cap_base, &cap_len, &cap_is_almighty) != CCapResult_Success) {
-            throw std::runtime_error("Failed to ccap_read_range");
+        if (ccap2024_02_read_range(&cap, &cap_base, &cap_len, &cap_is_almighty) != CCapResult_Success) {
+            throw std::runtime_error("Failed to ccap2024_02_read_range");
         }
         uint8_t transfer_width = 32;
         uint8_t n_transfers = 20;

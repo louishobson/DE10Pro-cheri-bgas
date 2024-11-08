@@ -289,8 +289,8 @@ protected:
         CapWithRange data{};
 
         data.cap = random_initial_resource_cap(rng, keyMgr->secrets[secret_id], secret_id, perms);
-        if (ccap_read_range(&data.cap, &data.cap_base, &data.cap_len, &data.cap_is_almighty) != CCapResult_Success) {
-            throw std::runtime_error("Failed to ccap_read_range");
+        if (ccap2024_02_read_range(&data.cap, &data.cap_base, &data.cap_len, &data.cap_is_almighty) != CCapResult_Success) {
+            throw std::runtime_error("Failed to ccap2024_02_read_range");
         }
         
         return data;
@@ -553,14 +553,14 @@ class ExposerScoreboard : public Scoreboard<DUT> {
             uint64_t len = 0;
             bool len64 = false;
             CCapPerms perms = CCapPerms_ReadWrite;
-            bool capIsValid = (ccap_read_secret_id(&cap, &secret_key_id) == CCapResult_Success) &&
-                                (ccap_read_range(&cap, &base, &len, &len64) == CCapResult_Success) &&
-                                (ccap_read_perms(&cap, &perms) == CCapResult_Success) && 
+            bool capIsValid = (ccap2024_02_read_secret_id(&cap, &secret_key_id) == CCapResult_Success) &&
+                                (ccap2024_02_read_range(&cap, &base, &len, &len64) == CCapResult_Success) &&
+                                (ccap2024_02_read_perms(&cap, &perms) == CCapResult_Success) && 
                                 ((perms & CCapPerms_Write) != 0);
             if (capIsValid && secrets.contains(secret_key_id & 0xFF)) {
                 CCapU128 secret_key;
                 secrets[secret_key_id & 0xFF].to_le(secret_key);
-                capIsValid = (ccap_check_signature(&cap, &secret_key) == CCapResult_Success);
+                capIsValid = (ccap2024_02_check_signature(&cap, &secret_key) == CCapResult_Success);
             } else {
                 capIsValid = false;
             }
@@ -675,14 +675,14 @@ class ExposerScoreboard : public Scoreboard<DUT> {
             uint64_t len = 0;
             bool len64 = false;
             CCapPerms perms = CCapPerms_ReadWrite;
-            bool capIsValid = (ccap_read_secret_id(&cap, &secret_key_id) == CCapResult_Success) &&
-                                (ccap_read_range(&cap, &base, &len, &len64) == CCapResult_Success) &&
-                                (ccap_read_perms(&cap, &perms) == CCapResult_Success) && 
+            bool capIsValid = (ccap2024_02_read_secret_id(&cap, &secret_key_id) == CCapResult_Success) &&
+                                (ccap2024_02_read_range(&cap, &base, &len, &len64) == CCapResult_Success) &&
+                                (ccap2024_02_read_perms(&cap, &perms) == CCapResult_Success) && 
                                 ((perms & CCapPerms_Read) != 0);
             if (capIsValid && secrets.contains(secret_key_id & 0xFF)) {
                 CCapU128 secret_key;
                 secrets[secret_key_id & 0xFF].to_le(secret_key);
-                capIsValid = (ccap_check_signature(&cap, &secret_key) == CCapResult_Success);
+                capIsValid = (ccap2024_02_check_signature(&cap, &secret_key) == CCapResult_Success);
             } else {
                 capIsValid = false;
             }
