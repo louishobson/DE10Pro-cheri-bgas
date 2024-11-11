@@ -10,10 +10,11 @@ import IOCapAxi_Types :: *;
 import IOCapAxi_Flits :: *;
 import IOCapAxi_KeyManagers :: *;
 
+import Cap2024 :: *;
 import Cap2024_02 :: *;
 import Cap2024_02_Decode_FastFSM :: *;
-import Cap2024_02_SigCheck_Aes_1RoundPerCycle :: *; // Get CapSigCheckIn
-import Cap2024_02_SigCheck_Aes_2RoundPerCycle :: *;
+import Cap2024_SigCheck_Aes_1RoundPerCycle :: *; // Get CapSigCheckIn
+import Cap2024_SigCheck_Aes_2RoundPerCycle :: *;
 
 typeclass AxiCtrlFlit64#(type flit);
     function Bit#(64) burstAddr(flit f);
@@ -70,7 +71,7 @@ module mkSimpleIOCapAxiChecker(IOCapAxiChecker#(no_iocap_flit)) provisos (Bits#(
     FIFOF#(CapCheckResult#(Tuple2#(CapPerms, CapRange))) decodeOut <- mkFIFOF;
     mkFastFSMCapDecode(toGet(decodeIn), toPut(decodeOut));
 
-    FIFOF#(CapSigCheckIn) sigCheckIn <- mkFIFOF;
+    FIFOF#(CapSigCheckIn#(Cap2024_02)) sigCheckIn <- mkFIFOF;
     FIFOF#(CapCheckResult#(Bit#(0))) sigCheckOut <- mkFIFOF;
     mk2RoundPerCycleCapSigCheck(toGet(sigCheckIn), toPut(sigCheckOut));
 

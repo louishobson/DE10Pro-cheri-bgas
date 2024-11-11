@@ -1,5 +1,6 @@
 package Cap2024_02_Decode_Comb;
 
+import Cap2024::*;
 import Cap2024_02::*;
 import GetPut::*;
 import CheckedBits::*;

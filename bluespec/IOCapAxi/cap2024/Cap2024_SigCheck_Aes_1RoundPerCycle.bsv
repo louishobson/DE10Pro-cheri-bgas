@@ -1,10 +1,10 @@
-package Cap2024_02_SigCheck_Aes_1RoundPerCycle;
+package Cap2024_SigCheck_Aes_1RoundPerCycle;
 
 import AesLib::*;
 import StmtFSM::*;
 import GetPut::*;
 import ClientServer::*;
-import Cap2024_02::*;
+import Cap2024::*;
 import FIFO::*;
 import MattUtil::*;
 import SamUtil::*;
@@ -119,18 +119,14 @@ module mkInternalCalc(InternalCalc);
 endmodule
 
 typedef struct {
-    Cap2024_02 cap;
+    tcap cap;
     Bit#(128) expectedSig;
     Bit#(128) secret;
-} CapSigCheckIn deriving (Bits, FShow);
-
-function AesState stateOfCap(Cap2024_02 cap);
-    return unpack(pack(cap));
-endfunction
+} CapSigCheckIn#(type tcap) deriving (Bits, FShow);
 
 // TODO this needs an "abort" signal! in case the decoder fails early
-module mk1RoundPerCycleCapSigCheck#(Get#(CapSigCheckIn) in, Put#(CapCheckResult#(Bit#(0))) out)(Empty);
-    Reg#(Cap2024_02) currentCap <- mkReg(?);
+module mk1RoundPerCycleCapSigCheck#(Get#(CapSigCheckIn#(tcap)) in, Put#(CapCheckResult#(Bit#(0))) out)(Empty) provisos (Cap#(tcap));
+    Reg#(tcap) currentCap <- mkReg(?);
     Reg#(Bit#(128)) currentSig <- mkReg(?);
     Reg#(Bit#(2)) currentCavLevel <- mkReg(?); // 0..=2
     Reg#(Bit#(2)) expectedCavLevel <- mkReg(?); // 0..=2

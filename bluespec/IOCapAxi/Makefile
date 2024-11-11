@@ -5,7 +5,7 @@ BUILDDIR = ./build
 
 BLUESTUFFDIR = ../Toooba/libs/BlueStuff
 include $(BLUESTUFFDIR)/bluestuff.inc.mk
-BSVPATH = +:$(BLUESTUFF_DIRS):./aes:./cap2024_02:./testbenches:./util:../AxiWindow
+BSVPATH = +:$(BLUESTUFF_DIRS):./aes:./cap2024:./testbenches:./util:../AxiWindow
 
 BSCFLAGS = -bdir $(BUILDDIR) -info-dir $(BUILDDIR) -simdir $(BUILDDIR) -vdir $(BUILDDIR)/verilog -p $(BSVPATH) -u -aggressive-conditions +RTS -K512M -RTS
 

@@ -4,6 +4,7 @@ package Cap2024_02_Decode_FastFSM;
 /// It is limited to a frontend stage and a main decoder stage which is busy for 3, 6, or 7 cycles
 /// decoding the capability based on the number of caveats involved
 
+import Cap2024::*;
 import Cap2024_02::*;
 import GetPut::*;
 import StmtFSM::*;
