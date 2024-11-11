@@ -1,10 +1,11 @@
+import BlueBasics :: *;
 import BlueAXI4 :: *;
 import FIFOF :: *;
 import SpecialFIFOs :: *;
 import SourceSink :: *;
 
 import IOCapAxi_Types :: *;
-import Cap2024_02 :: *;
+import Cap2024 :: *;
 
 /*
 
@@ -240,23 +241,23 @@ endinstance
 
 typedef struct {
     no_iocap_flit flit;
-    Cap2024_02 cap;
+    tcap cap;
     Bit#(128) sig;
-} AuthenticatedFlit#(type no_iocap_flit) deriving (Bits, FShow);
+} AuthenticatedFlit#(type no_iocap_flit, type tcap) deriving (Bits, FShow);
 
-interface AddressChannelCapWrapper#(type iocap_flit, type no_iocap_flit);
-    interface Sink#(AuthenticatedFlit#(no_iocap_flit)) in;
+interface AddressChannelCapWrapper#(type iocap_flit, type no_iocap_flit, type tcap);
+    interface Sink#(AuthenticatedFlit#(no_iocap_flit, tcap)) in;
     interface Source#(iocap_flit) out;
 endinterface 
 
-interface AddressChannelCapUnwrapper#(type iocap_flit, type no_iocap_flit);
+interface AddressChannelCapUnwrapper#(type iocap_flit, type no_iocap_flit, type tcap);
     interface Sink#(iocap_flit) in;
     // todo rename to authflits?
-    interface Source#(AuthenticatedFlit#(no_iocap_flit)) out;
+    interface Source#(AuthenticatedFlit#(no_iocap_flit, tcap)) out;
 endinterface
 
-module mkSimpleAddressChannelCapWrapper(AddressChannelCapWrapper#(iocap_flit, no_iocap_flit)) provisos (Bits#(AuthenticatedFlit#(no_iocap_flit), a__), Bits#(iocap_flit, b__), IOCapPackableFlit#(iocap_flit, no_iocap_flit), FShow#(AuthenticatedFlit#(no_iocap_flit)));
-    FIFOF#(AuthenticatedFlit#(no_iocap_flit)) inFlits <- mkFIFOF();
+module mkSimpleAddressChannelCapWrapper#(Proxy#(tcap) _proxy)(AddressChannelCapWrapper#(iocap_flit, no_iocap_flit, tcap)) provisos (Bits#(AuthenticatedFlit#(no_iocap_flit, tcap), a__), Bits#(iocap_flit, b__), IOCapPackableFlit#(iocap_flit, no_iocap_flit), FShow#(AuthenticatedFlit#(no_iocap_flit, tcap)), Cap#(tcap));
+    FIFOF#(AuthenticatedFlit#(no_iocap_flit, tcap)) inFlits <- mkFIFOF();
     FIFOF#(iocap_flit) outFlits <- mkSizedBypassFIFOF(4); // TODO check FIFOF type
 
     Reg#(UInt#(2)) state <- mkReg(0);
@@ -293,9 +294,9 @@ module mkSimpleAddressChannelCapWrapper(AddressChannelCapWrapper#(iocap_flit, no
     interface out = toSource(outFlits);
 endmodule
 
-module mkSimpleAddressChannelCapUnwrapper(AddressChannelCapUnwrapper#(iocap_flit, no_iocap_flit)) provisos (
+module mkSimpleAddressChannelCapUnwrapper#(Proxy#(tcap) _proxy)(AddressChannelCapUnwrapper#(iocap_flit, no_iocap_flit, tcap)) provisos (
     // Must be able to pack AuthenticatedFlit into a register
-    Bits#(AuthenticatedFlit#(no_iocap_flit), a__),
+    Bits#(AuthenticatedFlit#(no_iocap_flit, tcap), a__),
     // Must be able to pack the flit-with-iocap-bits into a register
     Bits#(iocap_flit, b__),
     // Must be able to pack a flit-with-no-iocap-bits into an iocap-flit, with the user bits for signalling extra capability data
@@ -303,10 +304,12 @@ module mkSimpleAddressChannelCapUnwrapper(AddressChannelCapUnwrapper#(iocap_flit
     // Must be able to print the IOCap flit
     FShow#(iocap_flit),
     // Must be able to print the authenticated flit
-    FShow#(AuthenticatedFlit#(no_iocap_flit))
+    FShow#(AuthenticatedFlit#(no_iocap_flit, tcap)),
+    // The tcap must be a Cap type (packable into bits)
+    Cap#(tcap)
 );
     FIFOF#(iocap_flit) inFlits <- mkFIFOF();
-    FIFOF#(AuthenticatedFlit#(no_iocap_flit)) outFlits <- mkSizedBypassFIFOF(4); // TODO check FIFOF type
+    FIFOF#(AuthenticatedFlit#(no_iocap_flit, tcap)) outFlits <- mkSizedBypassFIFOF(4); // TODO check FIFOF type
 
     Reg#(Tuple2#(no_iocap_flit, Bit#(256))) flitInProgress <- mkReg(unpack(0));
 
@@ -365,7 +368,7 @@ module mkSimpleAddressChannelCapUnwrapper(AddressChannelCapUnwrapper#(iocap_flit
             let flit = tpl_1(flitInProgress);
             let bitsInProgress = tpl_2(flitInProgress);
             let combinedBits = { bits, bitsInProgress[171:0] };
-            let authFlit = AuthenticatedFlit {
+            AuthenticatedFlit#(no_iocap_flit, tcap) authFlit = AuthenticatedFlit {
                 flit: flit,
                 cap: unpack(combinedBits[127:0]),
                 sig: combinedBits[255:128]

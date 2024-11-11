@@ -28,13 +28,13 @@ export mkStrippingIOCapExposer;
 module mkStrippingIOCapExposer(IOCapSingleExposer#(t_id, t_data));
     // This doesn't have any key storage or checking logic yet! It just receives IOCapAXI and converts it back to plain AXI.
 
-    AddressChannelCapUnwrapper#(AXI4_AWFlit#(t_id, 64, 3), AXI4_AWFlit#(t_id, 64, 0)) aw <- mkSimpleAddressChannelCapUnwrapper;
+    AddressChannelCapUnwrapper#(AXI4_AWFlit#(t_id, 64, 3), AXI4_AWFlit#(t_id, 64, 0), Cap2024_02) aw <- mkSimpleAddressChannelCapUnwrapper(Proxy{});
     FIFOF#(AXI4_WFlit#(t_data, 0)) wff <- mkFIFOF;
     FIFOF#(AXI4_BFlit#(t_id, 0)) bff <- mkFIFOF;
-    AddressChannelCapUnwrapper#(AXI4_ARFlit#(t_id, 64, 3), AXI4_ARFlit#(t_id, 64, 0)) ar <- mkSimpleAddressChannelCapUnwrapper;
+    AddressChannelCapUnwrapper#(AXI4_ARFlit#(t_id, 64, 3), AXI4_ARFlit#(t_id, 64, 0), Cap2024_02) ar <- mkSimpleAddressChannelCapUnwrapper(Proxy{});
     FIFOF#(AXI4_RFlit#(t_id, t_data, 0)) rff <- mkFIFOF;
 
-    function t_flit stripCapFromAuthFlit(AuthenticatedFlit#(t_flit) authFlit) = authFlit.flit;
+    function t_flit stripCapFromAuthFlit(AuthenticatedFlit#(t_flit, Cap2024_02) authFlit) = authFlit.flit;
 
     interface iocapsIn = interface IOCapAXI4_Slave;
         interface axiSignals = interface AXI4_Slave;

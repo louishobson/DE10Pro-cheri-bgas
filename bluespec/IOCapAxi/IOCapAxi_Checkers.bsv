@@ -40,8 +40,8 @@ instance AxiCtrlFlit64#(AXI4_ARFlit#(t_id, 64, t_data));
     function Bool isBurstRead(AXI4_ARFlit#(t_id, 64, t_data) f) = True;
 endinstance
 
-interface IOCapAxiChecker#(type no_iocap_flit);
-    interface Sink#(Tuple2#(AuthenticatedFlit#(no_iocap_flit), Maybe#(Key))) checkRequest;
+interface IOCapAxiChecker#(type no_iocap_flit, type tcap);
+    interface Sink#(Tuple2#(AuthenticatedFlit#(no_iocap_flit, tcap), Maybe#(Key))) checkRequest;
     interface Source#(Tuple2#(no_iocap_flit, Bool)) checkResponse;
 endinterface
 
@@ -60,8 +60,8 @@ typedef union tagged {
 } IOCapFlitInProgress#(type no_iocap_flit) deriving (Bits, FShow);
 
 // One-at-a-time IOCap flit checker
-module mkSimpleIOCapAxiChecker(IOCapAxiChecker#(no_iocap_flit)) provisos (Bits#(AuthenticatedFlit#(no_iocap_flit), a__), AxiCtrlFlit64#(no_iocap_flit), FShow#(no_iocap_flit));
-    FIFOF#(Tuple2#(AuthenticatedFlit#(no_iocap_flit), Maybe#(Key))) reqs <- mkFIFOF;
+module mkSimpleIOCapAxiChecker(IOCapAxiChecker#(no_iocap_flit, Cap2024_02)) provisos (Bits#(AuthenticatedFlit#(no_iocap_flit, Cap2024_02), a__), AxiCtrlFlit64#(no_iocap_flit), FShow#(no_iocap_flit));
+    FIFOF#(Tuple2#(AuthenticatedFlit#(no_iocap_flit, Cap2024_02), Maybe#(Key))) reqs <- mkFIFOF;
     // TODO this could be a bypass fifof...
     FIFOF#(Tuple2#(no_iocap_flit, Bool)) resps <- mkFIFOF;
 
@@ -227,8 +227,8 @@ endmodule
     // TODO this is worth thinking about in the write-up! In PCIe land where data+address arrive at once, do we also have this latency dependency? Likely worse because writes and reads are ordered together?
 
 // Can't use Integer for n because "Integer" != "numeric type"
-module mkInOrderIOCapAxiCheckerPool#(NumProxy#(n) n_proxy)(IOCapAxiChecker#(no_iocap_flit)) provisos (Bits#(AuthenticatedFlit#(no_iocap_flit), a__), AxiCtrlFlit64#(no_iocap_flit), FShow#(no_iocap_flit));    
-    Vector#(n, IOCapAxiChecker#(no_iocap_flit)) checkers <- replicateM(mkSimpleIOCapAxiChecker);
+module mkInOrderIOCapAxiCheckerPool#(NumProxy#(n) n_proxy)(IOCapAxiChecker#(no_iocap_flit, Cap2024_02)) provisos (Alias#(tcap, Cap2024_02), Bits#(AuthenticatedFlit#(no_iocap_flit, tcap), a__), AxiCtrlFlit64#(no_iocap_flit), FShow#(no_iocap_flit));    
+    Vector#(n, IOCapAxiChecker#(no_iocap_flit, tcap)) checkers <- replicateM(mkSimpleIOCapAxiChecker);
     // Separately track the insert and retrieve pointers.
     // insertPointer is allowed to wrap around past retrievePointer multiple times
     // - although that likely isn't possible in normal cases -
@@ -256,11 +256,11 @@ module mkInOrderIOCapAxiCheckerPool#(NumProxy#(n) n_proxy)(IOCapAxiChecker#(no_i
         end
     endrule
 
-    interface checkRequest = interface Sink#(Tuple2#(AuthenticatedFlit#(no_iocap_flit), Maybe#(Key)));
+    interface checkRequest = interface Sink#(Tuple2#(AuthenticatedFlit#(no_iocap_flit, tcap), Maybe#(Key)));
         method Bool canPut;
             return checkers[insertPointer].checkRequest.canPut();
         endmethod
-        method Action put (Tuple2#(AuthenticatedFlit#(no_iocap_flit), Maybe#(Key)) val);
+        method Action put (Tuple2#(AuthenticatedFlit#(no_iocap_flit, tcap), Maybe#(Key)) val);
             checkers[insertPointer].checkRequest.put(val);
             incrementInsert.send();
         endmethod

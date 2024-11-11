@@ -24,7 +24,7 @@ module mkSimpleIOCapExposerV1#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
 );
     // Doesn't support WRAP bursts right now
 
-    AddressChannelCapUnwrapper#(AXI4_AWFlit#(t_id, 64, 3), AXI4_AWFlit#(t_id, 64, 0)) awIn <- mkSimpleAddressChannelCapUnwrapper;
+    AddressChannelCapUnwrapper#(AXI4_AWFlit#(t_id, 64, 3), AXI4_AWFlit#(t_id, 64, 0), Cap2024_02) awIn <- mkSimpleAddressChannelCapUnwrapper(Proxy{});
     FIFOF#(AXI4_AWFlit#(t_id, 64, 0)) awOut <- mkFIFOF;
 
     FIFOF#(AXI4_WFlit#(t_data, 0)) wff <- mkFIFOF;
@@ -32,7 +32,7 @@ module mkSimpleIOCapExposerV1#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
     FIFOF#(AXI4_BFlit#(t_id, 0)) bIn <- mkFIFOF;
     FIFOF#(AXI4_BFlit#(t_id, 0)) bOut <- mkFIFOF;
 
-    AddressChannelCapUnwrapper#(AXI4_ARFlit#(t_id, 64, 3), AXI4_ARFlit#(t_id, 64, 0)) arIn <- mkSimpleAddressChannelCapUnwrapper;
+    AddressChannelCapUnwrapper#(AXI4_ARFlit#(t_id, 64, 3), AXI4_ARFlit#(t_id, 64, 0), Cap2024_02) arIn <- mkSimpleAddressChannelCapUnwrapper(Proxy{});
     FIFOF#(AXI4_ARFlit#(t_id, 64, 0)) arOut <- mkFIFOF;
 
     FIFOF#(AXI4_RFlit#(t_id, t_data, 0)) rIn <- mkFIFOF;
@@ -113,13 +113,13 @@ module mkSimpleIOCapExposerV1#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
     // Reg#(UInt#(64)) wSendCredits <- mkReg(0);
     // Reg#(Bool) wDropCredited <- mkReg(False);
 
-    FIFOF#(AuthenticatedFlit#(AXI4_AWFlit#(t_id, 64, 0))) awPreCheckBuffer <- mkFIFOF;
-    FIFOF#(AuthenticatedFlit#(AXI4_ARFlit#(t_id, 64, 0))) arPreCheckBuffer <- mkFIFOF;
+    FIFOF#(AuthenticatedFlit#(AXI4_AWFlit#(t_id, 64, 0), Cap2024_02)) awPreCheckBuffer <- mkFIFOF;
+    FIFOF#(AuthenticatedFlit#(AXI4_ARFlit#(t_id, 64, 0), Cap2024_02)) arPreCheckBuffer <- mkFIFOF;
 
-    IOCapAxiChecker#(AXI4_AWFlit#(t_id, 64, 0)) awChecker <- mkSimpleIOCapAxiChecker;
-    IOCapAxiChecker#(AXI4_ARFlit#(t_id, 64, 0)) arChecker <- mkSimpleIOCapAxiChecker;
+    IOCapAxiChecker#(AXI4_AWFlit#(t_id, 64, 0), Cap2024_02) awChecker <- mkSimpleIOCapAxiChecker;
+    IOCapAxiChecker#(AXI4_ARFlit#(t_id, 64, 0), Cap2024_02) arChecker <- mkSimpleIOCapAxiChecker;
 
-    function KeyId keyIdForFlit(AuthenticatedFlit#(t) authFlit);
+    function KeyId keyIdForFlit(AuthenticatedFlit#(t, Cap2024_02) authFlit);
         return truncate(authFlit.cap.secret_key_id);
     endfunction
 

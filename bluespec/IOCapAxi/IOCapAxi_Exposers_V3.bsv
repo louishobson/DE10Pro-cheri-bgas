@@ -31,7 +31,7 @@ module mkSimpleIOCapExposerV3#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
     // Doesn't support WRAP bursts right now
 
     // AW transactions come in encoding an IOCap with a standard AW flit. The IOCap and flit are examined, and if verified they are passed on through awOut.
-    AddressChannelCapUnwrapper#(AXI4_AWFlit#(t_id, 64, 3), AXI4_AWFlit#(t_id, 64, 0)) awIn <- mkSimpleAddressChannelCapUnwrapper;
+    AddressChannelCapUnwrapper#(AXI4_AWFlit#(t_id, 64, 3), AXI4_AWFlit#(t_id, 64, 0), Cap2024_02) awIn <- mkSimpleAddressChannelCapUnwrapper(Proxy{});
     FIFOF#(AXI4_AWFlit#(t_id, 64, 0)) awOut <- mkFIFOF;
 
     // W flits are passed through or dropped depending on the AW transactions they map to - if the AW transaction is valid, its w flits go through.
@@ -49,7 +49,7 @@ module mkSimpleIOCapExposerV3#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
     FIFOF#(AXI4_BFlit#(t_id, 0)) bOut <- mkFIFOF;
 
     // AR transactions come in encoding an IOCap with a standard AR flit. The IOCap and flit are examined, and if verified they are passed on through arOut.
-    AddressChannelCapUnwrapper#(AXI4_ARFlit#(t_id, 64, 3), AXI4_ARFlit#(t_id, 64, 0)) arIn <- mkSimpleAddressChannelCapUnwrapper;
+    AddressChannelCapUnwrapper#(AXI4_ARFlit#(t_id, 64, 3), AXI4_ARFlit#(t_id, 64, 0), Cap2024_02) arIn <- mkSimpleAddressChannelCapUnwrapper(Proxy{});
     FIFOF#(AXI4_ARFlit#(t_id, 64, 0)) arOut <- mkFIFOF;
 
     // R responses from the subordinate (de facto for *valid* requests) are sent through to the master, interleaved with responses from invalid requests.
@@ -144,16 +144,16 @@ module mkSimpleIOCapExposerV3#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
     // Reg#(UInt#(64)) wSendCredits <- mkReg(0);
     // Reg#(Bool) wDropCredited <- mkReg(False);
 
-    FIFOF#(AuthenticatedFlit#(AXI4_AWFlit#(t_id, 64, 0))) awPreCheckBuffer <- mkFIFOF;
-    FIFOF#(AuthenticatedFlit#(AXI4_ARFlit#(t_id, 64, 0))) arPreCheckBuffer <- mkFIFOF;
+    FIFOF#(AuthenticatedFlit#(AXI4_AWFlit#(t_id, 64, 0), Cap2024_02)) awPreCheckBuffer <- mkFIFOF;
+    FIFOF#(AuthenticatedFlit#(AXI4_ARFlit#(t_id, 64, 0), Cap2024_02)) arPreCheckBuffer <- mkFIFOF;
 
     NumProxy#(4) poolSize = ?;
     // TODO test throughput of these vs non-pooled
-    IOCapAxiChecker#(AXI4_AWFlit#(t_id, 64, 0)) awChecker <- mkInOrderIOCapAxiCheckerPool(poolSize);
+    IOCapAxiChecker#(AXI4_AWFlit#(t_id, 64, 0), Cap2024_02) awChecker <- mkInOrderIOCapAxiCheckerPool(poolSize);
     // TODO could do out-of-order for ar
-    IOCapAxiChecker#(AXI4_ARFlit#(t_id, 64, 0)) arChecker <- mkInOrderIOCapAxiCheckerPool(poolSize);
+    IOCapAxiChecker#(AXI4_ARFlit#(t_id, 64, 0), Cap2024_02) arChecker <- mkInOrderIOCapAxiCheckerPool(poolSize);
 
-    function KeyId keyIdForFlit(AuthenticatedFlit#(t) authFlit);
+    function KeyId keyIdForFlit(AuthenticatedFlit#(t, Cap2024_02) authFlit);
         return truncate(authFlit.cap.secret_key_id);
     endfunction
 
