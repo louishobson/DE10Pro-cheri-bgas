@@ -404,7 +404,7 @@ provisos (
     t_global_mngr mngr = zero_AXI4_Master_user (getGlobalMngr (sys[i]));
     Vector #(2, t_global_sub) subs;
     subs[0] = router[i].mngmntSubordinate;
-    subs[1] = router[i].localSubordinate;
+    subs[1] <- mkSimpleAXI4Slave_Firewall(50_000_000, router[i].localSubordinate);
     function route_to_router (addr);
       Vector #(2, Bool) x = replicate (False);
       if (inRange (soc_map.m_global_bgas_addr_range, addr))
