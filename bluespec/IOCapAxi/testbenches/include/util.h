@@ -5,10 +5,27 @@
 
 #define FMT_HEADER_ONLY
 #include "fmt/format.h"
+#include "fmt/ranges.h"
+
+#include "verilated_types.h"
 
 template<class T>
 std::optional<T> some(T t) {
     return std::optional(t);
+}
+
+template<size_t N>
+auto verilate_array(const std::array<uint32_t, N>& from) {
+    VlWide<N> vl{};
+    std::copy(from.begin(), from.end(), vl.m_storage);
+    return vl;
+}
+
+template<size_t N>
+auto stdify_array(const VlWide<N> from) {
+    std::array<uint32_t, N> arr{};
+    std::copy(from.m_storage, from.m_storage + N, arr.begin());
+    return arr;
 }
 
 template <class T> class fmt::formatter<std::optional<T>> {
@@ -79,6 +96,23 @@ struct U128 {
         data[14] = uint8_t(top >> 48);
         data[15] = uint8_t(top >> 56);
     }
+    std::array<uint32_t, 4> stdify() {
+        return {
+            (uint32_t)(bottom >> 0),
+            (uint32_t)(bottom >> 32),
+            (uint32_t)(top >> 0),
+            (uint32_t)(top >> 32),
+        };
+    }
+    VlWide<4> verilate() {
+        return verilate_array(stdify());
+    }
+    static U128 from_verilated(VlWide<4>& data) {
+        return U128 {
+            .top = (uint64_t(data[3]) << 32) | (uint64_t(data[2]) << 0),
+            .bottom = (uint64_t(data[1]) << 32) | (uint64_t(data[0]) << 0),
+        };
+    }
 };
 
 template <> class fmt::formatter<U128> {
@@ -98,5 +132,39 @@ double mean_of(std::vector<T>& ts) {
     }
     return sum / ts.size();
 }
+
+/**
+ * Tracking information for throughput on a given port
+ */
+struct ThroughputTracker {
+    uint64_t n_accepted = 0;
+    uint64_t n_cycles_where_attempting_to_push_input = 0;
+
+    void trackAccepted() {
+        n_accepted++;
+    }
+    void trackCycleWithAvailableInput() {
+        n_cycles_where_attempting_to_push_input++;
+    }
+
+    double asDouble() const {
+        return n_accepted * 1.0 / n_cycles_where_attempting_to_push_input;
+    }
+};
+
+template<typename T>
+struct LatencyTracked {
+    uint64_t tick_initiated;
+    T value;
+};
+
+template <typename T> class fmt::formatter<LatencyTracked<T>> {
+    public:
+    constexpr auto parse (fmt::format_parse_context& ctx) { return ctx.begin(); }
+    template <typename Context>
+    constexpr auto format (LatencyTracked<T> const& x, Context& ctx) const {
+        return format_to(ctx.out(), "{{ .tick_initiated = {}, .value = {} }}", x.tick_initiated, x.value);
+    }
+};
 
 #endif // UTIL_H

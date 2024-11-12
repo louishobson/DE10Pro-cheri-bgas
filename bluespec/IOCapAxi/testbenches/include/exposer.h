@@ -12,20 +12,6 @@
 #include <cstdint>
 #include <optional>
 
-template<size_t N>
-auto verilate_array(const std::array<uint32_t, N>& from) {
-    VlWide<N> vl{};
-    std::copy(from.begin(), from.end(), vl.m_storage);
-    return vl;
-}
-
-template<size_t N>
-auto stdify_array(const VlWide<N> from) {
-    std::array<uint32_t, N> arr{};
-    std::copy(from.m_storage, from.m_storage + N, arr.begin());
-    return arr;
-}
-
 namespace exposer {
 
     struct ExposerInput {

@@ -81,25 +81,6 @@ struct CapWithRange {
     into = dut. from ##_peek;
 
 /**
- * Tracking information for throughput on a given port
- */
-struct ThroughputTracker {
-    uint64_t n_accepted = 0;
-    uint64_t n_cycles_where_attempting_to_push_input = 0;
-
-    void trackAccepted() {
-        n_accepted++;
-    }
-    void trackCycleWithAvailableInput() {
-        n_cycles_where_attempting_to_push_input++;
-    }
-
-    double asDouble() const {
-        return n_accepted * 1.0 / n_cycles_where_attempting_to_push_input;
-    }
-};
-
-/**
  * Generic stimulus generator for the key manager parts of ShimmedExposer DUTs.
  * Dynamically reacts to the DUT outputs (e.g. requests for key data) to generate inputs
  * (e.g. responding with the requested key data).
@@ -384,21 +365,6 @@ public:
         fmt::println(stderr, "ar_throughput, {}", ar_throughput.asDouble());
         sanitizedMem->dump_stats();
         keyMgr->dump_stats();
-    }
-};
-
-template<typename T>
-struct LatencyTracked {
-    uint64_t tick_initiated;
-    T value;
-};
-
-template <typename T> class fmt::formatter<LatencyTracked<T>> {
-    public:
-    constexpr auto parse (fmt::format_parse_context& ctx) { return ctx.begin(); }
-    template <typename Context>
-    constexpr auto format (LatencyTracked<T> const& x, Context& ctx) const {
-        return format_to(ctx.out(), "{{ .tick_initiated = {}, .value = {} }}", x.tick_initiated, x.value);
     }
 };
 

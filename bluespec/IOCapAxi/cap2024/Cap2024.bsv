@@ -126,6 +126,12 @@ instance Bits#(Maybe#(CapPermsChain), 4);
     endfunction
 endinstance
 
+// Successfully evaluating a capability gives an address range of valid accesses.
+typedef struct {
+    Bit#(64) base;
+    Bit#(65) top;
+} CapRange deriving (Bits, Eq, FShow);
+
 // Failing to evaluate a capability + signature can happen for one of three reasons
 typedef enum {
     InvalidCaveat,

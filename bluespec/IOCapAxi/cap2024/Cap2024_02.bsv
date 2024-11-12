@@ -23,12 +23,6 @@ typedef struct {
 
 // TODO manually derive Bits so we know exactly which bit ranges are used
 
-// Successfully evaluating a capability gives an address range of valid accesses.
-typedef struct {
-    Bit#(64) base;
-    Bit#(65) top;
-} CapRange deriving (Bits, Eq, FShow);
-
 // Helper input struct for things that check the signature+text of a capability
 typedef struct {
     Bit#(128) signature;

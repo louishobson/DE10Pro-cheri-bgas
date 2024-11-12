@@ -505,6 +505,33 @@ BLUESPEC_TUPLE2_KEYID_MAYBE_KEY = [
     )
 ]
 
+BLUESPEC_CAPCHECKRESULT_TUPLE2_CAPPERMS_CAPRANGE = [
+    Struct(
+        "CapCheckResult_Tuple2_CapPerms_CapRange",
+        BackingArray.LSB(U32, 5),
+        # CapCheckResult#(Tuple2#(CapPerms, CapRange))
+        # CapCheckResult#(X) = tagged Succ X; tagged Fail Reason
+        # Ignore the reason for now - it's much smaller than X
+        # The tag is the most significant bit, so it's packed like
+        # |-- FailTag --|-- Tuple2#(CapPerms, CapRange) --|
+        # Tuple2#(X, Y) = struct { X, Y }; which is packed with X in the MSB and Y in the LSB
+        # i.e. CapPerms in the MSB and CapRange in the LSB
+        # |-- FailTag --|-- CapPerms --|-- CapRange --|
+        # CapPerms = enum Read | Write | ReadWrite = 2 bits
+        # CapRange = struct { Bit#(64) base; Bit#(65) top }
+        # |-- FailTag --|-- CapPerms --|-- Base --|-- Top --|
+        # The top 1 bits of Bit#(65) are packed before the bottom 64 bits resulting in
+        # |-- FailTag --|-- CapPerms --|-- Base --|-- Top1 --|-- Top64 --|
+        [
+            Field("succTop", 64),
+            Field("succTopTopBit", 1),
+            Field("succBase", 64),
+            Field("succPerms", 2),
+            Field("failTag", 1),
+        ]
+    )
+]
+
 gen = CppGenerator(cpp_version=20, define_equality=True, define_format="fmtlib")
 for struct in BLUESPEC_IOCAPAXI_STRUCTS:
     gen.add_struct(struct, namespace="axi::IOCapAxi")
@@ -514,5 +541,8 @@ for struct in BLUESPEC_SANITIZEDAXI_STRUCTS:
 
 for struct in BLUESPEC_TUPLE2_KEYID_MAYBE_KEY:
     gen.add_struct(struct, namespace="key_manager")
+
+for struct in BLUESPEC_CAPCHECKRESULT_TUPLE2_CAPPERMS_CAPRANGE:
+    gen.add_struct(struct, namespace="decoder") 
 
 gen.generate_header(out=sys.stdout, include_guard="TB_BITFIELDS_H")

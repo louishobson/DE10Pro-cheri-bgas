@@ -609,6 +609,68 @@ namespace key_manager {
 	
 }
 
+namespace decoder {
+	struct CapCheckResult_Tuple2_CapPerms_CapRange {
+		/** 64-bit field */
+		uint64_t succTop;
+		/** 1-bit field */
+		uint8_t succTopTopBit;
+		/** 64-bit field */
+		uint64_t succBase;
+		/** 2-bit field */
+		uint8_t succPerms;
+		/** 1-bit field */
+		uint8_t failTag;
+	
+		static CapCheckResult_Tuple2_CapPerms_CapRange unpack(const std::array<uint32_t, 5>& backing) {
+			CapCheckResult_Tuple2_CapPerms_CapRange value{};
+			value.succTop = (
+				(uint64_t((backing[0] >> 0u) & 0xffffffffu) << 0) | 
+				(uint64_t((backing[1] >> 0u) & 0xffffffffu) << 32)
+			);
+			value.succTopTopBit = (
+				uint8_t((backing[2] >> 0u) & 0x1u)
+			);
+			value.succBase = (
+				(uint64_t((backing[2] >> 1u) & 0x7fffffffu) << 0) | 
+				(uint64_t((backing[3] >> 0u) & 0xffffffffu) << 31) | 
+				(uint64_t((backing[4] >> 0u) & 0x1u) << 63)
+			);
+			value.succPerms = (
+				uint8_t((backing[4] >> 1u) & 0x3u)
+			);
+			value.failTag = (
+				uint8_t((backing[4] >> 3u) & 0x1u)
+			);
+			return value;
+		}
+		std::array<uint32_t, 5> pack() const {
+			std::array<uint32_t, 5> backing{};
+			backing[0] = (
+				uint32_t((succTop >> 0u) & 0xfffffffful)
+			);
+			backing[1] = (
+				uint32_t((succTop >> 32u) & 0xfffffffful)
+			);
+			backing[2] = (
+				(uint32_t((succTopTopBit >> 0u) & uint8_t(0x1ul)) << 0) | 
+				(uint32_t((succBase >> 0u) & 0x7ffffffful) << 1)
+			);
+			backing[3] = (
+				uint32_t((succBase >> 31u) & 0xfffffffful)
+			);
+			backing[4] = (
+				(uint32_t((succBase >> 63u) & 0x1ul) << 0) | 
+				(uint32_t((succPerms >> 0u) & uint8_t(0x3ul)) << 1) | 
+				(uint32_t((failTag >> 0u) & uint8_t(0x1ul)) << 3)
+			);
+			return backing;
+		}
+		bool operator==(const CapCheckResult_Tuple2_CapPerms_CapRange&) const = default;
+	};
+	
+}
+
 template <> class fmt::formatter<axi::IOCapAxi::AWFlit_id4_addr64_user3> {
 	public:
 	// Ignore parse formats - only {} is supported for this type
@@ -706,6 +768,15 @@ template <> class fmt::formatter<key_manager::Tuple2_KeyId_MaybeKey> {
 	template <typename Context>
 	constexpr auto format (key_manager::Tuple2_KeyId_MaybeKey const& s, Context& ctx) const {
 		return format_to(ctx.out(), "Tuple2_KeyId_MaybeKey {{ .keyBot = 0x{:016x}, .keyTop = 0x{:016x}, .keyValid = 0x{:01x}, .keyId = 0x{:02x} }}", s.keyBot, s.keyTop, s.keyValid, s.keyId);
+	}
+};
+template <> class fmt::formatter<decoder::CapCheckResult_Tuple2_CapPerms_CapRange> {
+	public:
+	// Ignore parse formats - only {} is supported for this type
+	constexpr auto parse (fmt::format_parse_context& ctx) { return ctx.begin(); }
+	template <typename Context>
+	constexpr auto format (decoder::CapCheckResult_Tuple2_CapPerms_CapRange const& s, Context& ctx) const {
+		return format_to(ctx.out(), "CapCheckResult_Tuple2_CapPerms_CapRange {{ .succTop = 0x{:016x}, .succTopTopBit = 0x{:01x}, .succBase = 0x{:016x}, .succPerms = 0x{:01x}, .failTag = 0x{:01x} }}", s.succTop, s.succTopTopBit, s.succBase, s.succPerms, s.failTag);
 	}
 };
 

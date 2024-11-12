@@ -32,6 +32,9 @@ endtypeclass
 typeclass BitRightOps#(numeric type m, numeric type n, type x);
     function x#(m) rightTruncate(x#(n) d);
     function x#(n) rightZeroExtend(x#(m) d);
+    // shrink the size of a number, returning Invalid if it doesn't fit
+    // TODO rename BitRightOps
+    function Maybe#(x#(m)) shrink(x#(n) d);
 endtypeclass
 
 /*
@@ -97,6 +100,17 @@ instance BitRightOps#(m, n, UInt) provisos (Add#(k, m, n));
     endfunction
     function UInt#(n) rightZeroExtend(UInt#(m) d);
         return unpack({pack(d), 0});
+    endfunction
+    function Maybe#(UInt#(m)) shrink(UInt#(n) d);
+        Bit#(n) d_pack = pack(d);
+        Tuple2#(Bit#(k), Bit#(m)) top_shrunk_tpl = split(d_pack);
+        match {.top, .shrunk} = top_shrunk_tpl;
+        if (top == 0) begin
+            UInt#(m) unpack_shrunk = unpack(shrunk);
+            return tagged Valid unpack_shrunk;
+        end else begin
+            return tagged Invalid;
+        end
     endfunction
 endinstance
 
@@ -366,6 +380,16 @@ instance BitRightOps#(m, n, CheckedBits) provisos (Add#(k, m, n));
             min: rightZeroExtend(d.min),
             max: rightZeroExtend(d.max)
         };
+    endfunction
+    function Maybe#(CheckedBits#(m)) shrink(CheckedBits#(n) d);
+        case (shrink(d.val)) matches
+            tagged Invalid : return tagged Invalid;
+            tagged Valid .shrunkVal : return tagged Valid CheckedBits {
+                val: shrunkVal,
+                min: fromMaybe(?, shrink(d.min)),
+                max: fromMaybe(maxBound, shrink(d.max))
+            };
+        endcase
     endfunction
 endinstance
 
