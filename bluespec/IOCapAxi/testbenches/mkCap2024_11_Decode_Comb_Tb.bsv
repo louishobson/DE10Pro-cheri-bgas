@@ -4,14 +4,10 @@ import Cap2024_11_Decode_Comb :: *;
 import GetPut :: *;
 import SourceSink :: *;
 import FIFOF :: *;
-
-interface CapDecodeTb;
-    interface Sink#(Cap2024_11) stimulusIn;
-    interface Source#(CapCheckResult#(Tuple2#(CapPerms, CapRange))) stimulusOut;
-endinterface
+import Tests :: *;
 
 (* synthesize *)
-module mkCap2024_11_Decode_Comb_Tb(CapDecodeTb);
+module mkCap2024_11_Decode_Comb_Tb(CapDecodeTb#(Cap2024_11));
     FIFOF#(Cap2024_11) in <- mkFIFOF;
     FIFOF#(CapCheckResult#(Tuple2#(CapPerms, CapRange))) out <- mkFIFOF;
     mkCombCapDecode(toGet(in), toPut(out));

@@ -32,13 +32,22 @@
     dut.EN_## from ##_drop = 0; \
 
 template<class DUT>
-struct ManyRandomValidCaps : public StimulusGenerator<DUT> {
+class ManyRandomValidCaps_11 : public StimulusGenerator<DUT> {
+protected:
     uint64_t count;
     uint64_t end_tick;
     ThroughputTracker throughput;
 
-    ManyRandomValidCaps(uint64_t count) : count(count), end_tick(~0), throughput() {}
-    virtual ~ManyRandomValidCaps() = default;
+    virtual U128 random_cap(std::mt19937& rng) {
+        U128 key = U128::random(rng);
+        // TODO randomize perms
+        auto cap = random_initial_resource_cap_11(rng, key, 111, CCapPerms_Write);
+        return U128::from_le(cap.data);
+    }
+
+public:
+    ManyRandomValidCaps_11(uint64_t count) : count(count), end_tick(~0), throughput() {}
+    virtual ~ManyRandomValidCaps_11() = default;
 
     virtual std::string name() override {
         return fmt::format("{} random valid 2024_11 caps", count);
@@ -48,9 +57,7 @@ struct ManyRandomValidCaps : public StimulusGenerator<DUT> {
         if (count > 0) {
             throughput.trackCycleWithAvailableInput();
             if (CANPUT_INPUT(stimulusIn)) {
-                U128 key = U128::random(rng);
-                auto cap = random_initial_resource_cap_11(rng, key, 111, CCapPerms_Write);
-                auto cap128 = U128::from_le(cap.data).verilate();
+                auto cap128 = random_cap(rng).verilate();
 
                 PUT_INPUT(stimulusIn, cap128);
                 throughput.trackAccepted();
@@ -72,40 +79,77 @@ struct ManyRandomValidCaps : public StimulusGenerator<DUT> {
     }
 };
 
+
 template<class DUT>
-class DecoderScoreboard : public Scoreboard<DUT> {
+class ManyRandomValidCaps_02 : public ManyRandomValidCaps_11<DUT> {
+protected:
+    virtual U128 random_cap(std::mt19937& rng) override {
+        U128 key = U128::random(rng);
+        // TODO randomize perms
+        auto cap = random_initial_resource_cap_02(rng, key, 111, CCapPerms_Write);
+        return U128::from_le(cap.data);
+    }
+public:
+    ManyRandomValidCaps_02(uint64_t count) : ManyRandomValidCaps_11<DUT>(count) {}
+    virtual ~ManyRandomValidCaps_02() = default;
+
+    virtual std::string name() override {
+        return fmt::format("{} random valid 2024_02 caps", this->count);
+    }
+};
+
+template<class DUT>
+class ManyRandomBits : public ManyRandomValidCaps_11<DUT> {
+protected:
+    virtual U128 random_cap(std::mt19937& rng) override {
+        return U128::random(rng);
+    }
+public:
+    ManyRandomBits(uint64_t count) : ManyRandomValidCaps_11<DUT>(count) {}
+    virtual ~ManyRandomBits() = default;
+
+    virtual std::string name() override {
+        return fmt::format("{} random bits", this->count);
+    }
+};
+
+template<class DUT>
+class DecoderScoreboard_11 : public Scoreboard<DUT> {
     // tick_initiated = the tick on which the capability was put-ed into the unit
     std::deque<LatencyTracked<decoder::CapCheckResult_Tuple2_CapPerms_CapRange>> expected;
     std::vector<uint64_t> latency;
 
+protected:
+    virtual CCapResult read_base_len_perms(U128& cap128, uint64_t& base, uint64_t& len, bool& len_64, CCapPerms& perms) {
+        auto cap = CCap2024_11 {
+            .signature = {0},
+            .data = {0}
+        };
+        cap128.to_le(cap.data);
+
+
+        CCapResult res = ccap2024_11_read_range(&cap, &base, &len, &len_64);
+        if (res != CCapResult_Success) {
+            return res;
+        }
+        return ccap2024_11_read_perms(&cap, &perms);
+    }
+
 public:
-    DecoderScoreboard() = default;
-    virtual ~DecoderScoreboard() = default;
+    DecoderScoreboard_11() = default;
+    virtual ~DecoderScoreboard_11() = default;
 
     virtual void monitorAndScore(DUT& dut, uint64_t tick) {
         if (CANPEEK_INPUT(stimulusIn)) {
             auto cap128_v = PEEK_INPUT(stimulusIn);
             U128 cap128 = U128::from_verilated(cap128_v);
 
-            auto cap = CCap2024_11 {
-                .signature = {0},
-                .data = {0}
-            };
-            cap128.to_le(cap.data);
-
             uint64_t base = 0xdeadbeef;
             uint64_t len = 0xdeadbeef;
             bool len_64 = false;
             CCapPerms perms;
-            bool invalid = false;
-            if (ccap2024_11_read_range(&cap, &base, &len, &len_64) != CCapResult_Success) {
-                invalid = true;
-            }
-            if (ccap2024_11_read_perms(&cap, &perms) != CCapResult_Success) {
-                invalid = true;
-            }
 
-            if (invalid) {
+            if (read_base_len_perms(cap128, base, len, len_64, perms) != CCapResult_Success) {
                 expected.push_back(LatencyTracked {
                     .tick_initiated=tick,
                     .value=decoder::CapCheckResult_Tuple2_CapPerms_CapRange {
@@ -138,12 +182,12 @@ public:
                 bool different = false;
                 if (expectedVal.value.failTag != result.failTag) {
                     different = true;
-                } else if (expectedVal.value.failTag == 1 && result.failTag == 1 && expectedVal.value != result) {
+                } else if (expectedVal.value.failTag == 0 && result.failTag == 0 && expectedVal.value != result) {
                     different = true;
                 }
 
                 if (different) {
-                    throw test_failure(fmt::format("DecoderScoreboard got unexpected output:\nexpected {}\nall expected: {}\ngot: {}\n", expectedVal.value, expected, result));
+                    throw test_failure(fmt::format("DecoderScoreboard got unexpected output:\nexpected:     {}\nall expected: {}\ngot:          {}\n", expectedVal.value, expected, result));
                 }
 
                 latency.push_back(tick - expectedVal.tick_initiated);
@@ -175,11 +219,43 @@ public:
 };
 
 template<class DUT>
-class DecoderUVMishTest: public UVMishTest<DUT> {
+class DecoderScoreboard_02 : public DecoderScoreboard_11<DUT> {
+protected:
+    virtual CCapResult read_base_len_perms(U128& cap128, uint64_t& base, uint64_t& len, bool& len_64, CCapPerms& perms) override {
+        auto cap = CCap2024_02 {
+            .signature = {0},
+            .data = {0}
+        };
+        cap128.to_le(cap.data);
+
+
+        CCapResult res = ccap2024_02_read_range(&cap, &base, &len, &len_64);
+        if (res != CCapResult_Success) {
+            return res;
+        }
+        return ccap2024_02_read_perms(&cap, &perms);
+    }
 public:
-    DecoderUVMishTest(StimulusGenerator<DUT>* stimulus) :
+    DecoderScoreboard_02() = default;
+    virtual ~DecoderScoreboard_02() = default;
+};
+
+template<class DUT>
+class DecoderUVMishTest_11: public UVMishTest<DUT> {
+public:
+    DecoderUVMishTest_11(StimulusGenerator<DUT>* stimulus) :
         UVMishTest<DUT>(
-            new DecoderScoreboard<DUT>(),
+            new DecoderScoreboard_11<DUT>(),
+            stimulus
+        ) {}
+};
+
+template<class DUT>
+class DecoderUVMishTest_02: public UVMishTest<DUT> {
+public:
+    DecoderUVMishTest_02(StimulusGenerator<DUT>* stimulus) :
+        UVMishTest<DUT>(
+            new DecoderScoreboard_02<DUT>(),
             stimulus
         ) {}
 };

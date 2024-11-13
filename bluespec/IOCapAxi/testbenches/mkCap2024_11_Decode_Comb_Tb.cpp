@@ -7,7 +7,8 @@ using TheDUT = VmkCap2024_11_Decode_Comb_Tb;
 
 int main(int argc, char** argv) {
     std::vector<TestBase*> tests = {
-        new DecoderUVMishTest<TheDUT>(new ManyRandomValidCaps<TheDUT>(2000)),  
+        new DecoderUVMishTest_11<TheDUT>(new ManyRandomValidCaps_11<TheDUT>(2000)),  
+        new DecoderUVMishTest_11<TheDUT>(new ManyRandomBits<TheDUT>(2000)),  
     };
 
     return tb_main(tests, argc, argv);

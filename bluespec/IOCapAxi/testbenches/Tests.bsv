@@ -1,3 +1,4 @@
+import Cap2024 :: *;
 import BlueAXI4 :: *;
 import FIFOF :: *;
 import SourceSink :: *;
@@ -68,4 +69,9 @@ interface SimpleIOCapExposerTb;
     interface KeyStoreShim keyStoreShim;
 
     interface IOCapSingleExposer#(4 /* ID bits */, 32 /* data bits */) exposer4x32;
+endinterface
+
+interface CapDecodeTb#(type tcap);
+    interface Sink#(tcap) stimulusIn;
+    interface Source#(CapCheckResult#(Tuple2#(CapPerms, CapRange))) stimulusOut;
 endinterface

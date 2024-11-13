@@ -269,7 +269,7 @@ protected:
     virtual CapWithRange test_random_initial_resource_cap(std::mt19937& rng, uint32_t secret_id, CCapPerms perms) {
         CapWithRange data{};
 
-        data.cap = random_initial_resource_cap(rng, keyMgr->secrets[secret_id], secret_id, perms);
+        data.cap = random_initial_resource_cap_02(rng, keyMgr->secrets[secret_id], secret_id, perms);
         if (ccap2024_02_read_range(&data.cap, &data.cap_base, &data.cap_len, &data.cap_is_almighty) != CCapResult_Success) {
             throw std::runtime_error("Failed to ccap2024_02_read_range");
         }
