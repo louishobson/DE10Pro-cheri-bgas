@@ -118,6 +118,8 @@ class DecoderScoreboard_11 : public Scoreboard<DUT> {
     // tick_initiated = the tick on which the capability was put-ed into the unit
     std::deque<LatencyTracked<decoder::CapCheckResult_Tuple2_CapPerms_CapRange>> expected;
     std::vector<uint64_t> latency;
+    uint64_t n_valid;
+    uint64_t n_invalid;
 
 protected:
     virtual CCapResult read_base_len_perms(U128& cap128, uint64_t& base, uint64_t& len, bool& len_64, CCapPerms& perms) {
@@ -148,8 +150,9 @@ public:
             uint64_t len = 0xdeadbeef;
             bool len_64 = false;
             CCapPerms perms;
-
-            if (read_base_len_perms(cap128, base, len, len_64, perms) != CCapResult_Success) {
+            CCapResult res = read_base_len_perms(cap128, base, len, len_64, perms);
+            if (res != CCapResult_Success) {
+                n_invalid++;
                 expected.push_back(LatencyTracked {
                     .tick_initiated=tick,
                     .value=decoder::CapCheckResult_Tuple2_CapPerms_CapRange {
@@ -157,6 +160,7 @@ public:
                     }
                 });
             } else {
+                n_valid++;
                 expected.push_back(LatencyTracked {
                     .tick_initiated=tick,
                     .value=decoder::CapCheckResult_Tuple2_CapPerms_CapRange {
@@ -212,6 +216,9 @@ public:
     #define DUMP_MEAN_OF(x) fmt::println(stderr, STRINGIFY(x) ", {}", mean_of(x));
     virtual void dump_stats() override {
         DUMP_MEAN_OF(latency);
+        fmt::println(stderr, "valid caps, {}", n_valid);
+        fmt::println(stderr, "invalid caps, {}", n_invalid);
+        fmt::println(stderr, "valid cap ratio, {}%", (double(n_valid))/(double(n_valid+n_invalid))*100.0);
     }
     #undef DUMP_MEAN_OF
     #undef STRINGIFY2

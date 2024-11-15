@@ -271,7 +271,12 @@ module mkCombCapDecode#(Get#(Cap2024_02) in, Put#(CapCheckResult#(Tuple2#(CapPer
             if (!isValid(atCav1(chain))) begin
                 // There's only the initial resource
                 let range <- rangeOf(init);
-                return tagged Succ tuple2(permsOfChain(chain), range);
+                // All caveats should be zero
+                if (in.index != 0 || in.index_size_div != 0 || in.range_x != 0 || in.range_y_minus_one != 0) begin
+                    return tagged Fail InvalidCaveat;
+                end else begin
+                    return tagged Succ tuple2(permsOfChain(chain), range);
+                end
             end else begin
                 // The first caveat is in use
                 let postCav1 <- refineInitialWithCav1(in, init);
@@ -281,7 +286,13 @@ module mkCombCapDecode#(Get#(Cap2024_02) in, Put#(CapCheckResult#(Tuple2#(CapPer
                     if (!isValid(atCav2(chain))) begin
                         // There isn't a second caveat, => get the range for the first caveat
                         let range <- rangeOf(cav1);
-                        return tagged Succ tuple2(permsOfChain(chain), range);
+
+                        // Second caveat should be zero
+                        if (in.range_x != 0 || in.range_y_minus_one != 0) begin
+                            return tagged Fail InvalidCaveat;
+                        end else begin
+                            return tagged Succ tuple2(permsOfChain(chain), range);
+                        end
                     end else begin
                         // The second caveat is in use
                         let postCav2 <- refineCav1WithCav2(in, cav1);
