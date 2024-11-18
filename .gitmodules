@@ -32,3 +32,6 @@
 [submodule "bluespec/sim-util/fmem-uart"]
 	path = bluespec/sim-util/fmem-uart
 	url = https://github.com/CTSRD-CHERI/fmem-uart.git
+[submodule "de10pro-seriallite3"]
+	path = de10pro-seriallite3
+	url = http://github.com/CTSRD-CHERI/de10pro-seriallite3.git

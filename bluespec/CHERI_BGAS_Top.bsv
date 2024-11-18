@@ -60,7 +60,7 @@ Integer nbCheriBgasSystems = valueOf (NBCheriBgasSystems);
 // Concrete parameters definitions
 // -------------------------------
 
-`define H2F_LW_ADDR   20 // from 20 (1MB) to 21 (2MB)
+`define H2F_LW_ADDR   21 // from 20 (1MB) to 21 (2MB)
 `define H2F_LW_DATA   32
 `define H2F_LW_AWUSER  0
 `define H2F_LW_WUSER   0
@@ -404,7 +404,7 @@ provisos (
     t_global_mngr mngr = zero_AXI4_Master_user (getGlobalMngr (sys[i]));
     Vector #(2, t_global_sub) subs;
     subs[0] = router[i].mngmntSubordinate;
-    subs[1] = router[i].localSubordinate;
+    subs[1] <- mkSimpleAXI4Slave_Firewall(50_000_000, router[i].localSubordinate);
     function route_to_router (addr);
       Vector #(2, Bool) x = replicate (False);
       if (inRange (soc_map.m_global_bgas_addr_range, addr))
@@ -429,7 +429,7 @@ provisos (
     NumProxy #(2) proxyBufSz = ?;
     t_router_port noRouteRaw <- mkCHERI_BGAS_NoRouteTile;
     Global_Port #(t_global_flit)
-      noRouteIfc <- mkCHERI_BGAS_StreamBridge (proxyBufSz, noRouteRaw);
+      noRouteIfc <- mkCHERI_BGAS_StreamBridge (proxyBufSz, False, noRouteRaw);
     return noRouteIfc;
   endmodule
   // for 2 or 3 system cases:
