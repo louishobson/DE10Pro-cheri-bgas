@@ -130,6 +130,8 @@ show_idx = lambda p: f'{p[0]}.{p[1]}'
 ################################################################################
 
 def spawn_simulator( workdir
+                   , x = None
+                   , y = None
                    , args = []
                    , stdout_path = None
                    , stderr_path = None
@@ -139,11 +141,16 @@ def spawn_simulator( workdir
   """
   if not stdout_path: stdout_path = Path(workdir) / 'sim_stdout'
   if not stderr_path: stderr_path = Path(workdir) / 'sim_stderr'
+  newenv = os.environ.copy()
+  if x is not None: newenv["ROUTER_X"] = str(x)
+  if y is not None: newenv["ROUTER_Y"] = str(y)
+  print(newenv)
   p = verbosePopen( [bin] + args
                   , cwd = workdir
                   , stdout = test_and_open_file(stdout_path)
                   , stderr = test_and_open_file(stderr_path)
-                  , text = True )
+                  , text = True
+                  , env = newenv )
   p.stdout_path = stdout_path
   p.stderr_path = stderr_path
   return p
@@ -335,7 +342,8 @@ def main(ctxt):
   print('spawning simulators')
   for idx, node_dir, vpi_port, dbg_port in ctxts:
     proc_handles[idx] = {}
-    proc_handles[idx]["simulator"] = spawn_simulator(node_dir)
+    x, y = idx
+    proc_handles[idx]["simulator"] = spawn_simulator(node_dir, x, y)
   time.sleep(0.25)
   print('spawning cheri-bgas-devfs')
   for idx, node_dir, vpi_port, dbg_port in ctxts:
@@ -396,7 +404,7 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Run a CHERI-BGAS simulation')
 
   parser.add_argument(
-      '-t', '--topology', nargs=2, metavar=("WIDTH", 'HEIGHT')
+      '-t', '--topology', nargs=2, metavar=("WIDTH", 'HEIGHT'), default=(1,1)
     , help=f"The WIDTH and HEIGHT of the mesh of nodes to simulate")
   parser.add_argument(
       '-r', '--simulation-run-directory', type=Path, metavar='SIM_RUN_DIR'
