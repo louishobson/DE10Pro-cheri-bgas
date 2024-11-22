@@ -136,7 +136,8 @@ typedef struct {
 typedef enum {
     InvalidCaveat,
     InvalidCapPermsChain,
-    InvalidSignature
+    InvalidSignature,
+    UnexpectedCaveat
 } CapFailReason deriving (Bits, Eq, FShow);
 
 // Helper output struct for things that check the signature+text of a capability
