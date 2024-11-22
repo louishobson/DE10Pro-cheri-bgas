@@ -220,9 +220,19 @@ function FrontendMatter frontend(Cap2024_02 in);
     
             let elem_width_log2 = decodeElemWidthLog2(in.encoded_elem_width);
             
+            let cav1_is_zero = (in.index == 0) && (in.index_size_div == 0);
+            let cav2_is_zero = (in.range_x == 0) && (in.range_y_minus_one == 0);
+            let fail = tagged Invalid;
+            if (atCav1(chain) matches tagged Invalid &&& !cav1_is_zero) begin
+                fail = tagged Valid UnexpectedCaveat;
+            end
+            if (atCav2(chain) matches tagged Invalid &&& !cav2_is_zero) begin
+                fail = tagged Valid UnexpectedCaveat;
+            end
+            
             return FrontendMatter {
-                // no failure
-                fail: tagged Invalid,
+                // may only fail if caveats are nonzero
+                fail: fail,
             
                 zero_cav: !isValid(atCav1(chain)),
                 one_cav: isValid(atCav1(chain)) && !isValid(atCav2(chain)),
