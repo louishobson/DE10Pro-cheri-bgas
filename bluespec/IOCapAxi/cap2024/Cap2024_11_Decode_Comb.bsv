@@ -21,19 +21,19 @@ typedef struct {
 } InitialResource deriving (Bits, FShow);
 
 typedef struct {
-    ChkUInt#(54) base_addr;
+    ChkUInt#(64) base_addr;
     // elem_count is implicitly 1
     // elem_width_log2 may be = 64
     ChkUInt#(7) elem_width_log2;
     // Cap2024_11 EDIT
     // Caveat 1 is allowed to be larger than the initial resource if index = 0.
     // This means the range is the same as the initial i.e. the start is the same and the length is *clamped*
-    Maybe#(ChkUInt#(65)) clamp_length;
+    Maybe#(UInt#(65)) clamp_length;
     // Cap2024_11 EDIT END
 } PostCaveat1 deriving (Bits, FShow);
 
 typedef struct {
-    ChkUInt#(54) base_addr;
+    ChkUInt#(64) base_addr;
     // Cap2024_11 EDIT
     // cav2 is now 15-bit not 10-bit
     ChkUInt#(15) elem_count;
@@ -74,7 +74,10 @@ instance EncodesRange#(PostCaveat1);
                 return CapRange{base: pack(zeroExtend(currVal(cav1.base_addr))), top: pack(currVal(top))};
             end
             tagged Valid .length : begin
-                let top <- add(zeroExtend(cav1.base_addr), length, "PostCaveat1 rangeOf");
+                // .length here is reconstructed in a roundabout way: we use rangeOf to get the (top) value then subtract base to get length.
+                // We lose the bounds information but we know the resulting (top) will be in bounds.
+                // Thus we don't use the checked math here.
+                UInt#(65) top = zeroExtend(currVal(cav1.base_addr)) + length;
                 return CapRange{base: pack(zeroExtend(currVal(cav1.base_addr))), top: pack(currVal(top))};
             end
         endcase
@@ -211,24 +214,20 @@ module mkCombCapDecode#(Get#(Cap2024_11) in, Put#(CapCheckResult#(Tuple2#(CapPer
             "cav1 elem_width_log2"
         );
 
-        ChkUInt#(54) base = rightZeroExtend(init.base_addr_shr_10);
+        ChkUInt#(54) base_54 = rightZeroExtend(init.base_addr_shr_10);
+        ChkUInt#(64) base = zeroExtend(base_54);
 
         if (isValid(sub_overflow(check_rhs, check_lhs))) begin
             // The check_rhs and check_lhs have ensured this won't go OOB
-            ChkUInt#(64) start_offset_64 = shl_unchecked(extend(index), elem_width_log2);
-            Maybe#(ChkUInt#(54)) start_offset_54 = shrink(start_offset_64);
+            ChkUInt#(64) start_offset = shl_unchecked(extend(index), elem_width_log2);
 
-            case (start_offset_54) matches
+            case (add_overflow(base, start_offset)) matches
+                tagged Valid .new_base : return tagged Valid PostCaveat1 {
+                    base_addr: new_base,
+                    elem_width_log2: elem_width_log2,
+                    clamp_length: tagged Invalid
+                };
                 tagged Invalid : return tagged Invalid;
-                tagged Valid .start_offset : 
-                    case (add_overflow(base, start_offset)) matches
-                        tagged Valid .new_base : return tagged Valid PostCaveat1 {
-                            base_addr: new_base,
-                            elem_width_log2: elem_width_log2,
-                            clamp_length: tagged Invalid
-                        };
-                        tagged Invalid : return tagged Invalid;
-                    endcase
             endcase
         end else begin
             if (currVal(index) == 0) begin
@@ -238,7 +237,7 @@ module mkCombCapDecode#(Get#(Cap2024_11) in, Put#(CapCheckResult#(Tuple2#(CapPer
                 return tagged Valid PostCaveat1 {
                     base_addr: base,
                     elem_width_log2: elem_width_log2,
-                    clamp_length: tagged Valid withMaxBound(clamp_length)
+                    clamp_length: tagged Valid clamp_length
                 };
             end else begin
                 return tagged Invalid;
@@ -257,28 +256,22 @@ module mkCombCapDecode#(Get#(Cap2024_11) in, Put#(CapCheckResult#(Tuple2#(CapPer
                 elem_count <- add(extend(elem_count_minus_one), 1, "cav2 elem_count");
 
                 ChkUInt#(6) elem_width_log2 = ?;
-                ChkUInt#(54) start_offset = ?;
+                ChkUInt#(64) start_offset = ?;
                 // 7-bit subtraction
                 case (sub_overflow(cav1.elem_width_log2, 14)) matches
                     tagged Valid .elem_width_log2_toowide : begin
                         elem_width_log2 = truncate(elem_width_log2_toowide);
-                        ChkUInt#(64) start_offset_64 <- shl(extend(range_x), elem_width_log2_toowide, "cav2 big case start_offset");
-                        Maybe#(ChkUInt#(54)) start_offset_54 = shrink(start_offset_64);
+                        start_offset <- shl(extend(range_x), elem_width_log2_toowide, "cav2 big case start_offset");
 
                         // Cap2024_11 EDIT
                         if (cav1.clamp_length matches tagged Valid .max_length) begin
                             ChkUInt#(15) range_y <- add(extend(range_y_minus_one), 1, "cav2 increment range_y for compute vs clamp_length");
                             ChkUInt#(65) length <- shl(extend(range_y), elem_width_log2, "cav2 compute vs clamp_length");
                             // If max_length < length, cav2 is OOB
-                            if (sub_overflow(max_length, length) matches tagged Invalid) begin
+                            if (sub_overflow(withMaxBound(max_length), length) matches tagged Invalid) begin
                                 exceeds_cav1_clamp_length = True;
                             end
                         end
-                        case (start_offset_54) matches
-                            tagged Invalid : exceeds_cav1_clamp_length = True;
-                            tagged Valid .s : start_offset = s;
-                        endcase
-
                         // Cap2024_11 EDIT END
 
                     end
@@ -314,7 +307,7 @@ module mkCombCapDecode#(Get#(Cap2024_11) in, Put#(CapCheckResult#(Tuple2#(CapPer
                         if (cav1.clamp_length matches tagged Valid .max_length) begin
                             ChkUInt#(15) length <- add(extend(elem_count), extend(start_offset_shrunk), "cav2 compute vs clamp_length");
                             // If max_length < length, cav2 is OOB
-                            if (sub_overflow(max_length, extend(length)) matches tagged Invalid) begin
+                            if (sub_overflow(withMaxBound(max_length), extend(length)) matches tagged Invalid) begin
                                 exceeds_cav1_clamp_length = True;
                             end
                         end
