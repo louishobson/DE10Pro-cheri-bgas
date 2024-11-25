@@ -10,7 +10,7 @@ import Tests :: *;
 module mkCap2024_02_Decode_FastFSM_Tb(CapDecodeTb#(Cap2024_02));
     FIFOF#(Cap2024_02) in <- mkFIFOF;
     FIFOF#(CapCheckResult#(Tuple2#(CapPerms, CapRange))) out <- mkFIFOF;
-    mkFastFSMCapDecode(toGet(in), toPut(out));
+    mkFastFSMCapDecode_2024_02(toGet(in), toPut(out));
 
     interface stimulusIn = toSink(in);
     interface stimulusOut = toSource(out);

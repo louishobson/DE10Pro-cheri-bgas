@@ -114,11 +114,25 @@ enum class CapType : uint8_t {
     Cap2024_11
 };
 
+template <> class fmt::formatter<CapType> {
+	public:
+	// Ignore parse formats - only {} is supported for this type
+	constexpr auto parse (fmt::format_parse_context& ctx) { return ctx.begin(); }
+	template <typename Context>
+	constexpr auto format (CapType const& c, Context& ctx) const {
+        if (c == CapType::Cap2024_02) {
+		    return format_to(ctx.out(), "Cap2024_02");
+        } else {
+		    return format_to(ctx.out(), "Cap2024_11");
+        }
+	}
+};
+
 // Redefine API for CapStruct through a template so we can switch testbenches out more easily
 template<CapType ctype>
 struct CapStruct {};
 template<>
-struct CapStruct<CapType::Cap2024_02> : CCap2024_02 {
+struct CapStruct<CapType::Cap2024_02> : public CCap2024_02 {
     CCapResult read_perms(CCapPerms* perms) {
         return ccap2024_02_read_perms(this, perms);
     }
@@ -135,9 +149,59 @@ struct CapStruct<CapType::Cap2024_02> : CCap2024_02 {
     static CapStruct<CapType::Cap2024_02> legacy_random_initial_resource_cap(Generator& g, const U128& key, uint32_t secret_id, CCapPerms perms) {
         return CapStruct(random_initial_resource_cap_02(g, key, secret_id, perms));
     }
+    static uintptr_t librust_rand_edge_case_num() {
+        return ccap2024_02_rand_edge_case_num();
+    }
+    static const char* librust_rand_edge_case_str(uintptr_t edge_case) {
+        return ccap2024_02_rand_edge_case_str(edge_case);
+    }
+    template<class Generator> requires std::uniform_random_bit_generator<Generator>
+    static CapStruct<CapType::Cap2024_02> librust_rand_edge_case_cap(
+        Generator& rng,
+        const CCapU128 *secret_key,
+        const uint32_t *secret_key_id,
+        uintptr_t edge_case
+    ) {
+        CCapU128 seed;
+        U128::random(rng).to_le(seed);
+        CapStruct<CapType::Cap2024_02> cap;
+        CCapResult res = ccap2024_02_rand_edge_case_cap(&cap, &seed, secret_key, secret_key_id, edge_case);
+        if (res != CCapResult_Success) {
+            throw std::runtime_error(
+                fmt::format(
+                    "Failed to generate librust_rand_edge_case_cap for {} {}: {}",
+                    CapType::Cap2024_02,
+                    ccap2024_02_rand_edge_case_str(edge_case),
+                    ccap_result_str(res)
+                )
+            );
+        }
+        return cap;
+    }
+    template<class Generator> requires std::uniform_random_bit_generator<Generator>
+    static CapStruct<CapType::Cap2024_02> librust_rand_valid_cap(
+        Generator& rng,
+        const CCapU128 *secret_key,
+        const uint32_t *secret_key_id
+    ) {
+        CCapU128 seed;
+        U128::random(rng).to_le(seed);
+        CapStruct<CapType::Cap2024_02> cap;
+        CCapResult res = ccap2024_02_rand_valid_cap(&cap, &seed, secret_key, secret_key_id);
+        if (res != CCapResult_Success) {
+            throw std::runtime_error(
+                fmt::format(
+                    "Failed to generate librust_rand_valid_cap for {}: {}",
+                    CapType::Cap2024_02,
+                    ccap_result_str(res)
+                )
+            );
+        }
+        return cap;
+    }
 };
 template<>
-struct CapStruct<CapType::Cap2024_11> : CCap2024_11 {
+struct CapStruct<CapType::Cap2024_11> : public CCap2024_11 {
     CCapResult read_perms(CCapPerms* perms) {
         return ccap2024_11_read_perms(this, perms);
     }
@@ -153,6 +217,56 @@ struct CapStruct<CapType::Cap2024_11> : CCap2024_11 {
     template<class Generator> requires std::uniform_random_bit_generator<Generator>
     static CapStruct<CapType::Cap2024_11> legacy_random_initial_resource_cap(Generator& g, const U128& key, uint32_t secret_id, CCapPerms perms) {
         return CapStruct(random_initial_resource_cap_11(g, key, secret_id, perms));
+    }
+    static uintptr_t librust_rand_edge_case_num() {
+        return ccap2024_11_rand_edge_case_num();
+    }
+    static const char* librust_rand_edge_case_str(uintptr_t edge_case) {
+        return ccap2024_11_rand_edge_case_str(edge_case);
+    }
+    template<class Generator> requires std::uniform_random_bit_generator<Generator>
+    static CapStruct<CapType::Cap2024_11> librust_rand_edge_case_cap(
+        Generator& rng,
+        const CCapU128 *secret_key,
+        const uint32_t *secret_key_id,
+        uintptr_t edge_case
+    ) {
+        CCapU128 seed;
+        U128::random(rng).to_le(seed);
+        CapStruct<CapType::Cap2024_11> cap;
+        CCapResult res = ccap2024_11_rand_edge_case_cap(&cap, &seed, secret_key, secret_key_id, edge_case);
+        if (res != CCapResult_Success) {
+            throw std::runtime_error(
+                fmt::format(
+                    "Failed to generate librust_rand_edge_case_cap for {} {}: {}",
+                    CapType::Cap2024_11,
+                    ccap2024_11_rand_edge_case_str(edge_case),
+                    ccap_result_str(res)
+                )
+            );
+        }
+        return cap;
+    }
+    template<class Generator> requires std::uniform_random_bit_generator<Generator>
+    static CapStruct<CapType::Cap2024_11> librust_rand_valid_cap(
+        Generator& rng,
+        const CCapU128 *secret_key,
+        const uint32_t *secret_key_id
+    ) {
+        CCapU128 seed;
+        U128::random(rng).to_le(seed);
+        CapStruct<CapType::Cap2024_11> cap;
+        CCapResult res = ccap2024_11_rand_valid_cap(&cap, &seed, secret_key, secret_key_id);
+        if (res != CCapResult_Success) {
+            throw std::runtime_error(
+                fmt::format(
+                    "Failed to generate librust_rand_valid_cap for {}: {}",
+                    CapType::Cap2024_11,
+                    ccap_result_str(res)
+                )
+            );
+        }
+        return cap;
     }
 };
 
