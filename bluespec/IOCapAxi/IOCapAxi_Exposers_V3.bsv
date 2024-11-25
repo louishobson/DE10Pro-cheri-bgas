@@ -13,6 +13,7 @@ import IOCapAxi_CreditValve :: *;
 import IOCapAxi_Checkers :: *;
 
 import Cap2024_02 :: *;
+import Cap2024_02_Decode_FastFSM :: *;
 
 
 // NOT AXI COMPLIAMT
@@ -149,9 +150,9 @@ module mkSimpleIOCapExposerV3#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
 
     NumProxy#(4) poolSize = ?;
     // TODO test throughput of these vs non-pooled
-    IOCapAxiChecker#(AXI4_AWFlit#(t_id, 64, 0), Cap2024_02) awChecker <- mkInOrderIOCapAxiCheckerPool(poolSize);
+    IOCapAxiChecker#(AXI4_AWFlit#(t_id, 64, 0), Cap2024_02) awChecker <- mkInOrderIOCapAxiCheckerPool(poolSize, mkSimpleIOCapAxiChecker(connectFastFSMCapDecode_2024_02));
     // TODO could do out-of-order for ar
-    IOCapAxiChecker#(AXI4_ARFlit#(t_id, 64, 0), Cap2024_02) arChecker <- mkInOrderIOCapAxiCheckerPool(poolSize);
+    IOCapAxiChecker#(AXI4_ARFlit#(t_id, 64, 0), Cap2024_02) arChecker <- mkInOrderIOCapAxiCheckerPool(poolSize, mkSimpleIOCapAxiChecker(connectFastFSMCapDecode_2024_02));
 
     function KeyId keyIdForFlit(AuthenticatedFlit#(t, Cap2024_02) authFlit);
         return truncate(authFlit.cap.secret_key_id);

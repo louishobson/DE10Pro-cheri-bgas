@@ -13,6 +13,7 @@ import IOCapAxi_CreditValve :: *;
 import IOCapAxi_Checkers :: *;
 
 import Cap2024_02 :: *;
+import Cap2024_02_Decode_FastFSM :: *;
 
 
 // NOT AXI COMPLIAMT
@@ -144,8 +145,8 @@ module mkSimpleIOCapExposerV2#(IOCap_KeyManager#(t_keystore_data) keyStore)(IOCa
     FIFOF#(AuthenticatedFlit#(AXI4_AWFlit#(t_id, 64, 0), Cap2024_02)) awPreCheckBuffer <- mkFIFOF;
     FIFOF#(AuthenticatedFlit#(AXI4_ARFlit#(t_id, 64, 0), Cap2024_02)) arPreCheckBuffer <- mkFIFOF;
 
-    IOCapAxiChecker#(AXI4_AWFlit#(t_id, 64, 0), Cap2024_02) awChecker <- mkSimpleIOCapAxiChecker;
-    IOCapAxiChecker#(AXI4_ARFlit#(t_id, 64, 0), Cap2024_02) arChecker <- mkSimpleIOCapAxiChecker;
+    IOCapAxiChecker#(AXI4_AWFlit#(t_id, 64, 0), Cap2024_02) awChecker <- mkSimpleIOCapAxiChecker(connectFastFSMCapDecode_2024_02);
+    IOCapAxiChecker#(AXI4_ARFlit#(t_id, 64, 0), Cap2024_02) arChecker <- mkSimpleIOCapAxiChecker(connectFastFSMCapDecode_2024_02);
 
     function KeyId keyIdForFlit(AuthenticatedFlit#(t, Cap2024_02) authFlit);
         return truncate(authFlit.cap.secret_key_id);

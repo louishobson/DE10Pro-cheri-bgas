@@ -59,19 +59,20 @@ typedef union tagged {
     } WaitingForSig;
 } IOCapFlitInProgress#(type no_iocap_flit) deriving (Bits, FShow);
 
-// One-at-a-time IOCap flit checker
-module mkSimpleIOCapAxiChecker(IOCapAxiChecker#(no_iocap_flit, Cap2024_02)) provisos (Bits#(AuthenticatedFlit#(no_iocap_flit, Cap2024_02), a__), AxiCtrlFlit64#(no_iocap_flit), FShow#(no_iocap_flit));
-    FIFOF#(Tuple2#(AuthenticatedFlit#(no_iocap_flit, Cap2024_02), Maybe#(Key))) reqs <- mkFIFOF;
+// One-at-a-time IOCap flit checker#
+//function module#(void) makeDecoder (Get#(tcap) ins, Put#(CapCheckResult#(Tuple2#(CapPerms, CapRange))) outs) 
+module mkSimpleIOCapAxiChecker#(function module#(Empty) makeDecoder(Get#(tcap) ins, Put#(CapCheckResult#(Tuple2#(CapPerms, CapRange))) outs))(IOCapAxiChecker#(no_iocap_flit, tcap)) provisos (Bits#(AuthenticatedFlit#(no_iocap_flit, tcap), a__), AxiCtrlFlit64#(no_iocap_flit), FShow#(no_iocap_flit), Cap#(tcap));
+    FIFOF#(Tuple2#(AuthenticatedFlit#(no_iocap_flit, tcap), Maybe#(Key))) reqs <- mkFIFOF;
     // TODO this could be a bypass fifof...
     FIFOF#(Tuple2#(no_iocap_flit, Bool)) resps <- mkFIFOF;
 
     Reg#(Maybe#(IOCapFlitInProgress#(no_iocap_flit))) flitInProgress <- mkReg(tagged Invalid);
 
-    FIFOF#(Cap2024_02) decodeIn <- mkFIFOF; 
+    FIFOF#(tcap) decodeIn <- mkFIFOF; 
     FIFOF#(CapCheckResult#(Tuple2#(CapPerms, CapRange))) decodeOut <- mkFIFOF;
-    mkFastFSMCapDecode(toGet(decodeIn), toPut(decodeOut));
+    makeDecoder(toGet(decodeIn), toPut(decodeOut));
 
-    FIFOF#(CapSigCheckIn#(Cap2024_02)) sigCheckIn <- mkFIFOF;
+    FIFOF#(CapSigCheckIn#(tcap)) sigCheckIn <- mkFIFOF;
     FIFOF#(CapCheckResult#(Bit#(0))) sigCheckOut <- mkFIFOF;
     mk2RoundPerCycleCapSigCheck(toGet(sigCheckIn), toPut(sigCheckOut));
 
@@ -218,7 +219,7 @@ module mkSimpleIOCapAxiChecker(IOCapAxiChecker#(no_iocap_flit, Cap2024_02)) prov
     interface checkResponse = toSource(resps);
 endmodule
 
-// TODO mkIOCapAxiCheckerPool#(n, flit) to make a Vector#(n, mkSimpleIOCapAxiChecker#(flit)) and take the first available one.
+// mkIOCapAxiCheckerPool#(n, flit) to make a Vector#(n, someChecker) and take the first available one.
 // Max input/output rate are still 1/cycle, n should be tuned such that n = ceil((x cycles for one check)/(y cycles to receive an authenticated IOCapAxiFlit))
 // i.e. that whenever a new authed flit arrives, which can at most be once every y cycles, a checker in the pool will be ready.
 // Note that order needs to be preserved here - a 1-caveat write that arrives after a 3-caveat write must be blocked until the 3-caveat write has been checked - otherwise the w-flits will get mixed up.
@@ -227,8 +228,10 @@ endmodule
     // TODO this is worth thinking about in the write-up! In PCIe land where data+address arrive at once, do we also have this latency dependency? Likely worse because writes and reads are ordered together?
 
 // Can't use Integer for n because "Integer" != "numeric type"
-module mkInOrderIOCapAxiCheckerPool#(NumProxy#(n) n_proxy)(IOCapAxiChecker#(no_iocap_flit, Cap2024_02)) provisos (Alias#(tcap, Cap2024_02), Bits#(AuthenticatedFlit#(no_iocap_flit, tcap), a__), AxiCtrlFlit64#(no_iocap_flit), FShow#(no_iocap_flit));    
-    Vector#(n, IOCapAxiChecker#(no_iocap_flit, tcap)) checkers <- replicateM(mkSimpleIOCapAxiChecker);
+
+// TODO FIGURE OUT HOW TO MAKE THIS PARAMETERIZABLE ON DECODER TYPE
+module mkInOrderIOCapAxiCheckerPool#(NumProxy#(n) n_proxy, module#(IOCapAxiChecker#(no_iocap_flit, tcap)) toPool)(IOCapAxiChecker#(no_iocap_flit, tcap)) provisos (Bits#(AuthenticatedFlit#(no_iocap_flit, tcap), a__), AxiCtrlFlit64#(no_iocap_flit), FShow#(no_iocap_flit));    
+    Vector#(n, IOCapAxiChecker#(no_iocap_flit, tcap)) checkers <- replicateM(toPool);
     // Separately track the insert and retrieve pointers.
     // insertPointer is allowed to wrap around past retrievePointer multiple times
     // - although that likely isn't possible in normal cases -

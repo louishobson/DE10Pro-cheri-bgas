@@ -11,7 +11,8 @@ import StmtFSM::*;
 import LeftShift::*;
 import MattUtil::*;
 
-export mkFastFSMCapDecode;
+export mkFastFSMCapDecode_2024_02;
+export connectFastFSMCapDecode_2024_02;
 
 // The internals of the decoder are structured as a single module which takes a single command each cycle
 // encompassing four computations for it to do. Those inputs are clocked and at the start of each cycle
@@ -259,7 +260,7 @@ function Bool msbSet(Bit#(n) x) = unpack(msb(x));
 
 // TODO this is timing-independent on invalid caveats right now because that's the most convenient thing to do with an FSM.
 // Maybe bad for real fastness.
-module mkFastFSMCapDecode#(Get#(Cap2024_02) in, Put#(CapCheckResult#(Tuple2#(CapPerms, CapRange))) out)(Empty);
+module mkFastFSMCapDecode_2024_02#(Get#(Cap2024_02) in, Put#(CapCheckResult#(Tuple2#(CapPerms, CapRange))) out)(Empty);
     InternalCalc calc <- mkInternalCalc;
 
     // Working registers for the state machine.
@@ -541,5 +542,7 @@ module mkFastFSMCapDecode#(Get#(Cap2024_02) in, Put#(CapCheckResult#(Tuple2#(Cap
         endcase
     endrule
 endmodule
+
+function module#(Empty) connectFastFSMCapDecode_2024_02(Get#(Cap2024_02) in, Put#(CapCheckResult#(Tuple2#(CapPerms, CapRange))) out) = mkFastFSMCapDecode_2024_02(in, out);
 
 endpackage
