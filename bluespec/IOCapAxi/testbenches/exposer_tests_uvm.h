@@ -20,11 +20,18 @@ struct AxiParams {
     uint8_t n_transfers;
 };
 
-struct CapWithRange {
-    CCap2024_02 cap;
+template<CapType ctype>
+struct ValidCapWithRange {
+    CapStruct<ctype> cap;
     uint64_t cap_base;
     uint64_t cap_len;
     bool cap_is_almighty;
+
+    ValidCapWithRange(CapStruct<ctype> cap) : cap(cap) {
+        if (this->cap.read_range(&this->cap_base, &this->cap_len, &this->cap_is_almighty) != CCapResult_Success) {
+            throw std::runtime_error("Failed to ccap2024_XX_read_range");
+        }
+    }
 
     AxiParams valid_transfer_params(uint8_t transfer_width, uint8_t n_transfers) const {
         if (!cap_is_almighty) {
@@ -249,7 +256,7 @@ public:
 /**
  * Base class for all ShimmedExposer stimulus generators
  */
-template<class DUT>
+template<class DUT, CapType ctype>
 class ExposerStimulus : public StimulusGenerator<DUT> {
 public:
     std::unique_ptr<KeyManagerShimStimulus<DUT>> keyMgr;
@@ -266,17 +273,10 @@ protected:
 
     /// Use these functions in subclasses!
 
-    virtual CapWithRange test_random_initial_resource_cap(std::mt19937& rng, uint32_t secret_id, CCapPerms perms) {
-        CapWithRange data{};
-
-        data.cap = random_initial_resource_cap_02(rng, keyMgr->secrets[secret_id], secret_id, perms);
-        if (ccap2024_02_read_range(&data.cap, &data.cap_base, &data.cap_len, &data.cap_is_almighty) != CCapResult_Success) {
-            throw std::runtime_error("Failed to ccap2024_02_read_range");
-        }
-        
-        return data;
+    virtual ValidCapWithRange<ctype> test_random_initial_resource_cap(std::mt19937& rng, uint32_t secret_id, CCapPerms perms) {
+        return ValidCapWithRange(CapStruct<ctype>::legacy_random_initial_resource_cap(rng, keyMgr->secrets[secret_id], secret_id, perms));
     }
-    void enqueueReadBurst(CCap2024_02& cap, AxiParams& axi_params, uint8_t id) {
+    void enqueueReadBurst(CapStruct<ctype>& cap, AxiParams& axi_params, uint8_t id) {
         U128 cap128 = U128::from_le(cap.data);
         U128 sig128 = U128::from_le(cap.signature);
 
@@ -292,7 +292,7 @@ protected:
         arInputs.push_back(axi::IOCapAxi::packCap2_ar(cap128, sig128));
         arInputs.push_back(axi::IOCapAxi::packCap3_ar(cap128, sig128));
     }
-    void enqueueWriteBurst(CCap2024_02& cap, AxiParams& axi_params, uint8_t id) {
+    void enqueueWriteBurst(CapStruct<ctype>& cap, AxiParams& axi_params, uint8_t id) {
         U128 cap128 = U128::from_le(cap.data);
         U128 sig128 = U128::from_le(cap.signature);
 
@@ -391,7 +391,7 @@ template <typename T> class fmt::formatter<LatencyTrackedWithAuthCorrectness<T>>
  * Does not do anything to handle revocation, but revocation can be simulated by modifying the KeyID -> Key map `secrets` the scoreboard uses
  * to determine if incoming requests will be valid or not.
  */
-template<class DUT>
+template<class DUT, CapType ctype>
 class ExposerScoreboard : public Scoreboard<DUT> {
     std::unordered_map<key_manager::KeyId, U128>& secrets; // Fake keymanager proxy. THIS SCOREBOARD ASSUMES KEYS DONT CHANGE
 
@@ -501,7 +501,7 @@ class ExposerScoreboard : public Scoreboard<DUT> {
             unpackCap1_aw(data, sig, awInProgress[1]);
             unpackCap2_aw(data, sig, awInProgress[2]);
             unpackCap3_aw(data, sig, awInProgress[3]);
-            CCap2024_02 cap;
+            CapStruct<ctype> cap;
             sig.to_le(cap.signature);
             data.to_le(cap.data);
             uint32_t secret_key_id;
@@ -519,14 +519,14 @@ class ExposerScoreboard : public Scoreboard<DUT> {
             uint64_t len = 0;
             bool len64 = false;
             CCapPerms perms = CCapPerms_ReadWrite;
-            bool capIsValid = (ccap2024_02_read_secret_id(&cap, &secret_key_id) == CCapResult_Success) &&
-                                (ccap2024_02_read_range(&cap, &base, &len, &len64) == CCapResult_Success) &&
-                                (ccap2024_02_read_perms(&cap, &perms) == CCapResult_Success) && 
+            bool capIsValid = (cap.read_secret_id(&secret_key_id) == CCapResult_Success) &&
+                                (cap.read_range(&base, &len, &len64) == CCapResult_Success) &&
+                                (cap.read_perms(&perms) == CCapResult_Success) && 
                                 ((perms & CCapPerms_Write) != 0);
             if (capIsValid && secrets.contains(secret_key_id & 0xFF)) {
                 CCapU128 secret_key;
                 secrets[secret_key_id & 0xFF].to_le(secret_key);
-                capIsValid = (ccap2024_02_check_signature(&cap, &secret_key) == CCapResult_Success);
+                capIsValid = (cap.check_signature(&secret_key) == CCapResult_Success);
             } else {
                 capIsValid = false;
             }
@@ -623,7 +623,7 @@ class ExposerScoreboard : public Scoreboard<DUT> {
             unpackCap1_ar(data, sig, arInProgress[1]);
             unpackCap2_ar(data, sig, arInProgress[2]);
             unpackCap3_ar(data, sig, arInProgress[3]);
-            CCap2024_02 cap;
+            CapStruct<ctype> cap;
             sig.to_le(cap.signature);
             data.to_le(cap.data);
             uint32_t secret_key_id;
@@ -641,14 +641,14 @@ class ExposerScoreboard : public Scoreboard<DUT> {
             uint64_t len = 0;
             bool len64 = false;
             CCapPerms perms = CCapPerms_ReadWrite;
-            bool capIsValid = (ccap2024_02_read_secret_id(&cap, &secret_key_id) == CCapResult_Success) &&
-                                (ccap2024_02_read_range(&cap, &base, &len, &len64) == CCapResult_Success) &&
-                                (ccap2024_02_read_perms(&cap, &perms) == CCapResult_Success) && 
+            bool capIsValid = (cap.read_secret_id(&secret_key_id) == CCapResult_Success) &&
+                                (cap.read_range(&base, &len, &len64) == CCapResult_Success) &&
+                                (cap.read_perms(&perms) == CCapResult_Success) && 
                                 ((perms & CCapPerms_Read) != 0);
             if (capIsValid && secrets.contains(secret_key_id & 0xFF)) {
                 CCapU128 secret_key;
                 secrets[secret_key_id & 0xFF].to_le(secret_key);
-                capIsValid = (ccap2024_02_check_signature(&cap, &secret_key) == CCapResult_Success);
+                capIsValid = (cap.check_signature(&secret_key) == CCapResult_Success);
             } else {
                 capIsValid = false;
             }
@@ -970,50 +970,37 @@ public:
         DUMP_MEAN_OF(w_w_latency);
         DUMP_MEAN_OF(b_b_latency);
         DUMP_MEAN_OF(r_r_latency);
+        fmt::println(stderr, "exp. valid write, {}", expectedGoodWrite);
+        fmt::println(stderr, "exp. invalid write, {}", expectedBadWrite);
+        fmt::println(stderr, "exp. valid read, {}", expectedGoodRead);
+        fmt::println(stderr, "exp. invalid read, {}", expectedBadRead);
+        fmt::println(stderr, "valid cap ratio, {}%", (double(expectedGoodWrite+expectedGoodRead))/(double(expectedGoodWrite+expectedGoodRead+expectedBadWrite+expectedBadRead))*100.0);
     }
     #undef DUMP_MEAN_OF
     #undef STRINGIFY2
     #undef STRINGIFY
 };
 
-template<class DUT>
+template<class DUT, CapType ctype = CapType::Cap2024_02>
 class ExposerUVMishTest: public UVMishTest<DUT> {
 public:
-    ExposerUVMishTest(ExposerStimulus<DUT>* stimulus, bool expectPassthroughInvalidTransactions = false) :
+    ExposerUVMishTest(ExposerStimulus<DUT, ctype>* stimulus, bool expectPassthroughInvalidTransactions = false) :
         UVMishTest<DUT>(
-            new ExposerScoreboard<DUT>(stimulus->keyMgr->secrets, expectPassthroughInvalidTransactions),
+            new ExposerScoreboard<DUT, ctype>(stimulus->keyMgr->secrets, expectPassthroughInvalidTransactions),
             stimulus
         ) {}
 };
 
-const char* perms_to_str(CCapPerms perms) {
-    const char* perm_str = "Unk";
-    switch (perms) {
-        case CCapPerms_ReadWrite:
-            perm_str = "ReadWrite";
-            break;
-        case CCapPerms_Write:
-            perm_str = "Write";
-            break;
-        case CCapPerms_Read:
-            perm_str = "Read";
-            break;
-        default:
-            throw std::logic_error("Invalid perms");
-    }
-    return perm_str;
-}
-
-template<class DUT>
-class UVMValidKeyValidInitialCapValidAccess : public ExposerStimulus<DUT> {
+template<class DUT, CapType ctype>
+class UVMValidKeyValidInitialCapValidAccess : public ExposerStimulus<DUT, ctype> {
     CCapPerms perms;
     
 public:
     virtual ~UVMValidKeyValidInitialCapValidAccess() = default;
     virtual std::string name() override {
-        return fmt::format("Valid-Key Valid-Cap Valid-{}", perms_to_str(perms));
+        return fmt::format("Valid-Key Valid-Cap Valid-{}", ccap_perms_str(perms));
     }
-    UVMValidKeyValidInitialCapValidAccess(CCapPerms perms) : ExposerStimulus<DUT>(
+    UVMValidKeyValidInitialCapValidAccess(CCapPerms perms) : ExposerStimulus<DUT, ctype>(
         new BasicKeyManagerShimStimulus<DUT>(),
         new BasicSanitizedMemStimulus<DUT>()
     ), perms(perms) {}
@@ -1038,16 +1025,16 @@ public:
     }
 };
 
-template<class DUT>
-class UVMValidKeyValidInitialCapOOBAccess : public ExposerStimulus<DUT> {
+template<class DUT, CapType ctype>
+class UVMValidKeyValidInitialCapOOBAccess : public ExposerStimulus<DUT, ctype> {
     CCapPerms perms;
     
 public:
     virtual ~UVMValidKeyValidInitialCapOOBAccess() = default;
     virtual std::string name() override {
-        return fmt::format("Valid-Key Valid-Cap OOB-{}", perms_to_str(perms));
+        return fmt::format("Valid-Key Valid-Cap OOB-{}", ccap_perms_str(perms));
     }
-    UVMValidKeyValidInitialCapOOBAccess(CCapPerms perms) : ExposerStimulus<DUT>(
+    UVMValidKeyValidInitialCapOOBAccess(CCapPerms perms) : ExposerStimulus<DUT, ctype>(
         new BasicKeyManagerShimStimulus<DUT>(),
         new BasicSanitizedMemStimulus<DUT>()
     ), perms(perms) {}
@@ -1073,16 +1060,16 @@ public:
     }
 };
 
-template<class DUT>
-class UVMInvalidKeyAccess : public ExposerStimulus<DUT> {
+template<class DUT, CapType ctype>
+class UVMInvalidKeyAccess : public ExposerStimulus<DUT, ctype> {
     CCapPerms perms;
     
 public:
     virtual ~UVMInvalidKeyAccess() = default;
     virtual std::string name() override {
-        return fmt::format("Invalid-Key {}", perms_to_str(perms));
+        return fmt::format("Invalid-Key {}", ccap_perms_str(perms));
     }
-    UVMInvalidKeyAccess(CCapPerms perms) : ExposerStimulus<DUT>(
+    UVMInvalidKeyAccess(CCapPerms perms) : ExposerStimulus<DUT, ctype>(
         new BasicKeyManagerShimStimulus<DUT>(),
         new BasicSanitizedMemStimulus<DUT>()
     ), perms(perms) {}
@@ -1109,14 +1096,14 @@ public:
     }
 };
 
-template<class DUT>
-class UVMValidKeyValidCapBadPerms : public ExposerStimulus<DUT> {
+template<class DUT, CapType ctype>
+class UVMValidKeyValidCapBadPerms : public ExposerStimulus<DUT, ctype> {
 public:
     virtual ~UVMValidKeyValidCapBadPerms() = default;
     virtual std::string name() override {
         return "Valid-Key Valid-Cap BadPerms";
     }
-    UVMValidKeyValidCapBadPerms() : ExposerStimulus<DUT>(
+    UVMValidKeyValidCapBadPerms() : ExposerStimulus<DUT, ctype>(
         new BasicKeyManagerShimStimulus<DUT>(),
         new BasicSanitizedMemStimulus<DUT>()
     ) {}
@@ -1143,14 +1130,14 @@ public:
     }
 };
 
-template<class DUT>
-class UVMValidKeyBadSigCap : public ExposerStimulus<DUT> {
+template<class DUT, CapType ctype>
+class UVMValidKeyBadSigCap : public ExposerStimulus<DUT, ctype> {
 public:
     virtual ~UVMValidKeyBadSigCap() = default;
     virtual std::string name() override {
         return "Valid-Key BadSig-Cap";
     }
-    UVMValidKeyBadSigCap() : ExposerStimulus<DUT>(
+    UVMValidKeyBadSigCap() : ExposerStimulus<DUT, ctype>(
         new BasicKeyManagerShimStimulus<DUT>(),
         new BasicSanitizedMemStimulus<DUT>()
     ) {}
@@ -1183,8 +1170,8 @@ public:
     }
 };
 
-template<class DUT>
-class UVMTransactionsBetweenRevocations : public ExposerStimulus<DUT> {
+template<class DUT, CapType ctype>
+class UVMTransactionsBetweenRevocations : public ExposerStimulus<DUT, ctype> {
     uint64_t n_revocations;
     uint8_t epoch = 0;
 public:
@@ -1192,7 +1179,7 @@ public:
     virtual std::string name() override {
         return fmt::format("Valid-Key Valid-Cap Valid-ReadWrite with {} revocations", n_revocations);
     }
-    UVMTransactionsBetweenRevocations(uint64_t n_revocations) : ExposerStimulus<DUT>(
+    UVMTransactionsBetweenRevocations(uint64_t n_revocations) : ExposerStimulus<DUT, ctype>(
         new BasicKeyManagerShimStimulus<DUT>(),
         new BasicSanitizedMemStimulus<DUT>()
     ), n_revocations(n_revocations) {}
@@ -1218,7 +1205,7 @@ public:
             }
         }
 
-        ExposerStimulus<DUT>::driveInputsForTick(rng, dut, tick);
+        ExposerStimulus<DUT, ctype>::driveInputsForTick(rng, dut, tick);
 
         if (tick % 5000 == 4500) {
             // Transactions should be over, drive the revocation signal
@@ -1252,8 +1239,8 @@ public:
     }
 };
 
-template<class DUT>
-class UVMStreamOfNValidTransactions : public ExposerStimulus<DUT> {
+template<class DUT, CapType ctype>
+class UVMStreamOfNValidTransactions : public ExposerStimulus<DUT, ctype> {
     CCapPerms perms;
     uint64_t n_transactions;
 
@@ -1262,9 +1249,9 @@ class UVMStreamOfNValidTransactions : public ExposerStimulus<DUT> {
 public:
     virtual ~UVMStreamOfNValidTransactions() = default;
     virtual std::string name() override {
-        return fmt::format("Stream of {} {} transactions", n_transactions, perms_to_str(perms));
+        return fmt::format("Stream of {} {} transactions", n_transactions, ccap_perms_str(perms));
     }
-    UVMStreamOfNValidTransactions(CCapPerms perms, uint64_t n_transactions) : ExposerStimulus<DUT>(
+    UVMStreamOfNValidTransactions(CCapPerms perms, uint64_t n_transactions) : ExposerStimulus<DUT, ctype>(
         new BasicKeyManagerShimStimulus<DUT>(),
         new BasicSanitizedMemStimulus<DUT>()
     ), perms(perms), n_transactions(n_transactions) {}

@@ -46,38 +46,38 @@ int main(int argc, char** argv) {
         // UVM-style testing
         // TODO add tests for above todos, consider revocation
         new ExposerUVMishTest(
-            new UVMValidKeyValidInitialCapValidAccess<TheDUT>(CCapPerms_Read)
+            new UVMValidKeyValidInitialCapValidAccess<TheDUT, CapType::Cap2024_02>(CCapPerms_Read)
         ),
         new ExposerUVMishTest(
-            new UVMValidKeyValidInitialCapValidAccess<TheDUT>(CCapPerms_Write)
+            new UVMValidKeyValidInitialCapValidAccess<TheDUT, CapType::Cap2024_02>(CCapPerms_Write)
         ),
         new ExposerUVMishTest(
-            new UVMValidKeyValidInitialCapValidAccess<TheDUT>(CCapPerms_ReadWrite)
+            new UVMValidKeyValidInitialCapValidAccess<TheDUT, CapType::Cap2024_02>(CCapPerms_ReadWrite)
         ),
         new ExposerUVMishTest(
-            new UVMValidKeyValidInitialCapOOBAccess<TheDUT>(CCapPerms_Read)
+            new UVMValidKeyValidInitialCapOOBAccess<TheDUT, CapType::Cap2024_02>(CCapPerms_Read)
         ),
         new ExposerUVMishTest(
-            new UVMValidKeyValidInitialCapOOBAccess<TheDUT>(CCapPerms_Write)
+            new UVMValidKeyValidInitialCapOOBAccess<TheDUT, CapType::Cap2024_02>(CCapPerms_Write)
         ),
         new ExposerUVMishTest(
-            new UVMValidKeyValidCapBadPerms<TheDUT>()
+            new UVMValidKeyValidCapBadPerms<TheDUT, CapType::Cap2024_02>()
         ),
         new ExposerUVMishTest(
-            new UVMValidKeyBadSigCap<TheDUT>()
+            new UVMValidKeyBadSigCap<TheDUT, CapType::Cap2024_02>()
         ),
         new ExposerUVMishTest(
-            new UVMInvalidKeyAccess<TheDUT>(CCapPerms_ReadWrite)
+            new UVMInvalidKeyAccess<TheDUT, CapType::Cap2024_02>(CCapPerms_ReadWrite)
         ),
         // 5 cycles of revocations
         // TODO test this with valid and invalid transactions!
         // TODO figure out how to do more accurate UVM revocation testing
         new ExposerUVMishTest(
-            new UVMTransactionsBetweenRevocations<TheDUT>(5)
+            new UVMTransactionsBetweenRevocations<TheDUT, CapType::Cap2024_02>(5)
         ),
 
         new ExposerUVMishTest(
-            new UVMStreamOfNValidTransactions<TheDUT>(CCapPerms_ReadWrite, 100)
+            new UVMStreamOfNValidTransactions<TheDUT, CapType::Cap2024_02>(CCapPerms_ReadWrite, 100)
         )
     };
 

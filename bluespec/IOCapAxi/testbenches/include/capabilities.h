@@ -109,4 +109,52 @@ CCap2024_11 random_initial_resource_cap_11(Generator& g, const U128& key, uint32
     return initial_resource_cap_11(key, base, length, secret_id, perms);
 }
 
+enum class CapType : uint8_t {
+    Cap2024_02,
+    Cap2024_11
+};
+
+// Redefine API for CapStruct through a template so we can switch testbenches out more easily
+template<CapType ctype>
+struct CapStruct {};
+template<>
+struct CapStruct<CapType::Cap2024_02> : CCap2024_02 {
+    CCapResult read_perms(CCapPerms* perms) {
+        return ccap2024_02_read_perms(this, perms);
+    }
+    CCapResult read_range(uint64_t* base, uint64_t* len, bool* len_64) {
+        return ccap2024_02_read_range(this, base, len, len_64);
+    }
+    CCapResult read_secret_id(uint32_t* secret_key_id) {
+        return ccap2024_02_read_secret_id(this, secret_key_id);
+    }
+    CCapResult check_signature(const CCapU128* secret) {
+        return ccap2024_02_check_signature(this, secret);
+    }
+    template<class Generator> requires std::uniform_random_bit_generator<Generator>
+    static CapStruct<CapType::Cap2024_02> legacy_random_initial_resource_cap(Generator& g, const U128& key, uint32_t secret_id, CCapPerms perms) {
+        return CapStruct(random_initial_resource_cap_02(g, key, secret_id, perms));
+    }
+};
+template<>
+struct CapStruct<CapType::Cap2024_11> : CCap2024_11 {
+    CCapResult read_perms(CCapPerms* perms) {
+        return ccap2024_11_read_perms(this, perms);
+    }
+    CCapResult read_range(uint64_t* base, uint64_t* len, bool* len_64) {
+        return ccap2024_11_read_range(this, base, len, len_64);
+    }
+    CCapResult read_secret_id(uint32_t* secret_key_id) {
+        return ccap2024_11_read_secret_id(this, secret_key_id);
+    }
+    CCapResult check_signature(const CCapU128* secret) {
+        return ccap2024_11_check_signature(this, secret);
+    }
+    template<class Generator> requires std::uniform_random_bit_generator<Generator>
+    static CapStruct<CapType::Cap2024_11> legacy_random_initial_resource_cap(Generator& g, const U128& key, uint32_t secret_id, CCapPerms perms) {
+        return CapStruct(random_initial_resource_cap_11(g, key, secret_id, perms));
+    }
+};
+
+
 #endif // CAPABILITIES_H

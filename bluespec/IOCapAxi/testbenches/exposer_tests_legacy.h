@@ -10,15 +10,10 @@
 
 template<class DUT>
 struct ExposerCycleTest : public CycleTest<DUT, ShimmedExposerInput, ShimmedExposerOutput> {
-    virtual CapWithRange test_random_initial_resource_cap(const U128& key, uint32_t secret_id, CCapPerms perms) {
-        CapWithRange data{};
-
-        data.cap = random_initial_resource_cap_02(this->rng, key, secret_id, perms);
-        if (ccap2024_02_read_range(&data.cap, &data.cap_base, &data.cap_len, &data.cap_is_almighty) != CCapResult_Success) {
-            throw std::runtime_error("Failed to ccap2024_02_read_range");
-        }
-        
-        return data;
+    virtual ValidCapWithRange<CapType::Cap2024_02> test_random_initial_resource_cap(const U128& key, uint32_t secret_id, CCapPerms perms) {
+        return ValidCapWithRange(
+            CapStruct<CapType::Cap2024_02>::legacy_random_initial_resource_cap(this->rng, key, secret_id, perms)
+        );
     }
 };
 
