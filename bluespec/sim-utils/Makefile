@@ -1,4 +1,4 @@
-all: $(addprefix $(CURDIR)/tools/, cheri-bgas-fuse-devfs forever-splice jtagvpi_to_fmemdmi openocd fmem)
+all: $(addprefix $(CURDIR)/tools/, cheri-bgas-fuse-devfs fmem-uart forever-splice jtagvpi_to_fmemdmi openocd fmem)
 
 mrproper: mrproper-cheri-bgas-fuse-devfs mrproper-forever-splice mrproper-jtagvpi_to_fmemdmi mrproper-openocd
 
@@ -16,6 +16,21 @@ $(CURDIR)/cheri-bgas-fuse-devfs/cheri-bgas-fuse-devfs:
 mrproper-cheri-bgas-fuse-devfs:
 	rm -rf $(CURDIR)/tools/cheri-bgas-fuse-devfs
 	$(MAKE) -C $(CURDIR)/cheri-bgas-fuse-devfs clean
+
+####
+
+gen-fmem-uart: $(CURDIR)/tools/fmem-uart
+
+$(CURDIR)/tools/fmem-uart: $(CURDIR)/fmem-uart/obj/fmem-uart
+	mkdir -p $(CURDIR)/tools
+	cp $< $@
+
+$(CURDIR)/fmem-uart/obj/fmem-uart:
+	$(MAKE) -C $(CURDIR)/fmem-uart
+
+mrproper-fmem-uart:
+	rm -rf $(CURDIR)/tools/fmem-uart
+	$(MAKE) -C $(CURDIR)/fmem-uart clean
 
 ####
 
