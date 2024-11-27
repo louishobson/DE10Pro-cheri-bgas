@@ -55,6 +55,7 @@ $(CURDIR)/tools/openocd: /tmp/openocd/src/openocd
 /tmp/openocd/src/openocd:
 	rm -rf /tmp/openocd
 	git clone --depth=1 --branch latest https://github.com/openocd-org/openocd.git /tmp/openocd
+	# last tested with commit 8a37230
 	cd /tmp/openocd && git submodule update --init --recursive && \
 	./bootstrap && ./configure --enable-jtag_vpi
 	$(MAKE) -C /tmp/openocd

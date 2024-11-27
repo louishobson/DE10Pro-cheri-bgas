@@ -46,6 +46,11 @@ import SoC_Map :: *;
 import CHERI_BGAS_System :: *;
 import CHERI_BGAS_Router :: *;
 
+
+`ifdef BSIM
+import "BDPI" getenv_as_uint = function UInt#(64) getenv_as_uint(String envVar);
+`endif
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -289,7 +294,11 @@ provisos (
              , t_global_axi_addr, t_global_axi_data
              , t_global_axi_awuser, t_global_axi_wuser, t_global_axi_buser
              , t_global_axi_aruser, t_global_axi_ruser
-             , t_global_flit ) )
+             , t_global_flit
+             `ifdef BSIM
+             , 8, 8
+             `endif
+             ) )
 , Alias #( t_sys_axi_sub_0, AXI4_Slave #(
       t_sys_axi_sub_0_id, t_sys_axi_sub_0_addr, t_sys_axi_sub_0_data
     , t_sys_axi_sub_0_awuser, t_sys_axi_sub_0_wuser, t_sys_axi_sub_0_buser
@@ -363,8 +372,19 @@ provisos (
     sys <- replicateM (mkCHERI_BGAS_System (reset_by newRst.new_rst));
   Vector #(NBCheriBgasSystems, t_router_ifc) router;
   Maybe #(t_router_id) initRouterId = Invalid;
-  for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1)
+  for (Integer i = 0; i < nbCheriBgasSystems; i = i + 1) begin
     router[i] <- mkCHERI_BGAS_Router (initRouterId, reset_by newRst.new_rst);
+    `ifdef BSIM
+    let routerId_setup <- mkReg(False, reset_by newRst.new_rst);
+    rule init_routerId (!routerId_setup);
+      router[i].setRouterId(Valid(RouterId {
+          y: truncate(pack(getenv_as_uint("ROUTER_Y")))
+        , x: truncate(pack(getenv_as_uint("ROUTER_X")))
+        }));
+      routerId_setup <= True;
+    endrule
+    `endif
+  end
   Vector #(NBCheriBgasSystems, t_global_mngr)
     globalMngr = replicate (?);
   Vector #(NBCheriBgasSystems, t_sys_global_sub)
