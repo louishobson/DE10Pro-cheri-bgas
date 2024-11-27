@@ -23,6 +23,7 @@ dflt_openocd_bin = (sim_utils_dir / "tools/openocd").resolve()
 dflt_openocd_conf = (sim_utils_dir / "openocd.cfg").resolve()
 dflt_splice_cmd = (sim_utils_dir / "tools/forever-splice").resolve()
 dflt_connect_cmd = (sim_utils_dir / "tools/forever-splice").resolve()
+dflt_fmem_uart_bin = (sim_utils_dir / "tools/fmem-uart").resolve()
 
 # Generic helpers
 ################################################################################
@@ -162,6 +163,26 @@ def spawn_devfs( workdir
   sim_ports_dir = test_and_create_dir(Path(workdir) / sim_ports_dir)
   sim_dev_dir = test_and_create_dir(Path(workdir) / sim_dev_dir)
   p = verbosePopen( [bin, sim_ports_dir, '-s', sim_dev_dir]
+                  , cwd = workdir
+                  , stdout = test_and_open_file(stdout_path)
+                  , stderr = test_and_open_file(stderr_path)
+                  , text = True )
+  p.stdout_path = stdout_path
+  p.stderr_path = stderr_path
+  return p
+
+def spawn_fmem_uart( workdir
+                   , sim_dev_dir = "./simdev"
+                   , stdout_path = None
+                   , stderr_path = None
+                   , uart_num = "0x0"
+                   , bin = dflt_fmem_uart_bin
+                   ):
+  """
+  """
+  if not stdout_path: stdout_path = Path(workdir) / 'fmem_uart_stdout'
+  if not stderr_path: stderr_path = Path(workdir) / 'fmem_uart_stderr'
+  p = verbosePopen( [bin, Path(workdir) / sim_dev_dir / 'uart0', uart_num]
                   , cwd = workdir
                   , stdout = test_and_open_file(stdout_path)
                   , stderr = test_and_open_file(stderr_path)
@@ -341,6 +362,10 @@ def main(ctxt):
   for idx, node_dir, vpi_port, dbg_port in ctxts:
     proc_handles[idx]["devfs"] = spawn_devfs(node_dir)
   time.sleep(0.25)
+  print('spawning fmem-uart')
+  for idx, node_dir, vpi_port, dbg_port in ctxts:
+    proc_handles[idx]["fmem-uart"] = spawn_fmem_uart(node_dir)
+  time.sleep(0.25)
   print('spawning jtagvpi_to_fmemdmis')
   for idx, node_dir, vpi_port, dbg_port in ctxts:
     proc_handles[idx]["jtagvpi_to_fmemdmi"] = spawn_jtagvpi_to_fmemdmi(node_dir, vpi_port)
@@ -367,6 +392,7 @@ def main(ctxt):
       sim_info.write(f'    - pids:\n')
       sim_info.write(f'      - simulator: {proc_handles[idx]["simulator"].pid}\n')
       sim_info.write(f'      - devfs: {proc_handles[idx]["devfs"].pid}\n')
+      sim_info.write(f'      - fmem-uart: {proc_handles[idx]["fmem-uart"].pid}\n')
       sim_info.write(f'      - jtagvpi_to_fmemdmi: {proc_handles[idx]["jtagvpi_to_fmemdmi"].pid}\n')
       sim_info.write(f'      - openocd: {proc_handles[idx]["openocd"].pid}\n')
     sim_info.write(f'- connection_pids:\n')
