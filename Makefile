@@ -127,6 +127,7 @@ clean-ip-gen:
 	rm -rf $(CURDIR)/ip/reset_release/
 	rm -rf $(CURDIR)/ip/toplevel/CHERI_BGAS_Top/
 	rm -rf $(CURDIR)/ip/toplevel/clock_in/
+	rm -rf $(CURDIR)/ip/toplevel/de10_fan/
 	rm -rf $(CURDIR)/ip/toplevel/ddrd_mm_clock_crossing_bridge/
 	rm -rf $(CURDIR)/ip/toplevel/emif_ddrd/
 	rm -rf $(CURDIR)/ip/toplevel/ddrb_mm_clock_crossing_bridge/

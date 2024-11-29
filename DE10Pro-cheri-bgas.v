@@ -490,12 +490,12 @@ module DE10Pro_cheri_bgas (
   `endif // ENABLE_HPS
   `ifdef ENABLE_FAN_I2C
   `ifdef ENABLE_TEMP_I2C
-  , .fan_controller_fan_i2c_sda                    (FAN_I2C_SDA)
-  , .fan_controller_fan_i2c_scl                    (FAN_I2C_SCL)
-  , .fan_controller_temp_i2c_sda                   (TEMP_I2C_SDA)
-  , .fan_controller_temp_i2c_scl                   (TEMP_I2C_SCL)
-  , .fan_controller_led_led                        (LED_OUT)
-  , .fan_controller_reset_source_reset_n           (fan_reset_n)
+  , .de10_fan_fan_i2c_sda                    (FAN_I2C_SDA)
+  , .de10_fan_fan_i2c_scl                    (FAN_I2C_SCL)
+  , .de10_fan_temp_i2c_sda                   (TEMP_I2C_SDA)
+  , .de10_fan_temp_i2c_scl                   (TEMP_I2C_SCL)
+  , .de10_fan_led_led                        (LED_OUT)
+  , .de10_fan_reset_source_reset_n           (fan_reset_n)
   `endif // ENABLE_TEMP_I2C
   `endif // ENABLE_FAN_I2C
   `ifdef ENABLE_QSFP28A

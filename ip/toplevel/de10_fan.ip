@@ -14,8 +14,8 @@ refer to the applicable agreement for further details, at
 https://fpgasoftware.intel.com/eula.-->
 <ipxact:component xmlns:altera="http://www.altera.com/XMLSchema/IPXact2014/extensions" xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2014">
   <ipxact:vendor>Altera Corporation</ipxact:vendor>
-  <ipxact:library>fan_controller</ipxact:library>
-  <ipxact:name>fan_controller</ipxact:name>
+  <ipxact:library>de10_fan</ipxact:library>
+  <ipxact:name>de10_fan</ipxact:name>
   <ipxact:version>1.0</ipxact:version>
   <ipxact:busInterfaces>
     <ipxact:busInterface>
@@ -346,7 +346,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:fileSetRef>
           <ipxact:localName>QUARTUS_SYNTH</ipxact:localName>
         </ipxact:fileSetRef>
-        <ipxact:parameters></ipxact:parameters>
       </ipxact:componentInstantiation>
     </ipxact:instantiations>
     <ipxact:ports>
@@ -354,7 +353,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>CLK</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>in</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -367,7 +365,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>RST_N</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>in</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -380,7 +377,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>FAN_I2C_SDA</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>inout</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -393,7 +389,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>FAN_I2C_SCL</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>inout</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -406,7 +401,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>TEMP_I2C_SDA</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>inout</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -419,7 +413,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>TEMP_I2C_SCL</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>inout</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -486,7 +479,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>RST_N_inner_rst</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>out</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -500,7 +492,7 @@ https://fpgasoftware.intel.com/eula.-->
   <ipxact:vendorExtensions>
     <altera:entity_info>
       <ipxact:vendor>Altera Corporation</ipxact:vendor>
-      <ipxact:library>fan_controller</ipxact:library>
+      <ipxact:library>de10_fan</ipxact:library>
       <ipxact:name>de10_fan</ipxact:name>
       <ipxact:version>1.0</ipxact:version>
     </altera:entity_info>
@@ -539,17 +531,6 @@ https://fpgasoftware.intel.com/eula.-->
           <ipxact:displayName>bonusData</ipxact:displayName>
           <ipxact:value>bonusData 
 {
-   element $system
-   {
-      datum _originalDeviceFamily
-      {
-         value = "Stratix 10";
-         type = "String";
-      }
-   }
-   element fan_controller
-   {
-   }
 }
 </ipxact:value>
         </ipxact:parameter>
@@ -873,30 +854,30 @@ https://fpgasoftware.intel.com/eula.-->
       </ipxact:parameters>
     </altera:altera_system_parameters>
     <altera:altera_interface_boundary>
-      <altera:interface_mapping altera:name="FAN_I2C" altera:internal="fan_controller.FAN_I2C" altera:type="conduit" altera:dir="end">
+      <altera:interface_mapping altera:name="FAN_I2C" altera:internal="de10_fan.FAN_I2C" altera:type="conduit" altera:dir="end">
         <altera:port_mapping altera:name="FAN_I2C_SCL" altera:internal="FAN_I2C_SCL"></altera:port_mapping>
         <altera:port_mapping altera:name="FAN_I2C_SDA" altera:internal="FAN_I2C_SDA"></altera:port_mapping>
       </altera:interface_mapping>
-      <altera:interface_mapping altera:name="LED" altera:internal="fan_controller.LED" altera:type="conduit" altera:dir="end">
+      <altera:interface_mapping altera:name="LED" altera:internal="de10_fan.LED" altera:type="conduit" altera:dir="end">
         <altera:port_mapping altera:name="leds" altera:internal="leds"></altera:port_mapping>
       </altera:interface_mapping>
-      <altera:interface_mapping altera:name="TEMP_I2C" altera:internal="fan_controller.TEMP_I2C" altera:type="conduit" altera:dir="end">
+      <altera:interface_mapping altera:name="TEMP_I2C" altera:internal="de10_fan.TEMP_I2C" altera:type="conduit" altera:dir="end">
         <altera:port_mapping altera:name="TEMP_I2C_SCL" altera:internal="TEMP_I2C_SCL"></altera:port_mapping>
         <altera:port_mapping altera:name="TEMP_I2C_SDA" altera:internal="TEMP_I2C_SDA"></altera:port_mapping>
       </altera:interface_mapping>
-      <altera:interface_mapping altera:name="clock" altera:internal="fan_controller.clock" altera:type="clock" altera:dir="end">
+      <altera:interface_mapping altera:name="clock" altera:internal="de10_fan.clock" altera:type="clock" altera:dir="end">
         <altera:port_mapping altera:name="CLK" altera:internal="CLK"></altera:port_mapping>
       </altera:interface_mapping>
-      <altera:interface_mapping altera:name="reset_sink" altera:internal="fan_controller.reset_sink" altera:type="reset" altera:dir="end">
+      <altera:interface_mapping altera:name="reset_sink" altera:internal="de10_fan.reset_sink" altera:type="reset" altera:dir="end">
         <altera:port_mapping altera:name="RST_N" altera:internal="RST_N"></altera:port_mapping>
       </altera:interface_mapping>
-      <altera:interface_mapping altera:name="reset_source" altera:internal="fan_controller.reset_source" altera:type="reset" altera:dir="start">
+      <altera:interface_mapping altera:name="reset_source" altera:internal="de10_fan.reset_source" altera:type="reset" altera:dir="start">
         <altera:port_mapping altera:name="RST_N_inner_rst" altera:internal="RST_N_inner_rst"></altera:port_mapping>
       </altera:interface_mapping>
-      <altera:interface_mapping altera:name="target_rps" altera:internal="fan_controller.target_rps" altera:type="conduit" altera:dir="end">
+      <altera:interface_mapping altera:name="target_rps" altera:internal="de10_fan.target_rps" altera:type="conduit" altera:dir="end">
         <altera:port_mapping altera:name="target_speed" altera:internal="target_speed"></altera:port_mapping>
       </altera:interface_mapping>
-      <altera:interface_mapping altera:name="temp" altera:internal="fan_controller.temp" altera:type="conduit" altera:dir="end">
+      <altera:interface_mapping altera:name="temp" altera:internal="de10_fan.temp" altera:type="conduit" altera:dir="end">
         <altera:port_mapping altera:name="get_temp" altera:internal="get_temp"></altera:port_mapping>
       </altera:interface_mapping>
     </altera:altera_interface_boundary>
