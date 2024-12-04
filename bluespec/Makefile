@@ -65,7 +65,7 @@ include $(CORE_DIR)/builds/Resources/Include_RISCY_Config.mk
 VIRTUALDEVICE_DIRS ?= $(CURDIR)/VirtualDevice
 RECIPEDIR = $(CURDIR)/Recipe
 AXIWINDOWDIR = $(CURDIR)/AxiWindow
-IOCAPAXIIR = $(CURDIR)/IOCapAxi:$(CURDIR)/IOCapAxi/aes:$(CURDIR)/IOCapAxi/cap2024_02:$(CURDIR)/IOCapAxi/util
+IOCAPAXIIR = $(CURDIR)/IOCapAxi:$(CURDIR)/IOCapAxi/aes:$(CURDIR)/IOCapAxi/cap2024:$(CURDIR)/IOCapAxi/util
 
 # generated files directories
 BUILDDIR ?= $(CURDIR)/build
@@ -208,6 +208,7 @@ clean:
 	rm -f GenerateHPMVector.bsv
 	rm -f StatCounters.bsv
 	rm -f -r $(BUILDDIR)
+	rm -f .depends.mk
 
 mrproper: clean
 	rm -f -r $(VDIR)
