@@ -1,3 +1,4 @@
+import BlueBasics :: *;
 import BlueAXI4 :: *;
 import Connectable :: *;
 import AxiWindow :: *;
@@ -5,6 +6,8 @@ import FIFOF :: *;
 import SpecialFIFOs :: *;
 import SourceSink :: *;
 
+import Cap2024 :: *;
+import Cap2024_02 :: *;
 import IOCapAxi_Types :: *;
 import IOCapAxi_Flits :: *;
 import IOCapAxi_Exposers :: *;
@@ -18,7 +21,7 @@ typedef struct {
     Bit#(64)  windowAddr;
 } WindowData deriving (Bits, FShow);
 
-module mkSimpleIOCapWindow(AxiWindow#(
+module mkSimpleIOCapWindow#(Proxy#(tcap) cap_type)(AxiWindow#(
     // Window subordinate port (AXI4Lite)
       t_window_ctrl_addr
     , t_window_ctrl_data
@@ -58,6 +61,8 @@ module mkSimpleIOCapWindow(AxiWindow#(
     // Make sure the windowCtrl has enough address bits to address every word of the t_window_ctrl_len
     // i.e. that t_window_ctrl_addr >= log2(number of windowCtrl data words in t_window_ctrl_len)
     , Add#(b__, TLog#(TDiv#(t_window_ctrl_len, t_window_ctrl_data)), t_window_ctrl_addr)
+    // Make sure the capability type we're using is actually a capability
+    , Cap#(tcap)
 );
 
     // Expose an AXI4Lite subordinate which read/writes a register we can read
@@ -80,11 +85,11 @@ module mkSimpleIOCapWindow(AxiWindow#(
     FIFOF#(AXI4_BFlit#(t_pre_window_id, 0)) bff <- mkFIFOF;
     FIFOF#(AXI4_RFlit#(t_pre_window_id, t_pre_window_data, 0)) rff <- mkFIFOF;
     
-    AddressChannelCapWrapper#(AXI4_AWFlit#(t_pre_window_id, 64, 3), AXI4_AWFlit#(t_pre_window_id, 64, 0)) aw <- mkSimpleAddressChannelCapWrapper;
-    AddressChannelCapWrapper#(AXI4_ARFlit#(t_pre_window_id, 64, 3), AXI4_ARFlit#(t_pre_window_id, 64, 0)) ar <- mkSimpleAddressChannelCapWrapper;
+    AddressChannelCapWrapper#(AXI4_AWFlit#(t_pre_window_id, 64, 3), AXI4_AWFlit#(t_pre_window_id, 64, 0), tcap) aw <- mkSimpleAddressChannelCapWrapper;
+    AddressChannelCapWrapper#(AXI4_ARFlit#(t_pre_window_id, 64, 3), AXI4_ARFlit#(t_pre_window_id, 64, 0), tcap) ar <- mkSimpleAddressChannelCapWrapper;
 
     // TODO use mapSink for this
-    function AuthenticatedFlit#(AXI4_AWFlit#(t_pre_window_id, 64, 0)) mapAWAddrAndAttachCap(AXI4_AWFlit#(t_pre_window_id, t_pre_window_addr, 0) x);
+    function AuthenticatedFlit#(AXI4_AWFlit#(t_pre_window_id, 64, 0), tcap) mapAWAddrAndAttachCap(AXI4_AWFlit#(t_pre_window_id, t_pre_window_addr, 0) x);
         WindowData window = unpack(windowCtrlBits);
         return AuthenticatedFlit {
             flit: AXI4_AWFlit {
@@ -105,7 +110,7 @@ module mkSimpleIOCapWindow(AxiWindow#(
         };
     endfunction
 
-    function AuthenticatedFlit#(AXI4_ARFlit#(t_pre_window_id, 64, 0)) mapARAddrAndAttachCap(AXI4_ARFlit#(t_pre_window_id, t_pre_window_addr, 0) x);
+    function AuthenticatedFlit#(AXI4_ARFlit#(t_pre_window_id, 64, 0), tcap) mapARAddrAndAttachCap(AXI4_ARFlit#(t_pre_window_id, t_pre_window_addr, 0) x);
         WindowData window = unpack(windowCtrlBits);
         return AuthenticatedFlit {
             flit: AXI4_ARFlit {
@@ -187,7 +192,7 @@ module mkSimpleInternalStrippingIOCapWindow(AxiWindow#(
     // i.e. that t_window_ctrl_addr >= log2(number of windowCtrl data words in t_window_ctrl_len)
     , Add#(b__, TLog#(TDiv#(t_window_ctrl_len, t_window_ctrl_data)), t_window_ctrl_addr)
 );
-    
+    Proxy#(Cap2024_02) cap_type_proxy = ?;
     AxiWindow#(
             // Window subordinate port (AXI4Lite)
       t_window_ctrl_addr
@@ -213,7 +218,7 @@ module mkSimpleInternalStrippingIOCapWindow(AxiWindow#(
       , 0 //t_post_window_buser
       , 3 //t_post_window_aruser
       , 0 //t_post_window_ruser
-    ) window <- mkSimpleIOCapWindow;
+    ) window <- mkSimpleIOCapWindow(cap_type_proxy);
 
     IOCapSingleExposer#(t_pre_window_id, t_pre_window_data) exposer <- mkStrippingIOCapExposer;
 

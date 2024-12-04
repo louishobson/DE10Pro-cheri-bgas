@@ -45,6 +45,7 @@ import DE10Pro_bsv_shell :: *;
 import SoC_Map :: *;
 import VirtualDevice :: *;
 import AxiWindow :: *;
+import Cap2024_11 :: *;
 import IOCapAxi :: *;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -370,13 +371,15 @@ module mkCHERI_BGAS_System ( CHERI_BGAS_System_Ifc #(
   // - H2F AXI4 subordinate `h2fWindow.preWindow` which converts 32-bit h2f accesses to 64-bit accesses offset by the window
   // - H2F AXI4 manager `h2fWindow.postWindow` which puts out the converted accesses + an IOCap authenticating each one
   // let h2fWindow <- mkAddrOffsetAxiWindow(reset_by newRst.new_rst);
-  let h2fWindow <- mkSimpleIOCapWindow(reset_by newRst.new_rst);
+  Proxy#(Cap2024_11) h2fWindowCapType = ?;
+  let h2fWindow <- mkSimpleIOCapWindow(h2fWindowCapType, reset_by newRst.new_rst);
   // Expose the windowCtrl on the AXI4 lite bus
   let ctrSubH2FAddrCtrl =
     tuple2 (h2fWindow.windowCtrl, Range { base: 'h0000_5000, size: 'h0000_1000 });
   // Connect the h2fWindow to an IOCap Exposer, which checks the IOCap against the keys written in by the host.
   IOCap_KeyManager#(Wd_Data_Periph) iocapKeyStore <- mkSimpleIOCapKeyManager(reset_by newRst.new_rst);
-  let iocapExposer <- mkSimpleIOCapExposerV1(iocapKeyStore, reset_by newRst.new_rst); // TODO upgrade
+  // Use a V4 exposer which *doesn't* block invalid transactions
+  let iocapExposer <- mkSimpleIOCapExposerV4(iocapKeyStore, False /* Don't block invalid */, reset_by newRst.new_rst);
   mkConnection(iocapExposer.iocapsIn.axiSignals, h2fWindow.postWindow, reset_by newRst.new_rst);
 
   // Virtual device for emulating control registers, e.g. for virtio.

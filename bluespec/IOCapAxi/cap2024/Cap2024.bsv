@@ -211,7 +211,7 @@ instance UpToTwoCaveats#(CapPermsChain);
     endfunction
 endinstance
 
-typeclass Cap#(type tcap) provisos (UpToTwoCaveats#(tcap), Bits#(tcap, 128));
+typeclass Cap#(type tcap) provisos (UpToTwoCaveats#(tcap), Bits#(tcap, 128), FShow#(tcap));
     // Pack a capability into an AES-able blob
     function AesState stateOfCap(tcap cap);
 endtypeclass

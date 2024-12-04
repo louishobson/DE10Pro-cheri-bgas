@@ -256,7 +256,7 @@ interface AddressChannelCapUnwrapper#(type iocap_flit, type no_iocap_flit, type 
     interface Source#(AuthenticatedFlit#(no_iocap_flit, tcap)) out;
 endinterface
 
-module mkSimpleAddressChannelCapWrapper#(Proxy#(tcap) _proxy)(AddressChannelCapWrapper#(iocap_flit, no_iocap_flit, tcap)) provisos (Bits#(AuthenticatedFlit#(no_iocap_flit, tcap), a__), Bits#(iocap_flit, b__), IOCapPackableFlit#(iocap_flit, no_iocap_flit), FShow#(AuthenticatedFlit#(no_iocap_flit, tcap)), Cap#(tcap));
+module mkSimpleAddressChannelCapWrapper(AddressChannelCapWrapper#(iocap_flit, no_iocap_flit, tcap)) provisos (Bits#(AuthenticatedFlit#(no_iocap_flit, tcap), a__), Bits#(iocap_flit, b__), IOCapPackableFlit#(iocap_flit, no_iocap_flit), FShow#(AuthenticatedFlit#(no_iocap_flit, tcap)), Cap#(tcap));
     FIFOF#(AuthenticatedFlit#(no_iocap_flit, tcap)) inFlits <- mkFIFOF();
     FIFOF#(iocap_flit) outFlits <- mkSizedBypassFIFOF(4); // TODO check FIFOF type
 
