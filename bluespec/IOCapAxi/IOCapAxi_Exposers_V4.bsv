@@ -27,6 +27,7 @@ import Cap2024_11_Decode_FastFSM :: *;
 // Changes from V3
 // - uses Cap2024_11 format
 // - make blocking invalid transactions a parameter to the module
+// - increased checker pool size to handle 2-cav iocaps with full throughput
 module mkSimpleIOCapExposerV4#(IOCap_KeyManager#(t_keystore_data) keyStore, Bool blockInvalid)(IOCapSingleExposer#(t_id, t_data)) provisos (
     Mul#(TDiv#(t_keystore_data, 8), 8, t_keystore_data),
     Add#(t_keystore_data, a__, 128),
@@ -151,7 +152,18 @@ module mkSimpleIOCapExposerV4#(IOCap_KeyManager#(t_keystore_data) keyStore, Bool
     FIFOF#(AuthenticatedFlit#(AXI4_AWFlit#(t_id, 64, 0), Cap2024_11)) awPreCheckBuffer <- mkFIFOF;
     FIFOF#(AuthenticatedFlit#(AXI4_ARFlit#(t_id, 64, 0), Cap2024_11)) arPreCheckBuffer <- mkFIFOF;
 
-    NumProxy#(4) poolSize = ?;
+    // Each AW and AR AuthenticatedFlit takes 4 cycles to receive
+    // => we need the checker pool on each of the {AW, AR} ports to be able to receive a new request every 4 cycles
+    // Latencies for 0, 1, 2 caveat checking are ~9, ~15, ~21 cycles respectively
+    // In worst case if constantly receiving requests with ~21 cycle latency every 4 cycles, need ceil(~21/4) = 6 checkers per pool
+    // => in total, 12 checker units
+    // 2 AES rounds per cycle => in total, 12*2 = 24 AES round evaluators (which are the big parts)
+    // if you had a naive fully pipelined impl you'd have 30 round evaluators per port or 60 overall, and each would have 1/4 occupancy (or 30 with 1/2 occupancy)
+    // we use 2/5 of that :)
+    // but interestingly, we prob have too much decoder hardware.
+    // decoding is much shorter than sigcheck, so a fully pipelined ver would have at most 8 sets of arithmetic, so either (1/port = 16 total with 1/4 occupancy)
+    // or (1 shared = 8 total with 1/2 occupancy) vs the 12 we use.
+    NumProxy#(6) poolSize = ?;
     // TODO test throughput of these vs non-pooled
     IOCapAxiChecker#(AXI4_AWFlit#(t_id, 64, 0), Cap2024_11) awChecker <- mkInOrderIOCapAxiCheckerPool(poolSize, mkSimpleIOCapAxiChecker(connectFastFSMCapDecode_2024_11));
     // TODO could do out-of-order for ar

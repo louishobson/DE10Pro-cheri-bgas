@@ -59,8 +59,19 @@ typedef union tagged {
     } WaitingForSig;
 } IOCapFlitInProgress#(type no_iocap_flit) deriving (Bits, FShow);
 
-// One-at-a-time IOCap flit checker#
-//function module#(void) makeDecoder (Get#(tcap) ins, Put#(CapCheckResult#(Tuple2#(CapPerms, CapRange))) outs) 
+// One-at-a-time IOCap flit checker
+//
+// Takes a function which returns a module connecting (inputs to a iocap decoder) to (outputs to a iocap decoder).
+//
+// Uses the 2-round-per-cycle signature checker, which should have the following latencies:
+// | n_cavs | sigchk | 2024_11_fsm |
+// | ------ | ------ | ----------- |
+// |   0    |    6   |      3      |
+// |   1    |   12   |      6      |
+// |   2    |   18   |      8      |
+//
+// Capabilities are decoded and signature-checked in parallel, and we can assume the decoder latency is always less than the signature check.
+// We add ~3 cycles of latency on top of the signature check with the various FIFO stages, so the maximum latency should be ~21 cycles.
 module mkSimpleIOCapAxiChecker#(function module#(Empty) makeDecoder(Get#(tcap) ins, Put#(CapCheckResult#(Tuple2#(CapPerms, CapRange))) outs))(IOCapAxiChecker#(no_iocap_flit, tcap)) provisos (Bits#(AuthenticatedFlit#(no_iocap_flit, tcap), a__), AxiCtrlFlit64#(no_iocap_flit), FShow#(no_iocap_flit), Cap#(tcap));
     FIFOF#(Tuple2#(AuthenticatedFlit#(no_iocap_flit, tcap), Maybe#(Key))) reqs <- mkFIFOF;
     // TODO this could be a bypass fifof...
