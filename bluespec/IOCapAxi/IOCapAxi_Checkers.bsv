@@ -128,11 +128,12 @@ module mkSimpleIOCapAxiChecker#(function module#(Empty) makeDecoder(Get#(tcap) i
                 // Each beat of a burst starts at (last beat address + beat length)
                 // min address = starting address
                 // max address = min address + (beats/burst) * (bytes/beat)
-                // beats/burst = burstLen, up to 255
+                // beats/burst = burstLen [0..=255] + 1, [1..=256]
                 // bytes/beat  = 1 << burstSize, up to 128
                 // multiplied together the max is 32640, up to 15 bits
                 min_addr = burstAddr(flit);
-                Bit#(15) totalBurstBytes = zeroExtend(burstLen(flit)) << burstSize(flit).val;
+                Bit#(9) beatsPerBurst = zeroExtend(burstLen(flit)) + 1;
+                Bit#(15) totalBurstBytes = zeroExtend(beatsPerBurst) << burstSize(flit).val;
                 max_addr = zeroExtend(min_addr) + zeroExtend(totalBurstBytes);
             end
             WRAP: begin

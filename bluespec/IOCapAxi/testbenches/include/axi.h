@@ -69,10 +69,10 @@ namespace axi {
             case AXI4_Burst::Incr: {
                 // Access an incrementing address => range = (1 transfer size) * (n transfers in burst)
                 // max address = min address + (beats/burst) * (bytes/beat)
-                // beats/burst = burstLen, [1, 256]
+                // beats/burst = burstLen + 1, [1, 256]
                 // bytes/beat  = 1 << burstSize, up to (i.e. overall 128)
                 // multiplied together the max is 32768, up to 15 bits
-                return ((alen + 1) << asize);
+                return ((uint16_t(alen) + 1) << asize);
             }
             case AXI4_Burst::Wrap:
             default: // WRAP not supported, others are reserved
