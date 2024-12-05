@@ -54,8 +54,35 @@ int main(int argc, char** argv) {
         new ExposerUVMishTest(
             new UVMStreamOfNValidTransactions<TheDUT, CapType::Cap2024_11>(CCapPerms_ReadWrite, 100),
             expectPassthroughInvalidTransactions
-        )
+        ),
+
+        new ExposerUVMishTest(
+            new UVMStreamOfNLibRustValidTransactions<TheDUT, CapType::Cap2024_11>(100'000),
+            expectPassthroughInvalidTransactions
+        ),
+
+        new ExposerUVMishTest(
+            new UVMStreamOfNLibRustValidTransactions<TheDUT, CapType::Cap2024_11>(10'000, /* n_cavs */ 0),
+            expectPassthroughInvalidTransactions
+        ),
+        new ExposerUVMishTest(
+            new UVMStreamOfNLibRustValidTransactions<TheDUT, CapType::Cap2024_11>(10'000, /* n_cavs */ 1),
+            expectPassthroughInvalidTransactions
+        ),
+        new ExposerUVMishTest(
+            new UVMStreamOfNLibRustValidTransactions<TheDUT, CapType::Cap2024_11>(10'000, /* n_cavs */ 2),
+            expectPassthroughInvalidTransactions
+        ),
     };
+
+    for (auto edge_case = 0; edge_case < ccap2024_11_rand_edge_case_num(); edge_case++) {
+        tests.push_back(
+            new ExposerUVMishTest(
+                new UVMStreamOfNLibRustEdgeCaseTransactions<TheDUT, CapType::Cap2024_11>(10'000, edge_case),
+                expectPassthroughInvalidTransactions
+            )
+        );
+    }
 
     return tb_main(tests, argc, argv);
 }

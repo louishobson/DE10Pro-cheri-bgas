@@ -26,26 +26,89 @@ struct ValidCapWithRange {
     uint64_t cap_base;
     uint64_t cap_len;
     bool cap_is_almighty;
+    CCapPerms perms;
 
     ValidCapWithRange(CapStruct<ctype> cap) : cap(cap) {
         if (this->cap.read_range(&this->cap_base, &this->cap_len, &this->cap_is_almighty) != CCapResult_Success) {
             throw std::runtime_error("Failed to ccap2024_XX_read_range");
         }
+        if (this->cap.read_perms(&this->perms) != CCapResult_Success) {
+            throw std::runtime_error("Failed to ccap2024_XX_read_perms");
+        }
     }
 
     AxiParams valid_transfer_params(uint8_t transfer_width, uint8_t n_transfers) const {
         if (!cap_is_almighty) {
+            if (cap_len == 0) {
+                return AxiParams {
+                    .address = cap_base,
+                    .transfer_width = 1,
+                    .n_transfers = 1,
+                };
+            }
             while (cap_len < transfer_width) {
                 transfer_width = transfer_width >> 1;
             }
             if (transfer_width == 0) {
-                throw std::runtime_error("Bad cap_len");
+                throw std::runtime_error(fmt::format("transfer_width = 0, cap_len = {}", cap_len));
             }
             if (cap_len < (transfer_width * n_transfers)) {
                 n_transfers = cap_len / transfer_width;
             }
             if (n_transfers == 0) {
-                throw std::runtime_error("Bad cap_len");
+                throw std::runtime_error(fmt::format("n_transfers = 0, transfer_width = {} cap_len = {}", transfer_width, cap_len));
+            }
+        }
+        return AxiParams {
+            .address = cap_base,
+            .transfer_width = transfer_width,
+            .n_transfers = n_transfers,
+        };
+    }
+};
+
+// Copy of ValidCapWithRange that has fallbacks for if the cap fails read_range
+template<CapType ctype>
+struct MaybeValidCapWithRange {
+    CapStruct<ctype> cap;
+    uint64_t cap_base;
+    uint64_t cap_len;
+    bool cap_is_almighty;
+    CCapPerms perms;
+
+    MaybeValidCapWithRange(CapStruct<ctype> cap) : cap(cap) {
+        if (this->cap.read_range(&this->cap_base, &this->cap_len, &this->cap_is_almighty) != CCapResult_Success) {
+            cap_base = 0xdeafbeef;
+            cap_len = 0xdeadbeef;
+            cap_is_almighty = false;
+        }
+
+        // should always be able to read perms
+        if (this->cap.read_perms(&this->perms) != CCapResult_Success) {
+            throw std::runtime_error("Failed to ccap2024_XX_read_perms");
+        }
+    }
+
+    AxiParams maybe_valid_transfer_params(uint8_t transfer_width, uint8_t n_transfers) const {
+        if (!cap_is_almighty) {
+            if (cap_len == 0) {
+                return AxiParams {
+                    .address = cap_base,
+                    .transfer_width = 1,
+                    .n_transfers = 1,
+                };
+            }
+            while (cap_len < transfer_width) {
+                transfer_width = transfer_width >> 1;
+            }
+            if (transfer_width == 0) {
+                throw std::runtime_error(fmt::format("transfer_width = 0, cap_len = {}", cap_len));
+            }
+            if (cap_len < (transfer_width * n_transfers)) {
+                n_transfers = cap_len / transfer_width;
+            }
+            if (n_transfers == 0) {
+                throw std::runtime_error(fmt::format("n_transfers = 0, transfer_width = {} cap_len = {}", transfer_width, cap_len));
             }
         }
         return AxiParams {
@@ -273,8 +336,18 @@ protected:
 
     /// Use these functions in subclasses!
 
-    virtual ValidCapWithRange<ctype> test_random_initial_resource_cap(std::mt19937& rng, uint32_t secret_id, CCapPerms perms) {
+    ValidCapWithRange<ctype> test_legacy_random_initial_resource_cap(std::mt19937& rng, uint32_t secret_id, CCapPerms perms) {
         return ValidCapWithRange(CapStruct<ctype>::legacy_random_initial_resource_cap(rng, keyMgr->secrets[secret_id], secret_id, perms));
+    }
+    ValidCapWithRange<ctype> test_librust_random_valid_cap(std::mt19937& rng, uint32_t secret_id, int n_cavs=-1) {
+        CCapU128 secret_key;
+        keyMgr->secrets[secret_id].to_le(secret_key);
+        return ValidCapWithRange(CapStruct<ctype>::librust_rand_valid_cap(rng, &secret_key, &secret_id, n_cavs));
+    }
+    MaybeValidCapWithRange<ctype> test_librust_random_edge_case_cap(std::mt19937& rng, uint32_t secret_id, uintptr_t edge_case) {
+        CCapU128 secret_key;
+        keyMgr->secrets[secret_id].to_le(secret_key);
+        return MaybeValidCapWithRange(CapStruct<ctype>::librust_rand_edge_case_cap(rng, &secret_key, &secret_id, edge_case));
     }
     void enqueueReadBurst(CapStruct<ctype>& cap, AxiParams& axi_params, uint8_t id) {
         U128 cap128 = U128::from_le(cap.data);
@@ -425,8 +498,12 @@ class ExposerScoreboard : public Scoreboard<DUT> {
 
     uint64_t expectedGoodWrite = 0;
     uint64_t expectedBadWrite = 0;
+    uint64_t expectedBadWriteBadCap = 0;
+    uint64_t expectedBadWriteGoodCapBadRange = 0;
     uint64_t expectedGoodRead = 0;
     uint64_t expectedBadRead = 0;
+    uint64_t expectedBadReadBadCap = 0;
+    uint64_t expectedBadReadGoodCapBadRange = 0;
     uint64_t signalledGoodWrite = 0;
     uint64_t signalledBadWrite = 0;
     uint64_t signalledGoodRead = 0;
@@ -531,13 +608,23 @@ class ExposerScoreboard : public Scoreboard<DUT> {
                 capIsValid = false;
             }
 
+            // TODO if the capability extends over the top of the 64-bit addrspace, how to handle
+
             // TODO this might not work if axiBase+axiLen = end of addrspace?
-            bool rangeIsValid = len64 || (axiBase >= base && axiTop <= (base + len));
+            bool rangeIsValid = len64 || (axiBase >= base && (axiTop - base) <= len);
             // The performance counters should reflect the validity of the capability/access in all cases
             if (capIsValid && rangeIsValid) {
                 expectedGoodWrite++;
             } else {
                 expectedBadWrite++;
+                if (!capIsValid) {
+                    expectedBadWriteBadCap++;
+                } else {
+                    if (expectedBadWriteGoodCapBadRange == 0) {
+                        fmt::println(stderr, "Bad range: cap 0x{:x} .. 0x{:x}, axi {:x} .. {:x}", base, base+len, axiBase, axiTop);
+                    }
+                    expectedBadWriteGoodCapBadRange++;
+                }
             }
             // If the capability and ranges are valid,
             // expect an AW flit to come out *and* the right number of W flits!
@@ -660,6 +747,11 @@ class ExposerScoreboard : public Scoreboard<DUT> {
                 expectedGoodRead++;
             } else {
                 expectedBadRead++;
+                if (!capIsValid) {
+                    expectedBadReadBadCap++;
+                } else {
+                    expectedBadReadGoodCapBadRange++;
+                }
             }
             // If the capability and ranges are valid, expect an AR flit to come out
             // If `expectPassthroughInvalidTransactions` is true then these will already be expected, so do nothing.
@@ -933,7 +1025,7 @@ public:
             (expectedBadRead != signalledBadRead)
         ) {
             throw test_failure(fmt::format(
-                "ExposerScoreboard expected more flits:\n"
+                "ExposerScoreboard unexpected outcome:\n"
                 "epoch completions: {}\n"
                 "aw: {} in progress, {} expected\n"
                 "w: {} in progress, {} expected\n"
@@ -943,8 +1035,12 @@ public:
                 "perf counters exp/act:\n"
                 "good write {}/{}\n"
                 "bad write {}/{}\n"
+                "bad write bad cap {}\n"
+                "bad write good cap bad range {}\n"
                 "good read {}/{}\n"
                 "bad read {}/{}\n"
+                "bad read bad cap {}\n"
+                "bad read good cap bad range {}\n"
                 ,
                 expectedEpochCompletions,
                 awInProgress, expectedAw,
@@ -954,8 +1050,10 @@ public:
                 expectedR,
                 expectedGoodWrite, signalledGoodWrite,
                 expectedBadWrite, signalledBadWrite,
+                expectedBadWriteBadCap, expectedBadWriteGoodCapBadRange,
                 expectedGoodRead, signalledGoodRead,
-                expectedBadRead, signalledBadRead
+                expectedBadRead, signalledBadRead,
+                expectedBadReadBadCap, expectedBadReadGoodCapBadRange
             ));
         }
     }
@@ -972,8 +1070,12 @@ public:
         DUMP_MEAN_OF(r_r_latency);
         fmt::println(stderr, "exp. valid write, {}", expectedGoodWrite);
         fmt::println(stderr, "exp. invalid write, {}", expectedBadWrite);
+        fmt::println(stderr, "exp. invalid write bad cap, {}", expectedBadWriteBadCap);
+        fmt::println(stderr, "exp. invalid write good cap bad range, {}", expectedBadWriteGoodCapBadRange);
         fmt::println(stderr, "exp. valid read, {}", expectedGoodRead);
         fmt::println(stderr, "exp. invalid read, {}", expectedBadRead);
+        fmt::println(stderr, "exp. invalid read bad cap, {}", expectedBadReadBadCap);
+        fmt::println(stderr, "exp. invalid read good cap bad range, {}", expectedBadReadGoodCapBadRange);
         fmt::println(stderr, "valid cap ratio, {}%", (double(expectedGoodWrite+expectedGoodRead))/(double(expectedGoodWrite+expectedGoodRead+expectedBadWrite+expectedBadRead))*100.0);
     }
     #undef DUMP_MEAN_OF
@@ -1010,7 +1112,7 @@ public:
         const U128 key = U128::random(rng);
 
         this->keyMgr->secrets[secret_id] = key;
-        auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, perms);
+        auto cap_data = this->test_legacy_random_initial_resource_cap(rng, secret_id, perms);
         auto axi_params = cap_data.valid_transfer_params(32, 20);
         if (perms & CCapPerms_Read) {
             this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
@@ -1044,7 +1146,7 @@ public:
         const U128 key = U128::random(rng);
 
         this->keyMgr->secrets[secret_id] = key;
-        auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, perms);
+        auto cap_data = this->test_legacy_random_initial_resource_cap(rng, secret_id, perms);
         auto axi_params = cap_data.valid_transfer_params(32, 20);
         axi_params.address = cap_data.cap_base - 4096;
         if (perms & CCapPerms_Read) {
@@ -1080,7 +1182,7 @@ public:
 
         this->keyMgr->secrets[secret_id] = key;
         // Use the wrong secret key ID
-        auto cap_data = this->test_random_initial_resource_cap(rng, 90, perms);
+        auto cap_data = this->test_legacy_random_initial_resource_cap(rng, 90, perms);
         auto axi_params = cap_data.valid_transfer_params(32, 20);
         axi_params.address = cap_data.cap_base - 4096;
         if (perms & CCapPerms_Read) {
@@ -1114,12 +1216,12 @@ public:
 
         this->keyMgr->secrets[secret_id] = key;
         {
-            auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, CCapPerms_Read);
+            auto cap_data = this->test_legacy_random_initial_resource_cap(rng, secret_id, CCapPerms_Read);
             auto axi_params = cap_data.valid_transfer_params(32, 20);
             this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
         }
         {
-            auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, CCapPerms_Write);
+            auto cap_data = this->test_legacy_random_initial_resource_cap(rng, secret_id, CCapPerms_Write);
             auto axi_params = cap_data.valid_transfer_params(32, 20);
             this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
         }
@@ -1152,13 +1254,13 @@ public:
             .bottom = 0x08090a0b0c0d0e0f,
         };
         {
-            auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, CCapPerms_Read);
+            auto cap_data = this->test_legacy_random_initial_resource_cap(rng, secret_id, CCapPerms_Read);
             badSignature.to_le(cap_data.cap.signature);
             auto axi_params = cap_data.valid_transfer_params(32, 20);
             this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
         }
         {
-            auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, CCapPerms_Write);
+            auto cap_data = this->test_legacy_random_initial_resource_cap(rng, secret_id, CCapPerms_Write);
             badSignature.to_le(cap_data.cap.signature);
             auto axi_params = cap_data.valid_transfer_params(32, 20);
             this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
@@ -1194,12 +1296,12 @@ public:
 
             this->keyMgr->secrets[secret_id] = key;
             {
-                auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, CCapPerms_Read);
+                auto cap_data = this->test_legacy_random_initial_resource_cap(rng, secret_id, CCapPerms_Read);
                 auto axi_params = cap_data.valid_transfer_params(32, 10);
                 this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
             }
             {
-                auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, CCapPerms_Write);
+                auto cap_data = this->test_legacy_random_initial_resource_cap(rng, secret_id, CCapPerms_Write);
                 auto axi_params = cap_data.valid_transfer_params(32, 10);
                 this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
             }
@@ -1262,7 +1364,7 @@ public:
         this->keyMgr->secrets[secret_id] = key;
         for (uint64_t i = 0; i < n_transactions; i++) {
             uint8_t axi_id = i & 0xF;
-            auto cap_data = this->test_random_initial_resource_cap(rng, secret_id, perms);
+            auto cap_data = this->test_legacy_random_initial_resource_cap(rng, secret_id, perms);
             auto axi_params = cap_data.valid_transfer_params(32, 20);
             if (perms & CCapPerms_Read) {
                 this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
@@ -1284,6 +1386,107 @@ public:
         }
     }
 };
+
+template<class DUT, CapType ctype>
+class UVMStreamOfNLibRustValidTransactions : public ExposerStimulus<DUT, ctype> {
+    uint64_t n_transactions;
+    int n_cavs = -1;
+
+    uint64_t final_tick = 0;
+    
+public:
+    virtual ~UVMStreamOfNLibRustValidTransactions() = default;
+    virtual std::string name() override {
+        if (n_cavs == -1) {
+            return fmt::format("Stream of {} librust random valid {} transactions", n_transactions, ctype);
+        } else {
+            return fmt::format("Stream of {} librust random valid {} {}-caveat transactions", n_transactions, ctype, n_cavs);
+        }
+    }
+    UVMStreamOfNLibRustValidTransactions(uint64_t n_transactions, int n_cavs = -1) : ExposerStimulus<DUT, ctype>(
+        new BasicKeyManagerShimStimulus<DUT>(),
+        new BasicSanitizedMemStimulus<DUT>()
+    ), n_transactions(n_transactions), n_cavs(n_cavs) {
+        if (n_cavs < -1 || n_cavs > 2) {
+            throw std::runtime_error(fmt::format("Cannot have a stream of {}-caveat transactions - invalid caveat count", n_cavs));
+        }
+    }
+    virtual void setup(std::mt19937& rng) override {
+        const key_manager::KeyId secret_id = 111;
+        const U128 key = U128::random(rng);
+
+        this->keyMgr->secrets[secret_id] = key;
+        for (uint64_t i = 0; i < n_transactions; i++) {
+            uint8_t axi_id = i & 0xF;
+            auto cap_data = this->test_librust_random_valid_cap(rng, secret_id, n_cavs);
+            auto axi_params = cap_data.valid_transfer_params(32, 20);
+            if (cap_data.perms & CCapPerms_Read) {
+                this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
+            }
+            if (cap_data.perms & CCapPerms_Write) {
+                this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
+            }
+        }
+    }
+    virtual bool shouldFinish(uint64_t tick) override {
+        if (final_tick == 0) {
+            if (this->awInputs.empty() && this->wInputs.empty() && this->arInputs.empty()) {
+                // Give 10000 cycles of buffer
+                final_tick = tick + 100000;
+            }
+            return false;
+        } else {
+            return tick >= final_tick;
+        }
+    }
+};
+
+template<class DUT, CapType ctype>
+class UVMStreamOfNLibRustEdgeCaseTransactions : public ExposerStimulus<DUT, ctype> {
+    uint64_t n_transactions;
+    uintptr_t edge_case;
+
+    uint64_t final_tick = 0;
+    
+public:
+    virtual ~UVMStreamOfNLibRustEdgeCaseTransactions() = default;
+    virtual std::string name() override {
+        return fmt::format("Stream of {} librust random edge case {} {} transactions", n_transactions, CapStruct<ctype>::librust_rand_edge_case_str(edge_case), ctype);
+    }
+    UVMStreamOfNLibRustEdgeCaseTransactions(uint64_t n_transactions, uintptr_t edge_case) : ExposerStimulus<DUT, ctype>(
+        new BasicKeyManagerShimStimulus<DUT>(),
+        new BasicSanitizedMemStimulus<DUT>()
+    ), n_transactions(n_transactions), edge_case(edge_case) {}
+    virtual void setup(std::mt19937& rng) override {
+        const key_manager::KeyId secret_id = 111;
+        const U128 key = U128::random(rng);
+
+        this->keyMgr->secrets[secret_id] = key;
+        for (uint64_t i = 0; i < n_transactions; i++) {
+            uint8_t axi_id = i & 0xF;
+            auto cap_data = this->test_librust_random_edge_case_cap(rng, secret_id, edge_case);
+            auto axi_params = cap_data.maybe_valid_transfer_params(32, 20);
+            if (cap_data.perms & CCapPerms_Read) {
+                this->enqueueReadBurst(cap_data.cap, axi_params, axi_id);
+            }
+            if (cap_data.perms & CCapPerms_Write) {
+                this->enqueueWriteBurst(cap_data.cap, axi_params, axi_id);
+            }
+        }
+    }
+    virtual bool shouldFinish(uint64_t tick) override {
+        if (final_tick == 0) {
+            if (this->awInputs.empty() && this->wInputs.empty() && this->arInputs.empty()) {
+                // Give 10000 cycles of buffer
+                final_tick = tick + 100000;
+            }
+            return false;
+        } else {
+            return tick >= final_tick;
+        }
+    }
+};
+
 
 
 #undef POP_OUTPUT

@@ -182,12 +182,29 @@ struct CapStruct<CapType::Cap2024_02> : public CCap2024_02 {
     static CapStruct<CapType::Cap2024_02> librust_rand_valid_cap(
         Generator& rng,
         const CCapU128 *secret_key,
-        const uint32_t *secret_key_id
+        const uint32_t *secret_key_id,
+        int n_cavs=-1
     ) {
         CCapU128 seed;
         U128::random(rng).to_le(seed);
         CapStruct<CapType::Cap2024_02> cap;
-        CCapResult res = ccap2024_02_rand_valid_cap(&cap, &seed, secret_key, secret_key_id);
+        CCapResult res;
+        switch (n_cavs) {
+            case -1:
+                ccap2024_02_rand_valid_cap(&cap, &seed, secret_key, secret_key_id);
+                break;
+            case 0:
+                ccap2024_02_rand_valid_cap_0cav(&cap, &seed, secret_key, secret_key_id);
+                break;
+            case 1:
+                ccap2024_02_rand_valid_cap_1cav(&cap, &seed, secret_key, secret_key_id);
+                break;
+            case 2:
+                ccap2024_02_rand_valid_cap_2cav(&cap, &seed, secret_key, secret_key_id);
+                break;
+            default:
+                throw std::runtime_error(fmt::format("Invalid n_cavs value {}", n_cavs));
+        }
         if (res != CCapResult_Success) {
             throw std::runtime_error(
                 fmt::format(
@@ -251,12 +268,29 @@ struct CapStruct<CapType::Cap2024_11> : public CCap2024_11 {
     static CapStruct<CapType::Cap2024_11> librust_rand_valid_cap(
         Generator& rng,
         const CCapU128 *secret_key,
-        const uint32_t *secret_key_id
+        const uint32_t *secret_key_id,
+        int n_cavs=-1
     ) {
         CCapU128 seed;
         U128::random(rng).to_le(seed);
         CapStruct<CapType::Cap2024_11> cap;
-        CCapResult res = ccap2024_11_rand_valid_cap(&cap, &seed, secret_key, secret_key_id);
+        CCapResult res;
+        switch (n_cavs) {
+            case -1:
+                ccap2024_11_rand_valid_cap(&cap, &seed, secret_key, secret_key_id);
+                break;
+            case 0:
+                ccap2024_11_rand_valid_cap_0cav(&cap, &seed, secret_key, secret_key_id);
+                break;
+            case 1:
+                ccap2024_11_rand_valid_cap_1cav(&cap, &seed, secret_key, secret_key_id);
+                break;
+            case 2:
+                ccap2024_11_rand_valid_cap_2cav(&cap, &seed, secret_key, secret_key_id);
+                break;
+            default:
+                throw std::runtime_error(fmt::format("Invalid n_cavs value {}", n_cavs));
+        }
         if (res != CCapResult_Success) {
             throw std::runtime_error(
                 fmt::format(

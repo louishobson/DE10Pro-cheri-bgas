@@ -282,13 +282,13 @@ public:
     }
     virtual bool run(int argc, char** argv) override {
         fmt::println(stderr, "\033[1;33mTest: {}\033[0m", name());
+        uint64_t main_time = 0;
         try {
             VerilatedContext ctx{};
             ctx.commandArgs(argc, argv);    // remember args
             // Make a design-under-test
             DUT dut{&ctx};
 
-            uint64_t main_time = 0;
             // initial conditions in order to generate appropriate edges on
             // reset
             dut.RST_N = 1;
@@ -328,9 +328,11 @@ public:
         } catch (test_failure& f) {
             fmt::println(stderr, "\033[1;31mTest-Failure\033[0m");
             fmt::println(stderr, "{}", f.what());
+            fmt::println(stderr, "Ending Tick: {}", main_time);
             return false;
         }
         fmt::println(stderr, "\033[1;32mTest-Success\033[0m");
+        fmt::println(stderr, "Ending Tick: {}", main_time);
         return true;
     }
     virtual void dump_stats() {

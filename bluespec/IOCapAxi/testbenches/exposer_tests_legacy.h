@@ -10,7 +10,7 @@
 
 template<class DUT>
 struct ExposerCycleTest : public CycleTest<DUT, ShimmedExposerInput, ShimmedExposerOutput> {
-    virtual ValidCapWithRange<CapType::Cap2024_02> test_random_initial_resource_cap(const U128& key, uint32_t secret_id, CCapPerms perms) {
+    virtual ValidCapWithRange<CapType::Cap2024_02> test_legacy_random_initial_resource_cap(const U128& key, uint32_t secret_id, CCapPerms perms) {
         return ValidCapWithRange(
             CapStruct<CapType::Cap2024_02>::legacy_random_initial_resource_cap(this->rng, key, secret_id, perms)
         );
@@ -28,7 +28,7 @@ struct ValidKeyValidCapValidWrite : public ExposerCycleTest<DUT> {
 
         // Generate a random key, a random writable capability, and figure out the pow2 transfer width/n_transfers available
         U128 key = U128::random(this->rng);
-        auto cap_data = this->test_random_initial_resource_cap(key, 111, CCapPerms_Write);
+        auto cap_data = this->test_legacy_random_initial_resource_cap(key, 111, CCapPerms_Write);
         auto axi_params = cap_data.valid_transfer_params(32, 20);
        
         U128 cap128 = U128::from_le(cap_data.cap.data);
@@ -117,7 +117,7 @@ struct ValidKeyValidCapValidRead : public ExposerCycleTest<DUT> {
 
         // Generate a random key, a random readable capability, and figure out the pow2 transfer width/n_transfers available
         U128 key = U128::random(this->rng);
-        auto cap_data = this->test_random_initial_resource_cap(key, 111, CCapPerms_Read);
+        auto cap_data = this->test_legacy_random_initial_resource_cap(key, 111, CCapPerms_Read);
         auto axi_params = cap_data.valid_transfer_params(32, 20);
        
         U128 cap128 = U128::from_le(cap_data.cap.data);
@@ -191,7 +191,7 @@ struct ValidReadThenValidWrite : public ExposerCycleTest<DUT> {
 
         // Generate a random key, a random read/write capability, and figure out the pow2 transfer width/n_transfers available
         U128 key = U128::random(this->rng);
-        auto cap_data = this->test_random_initial_resource_cap(key, 111, CCapPerms_ReadWrite);
+        auto cap_data = this->test_legacy_random_initial_resource_cap(key, 111, CCapPerms_ReadWrite);
         auto axi_params = cap_data.valid_transfer_params(32, 20);
        
         U128 cap128 = U128::from_le(cap_data.cap.data);
@@ -479,7 +479,7 @@ struct MismatchedPerms_Passthrough : public ExposerCycleTest<DUT> {
 
         // Generate a random key, a random writable capability, and figure out the pow2 transfer width/n_transfers available
         U128 key = U128::random(this->rng);
-        auto cap_data = this->test_random_initial_resource_cap(key, 111, CCapPerms_Read);
+        auto cap_data = this->test_legacy_random_initial_resource_cap(key, 111, CCapPerms_Read);
         auto axi_params = cap_data.valid_transfer_params(32, 20);
        
         U128 cap128 = U128::from_le(cap_data.cap.data);

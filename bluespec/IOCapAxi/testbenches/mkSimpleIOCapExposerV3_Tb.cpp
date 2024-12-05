@@ -78,6 +78,10 @@ int main(int argc, char** argv) {
 
         new ExposerUVMishTest(
             new UVMStreamOfNValidTransactions<TheDUT, CapType::Cap2024_02>(CCapPerms_ReadWrite, 100)
+        ),
+
+        new ExposerUVMishTest(
+            new UVMStreamOfNLibRustValidTransactions<TheDUT, CapType::Cap2024_02>(2000)
         )
     };
 
