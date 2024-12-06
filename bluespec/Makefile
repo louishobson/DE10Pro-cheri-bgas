@@ -30,7 +30,7 @@ BSC = bsc
 BLUESPECDIR ?= $(shell which $(BSC) | xargs dirname | xargs dirname)/lib
 
 NB_SYSTEMS ?= 1
-CORE_NUM ?= 2
+CORE_NUM ?= 1
 
 # RiscyOOO flags
 ifeq ($(NB_SYSTEMS),1)
@@ -62,6 +62,8 @@ CORE_DIR ?= $(CURDIR)/Toooba
 
 include $(CORE_DIR)/builds/Resources/Include_RISCY_Config.mk
 
+SERIALLITE3_DIRS ?= $(CURDIR)/../de10pro-seriallite3/S10FPGA
+
 VIRTUALDEVICE_DIRS ?= $(CURDIR)/VirtualDevice
 RECIPEDIR = $(CURDIR)/Recipe
 AXIWINDOWDIR = $(CURDIR)/AxiWindow
@@ -75,7 +77,7 @@ VDIR ?= $(CURDIR)/verilogdir
 VERILATORDIR ?= $(CURDIR)/verilatordir
 
 # search path for bsc imports
-EXTRABSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(VIRTUALDEVICE_DIRS):$(AXIWINDOWDIR):$(IOCAPAXIIR)
+EXTRABSVPATH = +:$(DE10PROBSVSHELLDIR):$(RECIPEDIR):$(VIRTUALDEVICE_DIRS):$(SERIALLITE3_DIRS):$(AXIWINDOWDIR):$(IOCAPAXIIR)
 BSCFLAGS = $(BSC_PATH) -p $(EXTRABSVPATH)
 
 # design configuration variables
@@ -115,7 +117,8 @@ BSCFLAGS += +RTS -K128M -RTS
 #BSCFLAGS += -sched-dot
 #BSCFLAGS += -show-range-conflict
 #BSCFLAGS += -show-rule-rel \* \*
-#BSCFLAGS += -steps-warn-interval n
+BSCFLAGS += -steps-max-intervals 10000000
+BSCFLAGS += -steps-warn-interval 1000000
 BSCBSIMFLAGS = -simdir $(SIMDIR)
 BSCVERILOGFLAGS = -vdir $(VDIR)
 BSCVERILOGFLAGS += -unspecified-to X
@@ -135,11 +138,14 @@ $(BDIR)/%.bo:
 	$(info building $@)
 	bsc -elab $(BSCFLAGS) $<
 
+$(SERIALLITE3_DIRS)/TimeStamp.bsv:
+	make -C $(SERIALLITE3_DIRS) TimeStamp.bsv
+
 rtl: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
 
 bluesim: $(SIMDIR)/sim_CHERI_BGAS
 
-$(SIMDIR)/sim_CHERI_BGAS: CHERI_BGAS_Top_Sim.bsv $(TOPFILE_BO) $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(BLUEUNIXBRIDGESDIR)/BlueUnixFifo.c TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv
+$(SIMDIR)/sim_CHERI_BGAS: CHERI_BGAS_Top_Sim.bsv $(TOPFILE_BO) $(BLUESTUFFDIR)/BlueUtils/MemSim.c $(BLUEUNIXBRIDGESDIR)/BlueUnixFifo.c TagTableStructure.bsv GenerateHPMVector.bsv StatCounters.bsv $(SERIALLITE3_DIRS)/TimeStamp.bsv
 	mkdir -p $(BDIR)
 	mkdir -p $(SIMDIR)
 	$(BSC) $(BSCFLAGS) $(BSCBSIMFLAGS) -sim -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
@@ -172,7 +178,7 @@ verilatorsim: $(VDIR)/mkCHERI_BGAS_Top_Sim.v CHERI_BGAS_Top_verilator_sim.cpp
 	#-Wno-fatal
 	make -C $(VERILATORDIR) -j -f VmkCHERI_BGAS_Top_Sim.mk mkCHERI_BGAS_Top_Sim
 
-$(VDIR)/mkCHERI_BGAS_Top_Sim.v: $(VDIR)/mkCHERI_BGAS_Top_Sig.v
+$(VDIR)/mkCHERI_BGAS_Top_Sim.v: $(VDIR)/mkCHERI_BGAS_Top_Sig.v $(SERIALLITE3_DIRS)/TimeStamp.bsv
 	mkdir -p $(BDIR)
 	mkdir -p $(VDIR)
 	$(BSC) $(BSCFLAGS) $(BSCVERILOGFLAGS) -verilog -g mkCHERI_BGAS_Top_Sim -u CHERI_BGAS_Top_Sim.bsv
@@ -186,7 +192,7 @@ $(VDIR)/mkCHERI_BGAS_Top_Sig.v: $(TOPFILE) TagTableStructure.bsv GenerateHPMVect
 #.PHONY: TagTableStructure.bsv
 TagTableStructure.bsv: $(TAG_CONTROLLER_DIR)/tagsparams.py
 	@echo "INFO: Re-generating CHERI tag controller parameters"
-	$^ -v -c $(CAPSIZE) -s $(TAGS_STRUCT:"%"=%) -a $(TAGS_ALIGN) --data-store-base-addr 0xc0000000 -b $@ 0xbfff8000 0x17ffff000
+	$^ -v -c $(CAPSIZE) -s $(TAGS_STRUCT:"%"=%) -a $(TAGS_ALIGN) --data-store-base-addr 0x80000000 -b $@ 0xffff8000 0x17ffff000
 	@echo "INFO: Re-generated CHERI tag controller parameters"
 
 #.PHONY: GenerateHPMVector.bsv
@@ -204,6 +210,7 @@ StatCounters.bsv: $(RISCV_HPM_EVENTS_DIR)/parse_counters.py
 .PHONY: clean mrproper
 
 clean:
+	rm -f .depends.mk
 	rm -f TagTableStructure.bsv
 	rm -f GenerateHPMVector.bsv
 	rm -f StatCounters.bsv
