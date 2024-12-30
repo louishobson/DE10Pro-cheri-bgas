@@ -104,7 +104,7 @@ def test_and_create_dir(dirpath):
 
 def test_and_open_file(filepath, mode = "w", buffering = 1): # line buffered
   p = Path(filepath)
-  if p.exists() and not p.is_file():
+  if p.exists() and not p.is_file() and not p.is_fifo():
     raise ValueError(f"{p} already exists and is not a file")
   return open(p, mode = mode, buffering = buffering)
 
