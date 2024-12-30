@@ -39,6 +39,7 @@ else
 #BSCFLAGS += -D CORE_MINI
 CORE_SIZE ?= TINY
 endif
+CACHE_SIZE ?= STUMPY
 
 # If we're running in simulation, tell RISCY_Config to include RVFI debug logs.
 
