@@ -4,6 +4,25 @@ mrproper: mrproper-cheri-bgas-fuse-devfs mrproper-forever-splice mrproper-jtagvp
 
 ####
 
+.PHONY: gen-mibench-hex run-mibench
+MIBENCH_DIR := /home/louis/Documents/CHERI/mibench2
+MIBENCH_NAMES := $(notdir $(wildcard $(MIBENCH_DIR)/*))
+MIBENCH_NAMES_LONG := adpcm_decode adpcm_encode basicmath blowfish dijkstra fft picojpeg qsort
+
+gen-mibench-hex: $(MIBENCH_NAMES:%=gen-mibench-hex-%)
+
+gen-mibench-hex-%:
+	elfmanip.py -o $(MIBENCH_DIR)/$*/mem.hex -s 0xc0000000 -i 0x40000000 $(MIBENCH_DIR)/$*/$*.elf to-hex
+
+run-mibench: $(MIBENCH_NAMES:%=run-mibench-%)
+
+MIBENCH_RUN ?= $(shell basename $(shell mktemp -udp ./sims run.XXXXXX))
+
+run-mibench-%:
+	./run-sim.sh $(MIBENCH_RUN) $* "$(MIBENCH_DIR)/$*/mem.hex" ./sims
+	
+####
+
 gen-cheri-bgas-fuse-devfs: $(CURDIR)/tools/cheri-bgas-fuse-devfs
 
 $(CURDIR)/tools/cheri-bgas-fuse-devfs: $(CURDIR)/cheri-bgas-fuse-devfs/cheri-bgas-fuse-devfs
