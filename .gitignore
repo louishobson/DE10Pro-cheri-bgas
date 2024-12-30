@@ -5,6 +5,9 @@ qdb/
 software/uboot_build/
 bluespec/build/
 bluespec/.depends.mk
+bluespec/sim-utils/sims/
+bluespec/sim-utils/tools/
+bluespec/sim-utils/__pycache__
 cheri-bgas-rtl/
 .qsys_edit/
 
