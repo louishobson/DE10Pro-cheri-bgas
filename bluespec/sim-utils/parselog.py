@@ -374,6 +374,7 @@ class PRqEvictionLine(NonRVFILine):
                     if self.discardIf(not ll.cRqIsPrefetch, "PriorEvictionNotPrefetch"): return
                     if ll.prefetchCreationLine is not None:
                         ll.prefetchCreationLine.isUselessPrefetch = True
+                        foundPrefetchCreation = True
                     break
             self.warnIf(not foundPrefetchCreation, "NoCreationOfEvictedPrefetchedLine")
 
