@@ -1,10 +1,12 @@
 from collections import Counter, deque
 from functools import partial
 from typing import Iterable, Iterator, List, Tuple
+import gc
 import gzip
 import matplotlib.pyplot as plt
 import numpy as np
 import re
+import statistics
 
 
 
@@ -52,13 +54,38 @@ class LogLine:
             raise ValueError("LogLine.deduceLineType: multiple line types match: ", matchingSubLineTypes)
         
     def __init__(self, line: str) -> None:
-        self.line = line
+        self.line = None
+        self.discard = False
+        self.warning = False
+        self.discardReason = None
+        self.warningReason = None
+
+    def discardIf(self, pred: bool, reason: str = "NoReason") -> bool:
+        if pred:
+            self.discard = True
+            self.discardReason = reason
+        return pred
+    
+    def warnIf(self, pred: bool, reason: str = "NoReason") -> bool:
+        if pred:
+            self.warning = True
+            self.warningReason = reason
+        return pred
 
     def postProcess(self, before: Iterable["LogLine"], after: Iterable["LogLine"]) -> None:
         pass
 
     def getTotals(self) -> dict[str, int]:
-        return {}
+        rt = {
+            "total":   int(not self.discard),
+            "discard": int(self.discard),
+            "warning": int(self.warning),
+        }
+        if self.discard:
+            rt[self.discardReason] = 1
+        if self.warning:
+            rt[self.warningReason] = 1
+        return rt
 
     def getDistributions(self) -> dict[str, int]:
         return {}
@@ -78,6 +105,7 @@ class TimestampedLine(LogLine):
 
     def postProcess(self, before: Iterable[LogLine], after: Iterable[LogLine]) -> None:
         super().postProcess(before, after)
+        if self.discard: return
     
         # Check that timestamps are monotonically increasing.
         # A pretty fundamental problem if this is not the case, so raise an error.
@@ -109,6 +137,11 @@ class RVFILine(TimestampedLine):
         self.pcwd      = int(reData[3], 0)
         self.trap      = bool(reData[4] == "1")
 
+    def getDistributions(self):
+        return {} if self.discard else {
+            "pc": self.pc
+        }
+
 
 
 @TimestampedLine.createSubLineType
@@ -118,13 +151,22 @@ class NonRVFILine(TimestampedLine):
 
     def postProcess(self, before: Iterable[LogLine], after: Iterable[LogLine]) -> None:
         super().postProcess(before, after)
-        self.prev_rvfi = 0
+        if self.discard: return
+
+        # Find the previous RVFI by searching backwards
+        # Failing that, search forwards
+        self.prev_rvfi = None
         for ll in reversed(before):
             if isinstance(ll, RVFILine):
                 self.prev_rvfi = ll.rvfi
-                break
+                return
+        for ll in after:
+            if isinstance(ll, RVFILine):
+                self.prev_rvfi = ll.rvfi - 1
+                return
+        self.discardIf(self.prev_rvfi is None, "NoPrevRVFI")
 
-
+        
 
 @NonRVFILine.createSubLineType
 class CRqHitLine(NonRVFILine):
@@ -148,6 +190,15 @@ class CRqHitLine(NonRVFILine):
         # Will be set by a prior CRqEvictionLine if this hit was once a miss
         self.cRqMissEvictionLine = None
 
+    def postProcess(self, before, after):
+        super().postProcess(before, after)
+        if self.discard: return
+
+    def getDistributions(self):
+        return {} if self.discard or self.cRqIsPrefetch else {
+            "addr" : self.addr << 6
+        }
+
 
 
 @NonRVFILine.createSubLineType
@@ -160,7 +211,7 @@ class CRqEvictionLine(NonRVFILine):
     MAX_PRS_CYCLES = 40
 
     # How many cycles into the future to look for cache disruption
-    MAX_CACHE_DISRUPTION_CYCLES = 500
+    MAX_CACHE_DISRUPTION_CYCLES = 1000
 
     def __init__(self, line: str) -> None:
         super().__init__(line)
@@ -180,28 +231,24 @@ class CRqEvictionLine(NonRVFILine):
 
     def postProcess(self, before: Iterable[LogLine], after: Iterable[LogLine]) -> None:
         super().postProcess(before, after)
+        if self.discard: return
 
-        # Mark the log line for discard
-        # Data processing may have gone wrong in some way
-        # If this occurs then the log line should probably be investigated
-        self.discard = False
-        self.discardReason = None
-        def discardIf(pred: bool, reason: str):
-            if pred:
-                self.discard = True
-                self.discardReason = reason
-            return pred
+        # If this cRq is due to a prefetch and we haven't been told about the prefetch creation, produce a warning
+        self.warnIf(self.cRqIsPrefetch and self.prefetchCreationLine is None, "NoCreationOfPrefetchCRq")
 
         # If we just evicted a prefetched, unaccessed line, find the prefetch that caused it and mark it as useless
-        # We might not find the prefetch if we skipped the start of the log
+        # We might not find the prefetch if we skipped the start of the log, so only warn
         if self.wasPrefetch and not self.accessed and self.cs != "I":
+            foundPrefetchCreation = False
             for ll in reversed(before):
                 if isinstance(ll, CRqEvictionLine) and ll.newAddr == self.oldAddr:
                     # We expect the log line to be a prefetch
-                    if discardIf(not ll.cRqIsPrefetch, "PriorEvictionNotPrefetch"): return
+                    if self.discardIf(not ll.cRqIsPrefetch, "PriorEvictionNotPrefetch"): return
                     if ll.prefetchCreationLine is not None:
                         ll.prefetchCreationLine.isUselessPrefetch = True
+                        foundPrefetchCreation = True
                     break
+            self.warnIf(not foundPrefetchCreation, "NoCreationOfEvictedPrefetchedLine")
 
         # Look for the cache refill. When a pRs is received for the refill data, the cRqHit rule fires.
         # If this cRq is for a prefetch, also see if this prefetch was late, or whether there is a prefetch-under-prefetch.
@@ -214,7 +261,7 @@ class CRqEvictionLine(NonRVFILine):
                     break
                 # The refill for the miss
                 if isinstance(ll, CRqHitLine) and ll.mshr == self.mshr:
-                    if discardIf(ll.addr != self.newAddr or not ll.wasMiss, "StrangeRefill"): return
+                    if self.discardIf(ll.addr != self.newAddr or not ll.wasMiss, "StrangeRefill"): return
                     foundRefill = True
                     self.refillCycles = ll.timestamp - self.timestamp
                     ll.cRqMissEvictionLine = self
@@ -234,15 +281,14 @@ class CRqEvictionLine(NonRVFILine):
 
         # If we didn't find a refill, discard this log line.
         # If due to a prefetch, also discard that prefetch.
-        if discardIf(not foundRefill, "noPRsDiscard"):
+        if self.discardIf(not foundRefill, "noPRsDiscard"):
             if self.prefetchCreationLine is not None:
-                self.prefetchCreationLine.discard = True
-                self.prefetchCreationLine.discardReason = "noPRsDiscard"
+                self.prefetchCreationLine.discardIf(True, "noPRsDiscard")
             return
 
         # Look for cache disruption.
         # This means that the evicted line missed in the recent future.
-        self.cacheDisruption = False
+        self.disruptedCache = False
         self.disruptionCycles = None
         if self.cs != "I":
             for ll in after:
@@ -255,23 +301,19 @@ class CRqEvictionLine(NonRVFILine):
                         break
 
     def getTotals(self) -> dict[str, int]:
-        if self.discard:
-            return {
-                "total"            : 0,
-                "discard"          : 1,
-                self.discardReason : 1,
-            }
-        return {
-            "total"      : 1,
-            "discard"    : 0,
-            "disruption" : int(self.cacheDisruption)
+        rt = super().getTotals()
+        return rt if self.discard else rt | {
+            "wasPrefetch"        : int(self.wasPrefetch),
+            "accessed"           : int(self.accessed),
+            "unaccessedPrefetch" : int(self.wasPrefetch and self.accessed),
+            "disruption"         : int(self.disruptedCache),
         }
     
     def getDistributions(self) -> dict[str, int]:
         if self.discard:
             return {}
         rt = {"refillCycles" : self.refillCycles}
-        if self.cacheDisruption:
+        if self.disruptedCache:
             rt["disruptionCycles"] = self.disruptionCycles
         return rt
 
@@ -295,6 +337,13 @@ class CRqDependencyLine(NonRVFILine):
         # Will be set by a prior PrefetchCreationLine if line is due to a prefetch
         self.prefetchCreationLine = None
 
+    def postProcess(self, before, after):
+        super().postProcess(before, after)
+        if self.discard: return
+
+        # If this cRq is due to a prefetch and we haven't been told about the prefetch creation, produce a warning
+        self.warnIf(self.cRqIsPrefetch and self.prefetchCreationLine is None, "NoCreationOfPrefetchCRq")
+
 
 
 @NonRVFILine.createSubLineType
@@ -313,28 +362,28 @@ class PRqEvictionLine(NonRVFILine):
 
     def postProcess(self, before: Iterable[LogLine], after: Iterable[LogLine]) -> None:
         super().postProcess(before, after)
+        if self.discard: return
         
-        # Mark the log line for discard
-        # Data processing may have gone wrong in some way
-        # If this occurs then the log line should probably be investigated
-        self.discard = False
-        self.discardReason = None
-        def discardIf(pred: bool, reason: str):
-            if pred:
-                self.discard = True
-                self.discardReason = reason
-            return pred
-
         # If we just evicted a prefetched, unaccessed line, find the prefetch that caused it and mark it as useless
         # We might not find the prefetch if we skipped the start of the log
         if self.wasPrefetch and not self.accessed and self.cs != "I":
+            foundPrefetchCreation = False
             for ll in reversed(before):
                 if isinstance(ll, CRqEvictionLine) and ll.newAddr == self.addr:
                     # We expect the log line to be a prefetch
-                    if discardIf(not ll.cRqIsPrefetch, "PriorEvictionNotPrefetch"): return
+                    if self.discardIf(not ll.cRqIsPrefetch, "PriorEvictionNotPrefetch"): return
                     if ll.prefetchCreationLine is not None:
                         ll.prefetchCreationLine.isUselessPrefetch = True
                     break
+            self.warnIf(not foundPrefetchCreation, "NoCreationOfEvictedPrefetchedLine")
+
+    def getTotals(self):
+        rt = super().getTotals()
+        return rt if self.discard else rt | {
+            "wasPrefetch"        : int(self.wasPrefetch),
+            "accessed"           : int(self.accessed),
+            "unaccessedPrefetch" : int(self.wasPrefetch and self.accessed),
+        }
 
 
 
@@ -348,7 +397,7 @@ class PrefetchCreationLine(NonRVFILine):
     MAX_CRQ_RESP_CYCLES = 30
 
     # How many cycles before the prefetch was even issued to look for a miss for this address
-    MAX_SUPER_LATE_CYCLES = 200
+    MAX_SUPER_LATE_CYCLES = 500
 
     def __init__(self, line: str) -> None:
         super().__init__(line)
@@ -364,17 +413,7 @@ class PrefetchCreationLine(NonRVFILine):
 
     def postProcess(self, before: Iterable[LogLine], after: Iterable[LogLine]) -> None:
         super().postProcess(before, after)
-
-        # Mark the log line for discard
-        # Data processing may have gone wrong in some way
-        # If this occurs then the log line should probably be investigated
-        self.discard = False
-        self.discardReason = None
-        def discardIf(pred: bool, reason: str):
-            if pred:
-                self.discard = True
-                self.discardReason = reason
-            return pred
+        if self.discard: return
 
         # Look whether the prefetch was super late
         # That is, there was a miss for this address before the prefetch was even suggested
@@ -411,7 +450,7 @@ class PrefetchCreationLine(NonRVFILine):
                     break
                 # Prefetch address hit in the cache
                 if isinstance(ll, CRqHitLine) and ll.mshr == self.mshr:
-                    if discardIf(ll.addr != self.addr or not ll.cRqIsPrefetch, "StrangePrefetchResponse(hit)"): return                 
+                    if self.discardIf(ll.addr != self.addr or not ll.cRqIsPrefetch, "StrangePrefetchResponse(hit)"): return                 
                     self.prefetchHit = True
                     self.prefetchCRqCycles = ll.timestamp - self.timestamp
                     self.prefetchResponseLine = ll
@@ -419,7 +458,7 @@ class PrefetchCreationLine(NonRVFILine):
                     break
                 # Prefetch address missed in the cache
                 if isinstance(ll, CRqEvictionLine) and ll.mshr == self.mshr:
-                    if discardIf(ll.newAddr != self.addr or not ll.cRqIsPrefetch, "StrangePrefetchResponse(miss)"): return           
+                    if self.discardIf(ll.newAddr != self.addr or not ll.cRqIsPrefetch, "StrangePrefetchResponse(miss)"): return           
                     self.prefetchMiss = True
                     self.prefetchCRqCycles = ll.timestamp - self.timestamp
                     self.prefetchResponseLine = ll
@@ -427,7 +466,7 @@ class PrefetchCreationLine(NonRVFILine):
                     break
                 # Cache line for the prefetch address is owned (maybe late or duplicate prefetch)
                 if isinstance(ll, CRqDependencyLine) and ll.mshr == self.mshr:
-                    if discardIf(ll.addr != self.addr or not ll.cRqIsPrefetch, "StrangePrefetchResponse(owned)"): return           
+                    if self.discardIf(ll.addr != self.addr or not ll.cRqIsPrefetch, "StrangePrefetchResponse(owned)"): return           
                     self.prefetchOwned = True
                     self.prefetchCRqCycles = ll.timestamp - self.timestamp
                     self.prefetchResponseLine = ll
@@ -444,7 +483,7 @@ class PrefetchCreationLine(NonRVFILine):
                     self.lateRelativeCycles = ll.timestamp - self.timestamp
 
         # If we didn't find a response, discard this line
-        if discardIf(not self.prefetchHit and not self.prefetchMiss and not self.prefetchOwned, "noCRqDiscard"):
+        if self.discardIf(not self.prefetchHit and not self.prefetchMiss and not self.prefetchOwned, "noCRqDiscard"):
             return
         
         # If the prefetch missed, then post processing for the CRqEvictionLine may still deduce
@@ -453,22 +492,15 @@ class PrefetchCreationLine(NonRVFILine):
 
     
     def getTotals(self) -> dict[str, int]:
-        if self.discard:
-            return {
-                "total"            : 0,
-                "discard"          : 1,
-                self.discardReason : 1,
-            }
-        return {
-            "total"             : 1,
-            "discard"           : 0,
+        rt = super().getTotals()
+        return rt if self.discard else rt | {
             "hit"               : int(self.prefetchHit),
             "miss"              : int(self.prefetchMiss),
             "owned"             : int(self.prefetchOwned),
             "late"              : int(self.isLatePrefetch),
             "useless"           : int(self.isUselessPrefetch),
             "prefUnderPref"     : int(self.isPrefetchUnderPrefetch),
-            "uselessDisruption" : int(self.isUselessPrefetch and self.prefetchResponseLine.cacheDisruption),
+            "uselessDisruption" : int(self.isUselessPrefetch and self.prefetchResponseLine.disruptedCache),
         }
         
     def getDistributions(self) -> dict[str, int]:
@@ -499,13 +531,18 @@ class LogParser:
             self.fp.close()
 
     @staticmethod
-    def niceReadLines(fp, chunksize=128*1024*1024) -> Iterable[str]:
+    def niceReadLines(fp, chunksize=512*1024*1024) -> Iterable[str]:
+        gc.disable()
         oldChunk = ""
         while (chunk := fp.read(chunksize).decode("utf-8")):
             lines = (oldChunk + chunk).split('\n')
             for line in lines[:-1]:
                 yield line
             oldChunk = lines[-1]
+            del lines
+            del chunk
+            gc.collect()
+        gc.enable()
 
     def __init__(
         self, 
@@ -548,10 +585,11 @@ class LogParser:
                 if len(self.logLines) % 10000 == 0:
                     print(f"\rLoaded {len(self.logLines)} log lines", end="")
 
-        # Final status update
+        # Final line counts
         print(f"\rLoaded {len(self.logLines)} log lines")
+        maxLineNameLength = max(len(LineType.__name__) for LineType in self.lineTypeCounts)
         for LineType, count in self.lineTypeCounts.items():
-            print(f"{LineType.__name__}: {count} instances")
+            print(f"\t{(LineType.__name__+':').ljust(maxLineNameLength+1)} {count} instances")
 
         # Post-process lines
         before = deque()
@@ -567,15 +605,21 @@ class LogParser:
         print(f"\rPost-processed {len(self.logLines)} log lines")
 
         # Calculate totals and distributions
-        print("Calculating totals and distributions")
-        self.totals = {LineType: {} for LineType in self.lineTypeCounts.keys()}
-        self.dists  = {LineType: {} for LineType in self.lineTypeCounts.keys()}
-        for ll in self.logLines:
-            K = ll.__class__
+        self.totals = {}
+        self.dists  = {}
+        for i, ll in enumerate(self.logLines):
+            totals = self.totals.setdefault(ll.__class__, {})
+            dists  = self.dists.setdefault(ll.__class__, {})
             for k, v in ll.getTotals().items():
-                self.totals[K][k] = self.totals[K].get(k, 0) + v
+                totals[k] = totals.get(k, 0) + v
             for k, v in ll.getDistributions().items():
-                self.dists[K][k] = self.dists[K].get(k, [])+[v]
+                if k not in dists:
+                    dists[k] = []
+                dists[k].append(v)
+            if i % 10000 == 0:
+                print(f"\rAccumulated totals and dists for {i} log lines", end="")
+        print(f"\rAccumulated totals and dists for {len(self.logLines)} log lines")
+            
         
     def printTotals(self) -> None:
         for LineType, totals in self.totals.items():
@@ -589,14 +633,40 @@ class LogParser:
         figaxs = []
         for LineType, dists in self.dists.items():
             for dataName, data in dists.items():
+                xsAreAddresses = min(data) >= 0xc0000000
+                xsAddressGranuality = None
+                if xsAreAddresses: # Assume addresses
+                    xsAddressGranuality = min((x & -x).bit_length()-1 for x in data)
+                    xsAddressGranuality = max(xsAddressGranuality, 2)
+                    data = [x>>xsAddressGranuality for x in data]
                 counts = Counter(data)
                 xs = list(counts.keys())
                 ys = list(counts.values())
+                minxs = min(xs)
+                maxxs = max(xs)
+                xtickIntervalOpts  = [100,50,25,20,10,5,2,1] if not xsAreAddresses else [2**x for x in range(32,-1,-1)]
+                xtickIdealCount    = 6 if not xsAreAddresses else 12
+                xtickExactInterval = max(1, (maxxs-minxs)//xtickIdealCount)
+                xtickNiceInterval  = next(i for i in xtickIntervalOpts if i <= xtickExactInterval)
+                xtickMin = minxs-(minxs%xtickNiceInterval)
+                xtickMax = maxxs+xtickNiceInterval
                 fig, ax = plt.subplots(figsize=(8, 6))
                 ax.bar(xs, ys, color='skyblue', width=1)
                 ax.set_title(f"{LineType.__name__}: {dataName}")
                 ax.set_xlabel("Attribute value")
                 ax.set_ylabel("Count")
-                ax.set_xticks(range(min(xs), max(xs) + 1, max((max(xs)-min(xs))//10,1)))
+                if xsAreAddresses:
+                    ysAvg   = int(statistics.mean(ys))
+                    ysStdev = int(statistics.stdev(ys))
+                    ax.set_ylim(0,ysAvg+3*ysStdev)
+                    ax.set_xticks(
+                        range(xtickMin, xtickMax, xtickNiceInterval),
+                        [hex(x << xsAddressGranuality) for x in range(xtickMin, xtickMax, xtickNiceInterval)],
+                        rotation=90
+                    )
+                else:
+                    ax.set_xticks(range(xtickMin, xtickMax, xtickNiceInterval))
+                if minxs < 0 and maxxs > 0:
+                    ax.axvline(x=0, linestyle="--", color="black", alpha=0.5)
                 ax.grid(axis='y', alpha=0.75)
                 figaxs.append((fig, ax))
