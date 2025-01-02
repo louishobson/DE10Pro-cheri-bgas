@@ -77,6 +77,8 @@ termination_sequence () {
     fi
     wait
     echo "All child processes stopped"
+    printf "\n" >> $SIM_DIR/time.log
+    date | tee -a $SIM_DIR/time.log
 
     # Copy logs
     echo "Copying logs..."
@@ -105,11 +107,13 @@ gzip > $CTX_DIR/sim_stdout.gz < $CTX_DIR/sim_stdout & STDOUT_PID=$!
 # Start CHERI-BGAS
 CHERI_BGAS_PC_RESET_VALUE=c0000000 CHERI_BGAS_DDRB_HEX_INIT="$HEX_FILE" ./cheri-bgas-sim.py -r $SIM_DIR -t 1 1 > $SIM_DIR/server.log & SIM_PID=$!
 echo "Started $RUN_NAME/$SIM_NAME simulator"
+date | tee $SIM_DIR/time.log
+echo "Sim directory is $SIM_DIR"
 
 # Time how long simulation runs for
-{ time tail -s 1 -f --pid $SIM_PID /dev/null; } 2> $SIM_DIR/time.log &
+{ time tail -s 1 -f --pid $SIM_PID /dev/null; } 2>> $SIM_DIR/time.log &
 
 # Wait for simulation termination (or a signal)
-wait_timeout $STDOUT_PID 3h
+wait_timeout $STDOUT_PID 4h
 echo "Simulation finished for $RUN_NAME/$SIM_NAME"
 termination_sequence
