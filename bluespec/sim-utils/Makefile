@@ -4,23 +4,45 @@ mrproper: mrproper-cheri-bgas-fuse-devfs mrproper-forever-splice mrproper-jtagvp
 
 ####
 
-.PHONY: gen-mibench-hex run-mibench
-MIBENCH_DIR := /home/louis/Documents/CHERI/mibench2
-MIBENCH_NAMES := $(notdir $(wildcard $(MIBENCH_DIR)/*))
-MIBENCH_NAMES_LONG := adpcm_decode adpcm_encode basicmath blowfish dijkstra fft picojpeg qsort
+RUN ?= $(shell basename $(shell mktemp -udp $(CURDIR)/results run.XXXXXX))
 
-gen-mibench-hex: $(MIBENCH_NAMES:%=gen-mibench-hex-%)
+MIBENCH_DIR := /local/scratch/ldh35/mibench2
+#MIBENCH_NAMES := $(notdir $(wildcard $(MIBENCH_DIR)/*))
+# These ones actually work and run for a long time
+MIBENCH_NAMES := adpcm_decode adpcm_encode basicmath blowfish dijkstra fft picojpeg qsort
+
+gen-mibench-hex: $(MIBENCH_NAMES:%=gen-mibench-hex-%) ;
 
 gen-mibench-hex-%:
 	elfmanip.py -o $(MIBENCH_DIR)/$*/mem.hex -s 0xc0000000 -i 0x40000000 $(MIBENCH_DIR)/$*/$*.elf to-hex
 
-run-mibench: $(MIBENCH_NAMES:%=run-mibench-%)
-
-MIBENCH_RUN ?= $(shell basename $(shell mktemp -udp ./sims run.XXXXXX))
+run-mibench: $(MIBENCH_NAMES:%=run-mibench-%) ;
 
 run-mibench-%:
-	./run-sim.sh $(MIBENCH_RUN) $* "$(MIBENCH_DIR)/$*/mem.hex" ./sims
-	
+	./run-sim.sh $(RUN) $* "$(MIBENCH_DIR)/$*/mem.hex" $(CURDIR)/results
+
+####
+
+PREFETCHER_NAMES := stride stride_adaptive all_in_cap cheri_stride cap_bitmap cap_ptr
+
+compile-prefetcher: 
+	$(MAKE) $(PREFETCHER_NAMES:%=compile-prefetcher-%)
+
+compile-prefetcher-%: $(CURDIR)/bin/%/sim_CHERI_BGAS ;
+
+.PRECIOUS: $(CURDIR)/bin/%/sim_CHERI_BGAS
+$(CURDIR)/bin/%/sim_CHERI_BGAS:
+	touch $(CURDIR)/../Toooba/src_Core/RISCY_OOO/coherence/src/prefetcher/Prefetcher_top.bsv
+	DATA_PREFETCHER_TYPE=$(shell echo $* | tr '[:lower:]' '[:upper:]') $(MAKE) -j12 -C ../ bluesim
+	mkdir -p $(CURDIR)/bin/$*
+	cp $(CURDIR)/../build/simdir/sim_CHERI_BGAS* $(CURDIR)/bin/$*/
+
+run-prefetcher-mibench: $(foreach pref, $(PREFETCHER_NAMES), $(addprefix run-prefetcher-mibench-${pref}-, $(MIBENCH_NAMES))) ;
+
+run-prefetcher-mibench-%:
+	PREFETCHER=$(word 1,$(subst -, ,$*)) BENCHMARK=$(word 2,$(subst -, ,$*)) ;\
+	./run-sim.sh $(RUN)-$$PREFETCHER $$BENCHMARK $(MIBENCH_DIR)/$$BENCHMARK/mem.hex $(CURDIR)/results $(CURDIR)/bin/$$PREFETCHER/sim_CHERI_BGAS
+
 ####
 
 gen-cheri-bgas-fuse-devfs: $(CURDIR)/tools/cheri-bgas-fuse-devfs

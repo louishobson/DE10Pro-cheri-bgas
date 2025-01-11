@@ -364,7 +364,7 @@ def main(ctxt):
   for idx, node_dir, vpi_port, dbg_port in ctxts:
     proc_handles[idx] = {}
     x, y = idx
-    proc_handles[idx]["simulator"] = spawn_simulator(node_dir, x, y)
+    proc_handles[idx]["simulator"] = spawn_simulator(node_dir, x, y, bin=ctxt.sim_bin)
   time.sleep(0.25)
   print('spawning cheri-bgas-devfs')
   for idx, node_dir, vpi_port, dbg_port in ctxts:
@@ -438,6 +438,10 @@ if __name__ == "__main__":
     , help=f"The SIM_RUN_DIR path to the run directory for the simulation")
   parser.add_argument('-v', '--verbose', action='count', default=0
     , help="Increase verbosity level by adding more \"v\".")
+  parser.add_argument(
+      '-s', '--sim-binary', type=Path, metavar="SIM_BIN", default=dflt_sim_bin
+    , help=f"The SIM_BIN path to the sim_CHERI_BGAS script to execute"
+  )
 
   # parse command line arguments
   clargs = parser.parse_args()
@@ -458,6 +462,7 @@ if __name__ == "__main__":
                         for y in range(0, int(clargs.topology[1])) ]
   ctxt.connections = [((x, y-1), (x, y)) for x, y in ctxt.nodes if y > 0] +\
                      [((x-1, y), (x, y)) for x, y in ctxt.nodes if x > 0]
+  ctxt.sim_bin = clargs.sim_binary
 
   print(ctxt.nodes)
   print(ctxt.connections)

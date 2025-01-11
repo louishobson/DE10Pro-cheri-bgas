@@ -37,7 +37,10 @@ class LogLine:
     def dataRegex(cls, text: str) -> Tuple[str, ...]:
         m = cls._DATA_REGEX_COMPILED.match(text)
         if m is None:
-            raise ValueError(f"{cls.__name__}.dataRegex match failed!")
+            raise ValueError(
+                f"{cls.__name__}.dataRegex match failed!"
+                f" Tried to match\n\t'{text}'\n with\n\t'{cls._DATA_REGEX}'"
+            )
         return m.groups()
         
     @classmethod
@@ -167,7 +170,7 @@ class NonRVFILine(TimestampedLine):
 class CRqCreationLine(NonRVFILine):
     
     _TEST_REGEX = r"^\d+ L1D cRq creation"
-    _DATA_REGEX = r"^\d+ L1D cRq creation: mshr: (\d+), addr: (0x[0-9a-f]+), mshrInUse: \s*(\d+)/\s*(\d+), isPrefetch: ([01]), isRetry: ([01]), reqCs: ([ITSEM]), op: (Ld|St|Lr|Sc|Amo)"
+    _DATA_REGEX = r"^\d+ L1D cRq creation: mshr: (\d+), addr: (0x[0-9a-f]+), boundsVirtBase: (0x[0-9a-f]+), boundsOffset: (0x[0-9a-f]+), boundsLength: (0x[0-9a-f]+), pcHash: (0x[0-9a-f]+), mshrInUse: \s*(\d+)/\s*(\d+), isPrefetch: ([01]), isRetry: ([01]), reqCs: ([ITSEM]), op: (Ld|St|Lr|Sc|Amo)"
 
     # How many cycles in the future to expect a cRq response
     MAX_CRQ_RESP_CYCLES = 30
@@ -178,20 +181,25 @@ class CRqCreationLine(NonRVFILine):
     def __init__(self, line: str) -> None:
         super().__init__(line)
         reData = CRqCreationLine.dataRegex(line)
-        self.mshr       = int(reData[0])
-        self.addr       = int(reData[1], 0)
-        self.mshrUsed   = int(reData[2])
-        self.totalMshr  = int(reData[3])
-        self.isPrefetch = int(reData[4] == "1")
-        self.isRetry    = int(reData[5] == "1")
-        self.reqCs      = str(reData[6])
-        self.op         = str(reData[7])
+        self.mshr         = int(reData[0])
+        self.addr         = int(reData[1], 0)
+        self.lineAddr     = self.addr >> 6
+        self.boundsBase   = int(reData[2], 0)
+        self.boundsOffset = int(reData[3], 0)
+        self.boundsLength = int(reData[4], 0)
+        self.pcHash       = int(reData[5], 0)
+        self.mshrUsed     = int(reData[6])
+        self.totalMshr    = int(reData[7])
+        self.isPrefetch   = int(reData[8] == "1")
+        self.isRetry      = int(reData[9] == "1")
+        self.reqCs        = str(reData[10])
+        self.op           = str(reData[11])
         # Will be set in self.postProcess
         self.hit   = False
         self.miss  = False
         self.owned = False
         self.cRqResponseLine   = None
-        self.cRqResponseCycles = None
+        self.cRqHitLine        = None
         # Will be set in self.postProcess if the creation is a prefetch
         self.isLatePrefetch = False
         self.latePrefetchRelativeCycles = None
@@ -220,15 +228,13 @@ class CRqCreationLine(NonRVFILine):
                     if self.discardIf(ll.addr != self.addr or ll.cRqIsPrefetch != self.isPrefetch or ll.wasMiss, "strange cRq response (hit)"): return                 
                     self.hit = True
                     self.cRqResponseLine   = ll
-                    self.cRqResponseCycles = ll.timestamp - self.timestamp
                     ll.cRqCreationLine     = self
                     break
                 # Address missed in the cache
                 if isinstance(ll, CRqMissLine) and ll.mshr == self.mshr:
-                    if self.discardIf(ll.newAddr != self.addr or ll.cRqIsPrefetch != self.isPrefetch, "strange cRq response (miss)"): return           
+                    if self.discardIf(ll.addr != self.addr or ll.cRqIsPrefetch != self.isPrefetch, "strange cRq response (miss)"): return           
                     self.miss = True
                     self.cRqResponseLine   = ll
-                    self.cRqResponseCycles = ll.timestamp - self.timestamp
                     ll.cRqCreationLine     = self
                     break
                 # Cache line for the address is owned
@@ -236,16 +242,15 @@ class CRqCreationLine(NonRVFILine):
                     if self.discardIf(ll.addr != self.addr or ll.cRqIsPrefetch != self.isPrefetch, "strange cRq response (owned)"): return           
                     self.owned = True
                     self.cRqResponseLine   = ll
-                    self.cRqResponseCycles = ll.timestamp - self.timestamp
                     ll.cRqCreationLine     = self
                     break
                 # This is a prefetch and another prefetch occurred for the same address.
                 # Tell that prefetch that it's a duplicate.
-                if isinstance(ll, CRqCreationLine) and self.isPrefetch and ll.isPrefetch and ll.addr == self.addr:
+                if isinstance(ll, CRqCreationLine) and self.isPrefetch and ll.isPrefetch and ll.lineAddr == self.lineAddr:
                     ll.isPrefetchUnderPrefetch = True
                 # This is a late prefetch: there is a demand cache miss for the same address in a different MSHR.
                 # This is quite unlikely: needs the core to request the address a cycle before prefetch creation (I think....)
-                if isinstance(ll, CRqMissLine) and self.isPrefetch and not ll.cRqIsPrefetch and ll.newAddr == self.addr and ll.mshr != self.mshr and not self.isLatePrefetch:
+                if isinstance(ll, CRqMissLine) and self.isPrefetch and not ll.cRqIsPrefetch and ll.newLineAddr == self.lineAddr and ll.mshr != self.mshr and not self.isLatePrefetch:
                     self.isLatePrefetch = True
                     self.latePrefetchRelativeCycles = ll.timestamp - self.timestamp
 
@@ -262,7 +267,7 @@ class CRqCreationLine(NonRVFILine):
                     # There is an earlier miss for the same address.
                     # If it is a demand miss, then this is a late prefetch.
                     # If it is a prefetch miss, then this is probably a duplicate prefetch.
-                    if isinstance(ll, CRqMissLine) and ll.newAddr == self.addr:
+                    if isinstance(ll, CRqMissLine) and ll.newLineAddr == self.lineAddr:
                         if not ll.cRqIsPrefetch:
                             self.isLatePrefetch = True
                             self.latePrefetchRelativeCycles = ll.timestamp - self.timestamp
@@ -277,15 +282,17 @@ class CRqCreationLine(NonRVFILine):
             "Pr"    : int(self.isPrefetch),
             self.op : int(not self.isPrefetch),
 
-            "demand"      : int(not self.isPrefetch),
-            "demandHit"   : int(not self.isPrefetch and self.hit),
-            "demandMiss"  : int(not self.isPrefetch and self.miss),
-            "demandOwned" : int(not self.isPrefetch and self.owned),
+            "demand"       : int(not self.isPrefetch),
+            "demandHit"    : int(not self.isPrefetch and self.hit),
+            "demandMiss"   : int(not self.isPrefetch and self.miss),
+            "demandMissLL" : int(not self.isPrefetch and self.miss and not self.cRqResponseLine.hitInLL),
+            "demandOwned"  : int(not self.isPrefetch and self.owned),
 
-            "prefetch"      : int(self.isPrefetch),
-            "prefetchHit"   : int(self.isPrefetch and self.hit),
-            "prefetchMiss"  : int(self.isPrefetch and self.miss),
-            "prefetchOwned" : int(self.isPrefetch and self.owned),
+            "prefetch"       : int(self.isPrefetch),
+            "prefetchHit"    : int(self.isPrefetch and self.hit),
+            "prefetchMiss"   : int(self.isPrefetch and self.miss),
+            "prefetchMissLL" : int(self.isPrefetch and self.miss and not self.cRqResponseLine.hitInLL),
+            "prefetchOwned"  : int(self.isPrefetch and self.owned),
 
             "latePrefetch"    : int(self.isLatePrefetch),
             "prefUnderPref"   : int(self.isPrefetchUnderPrefetch),
@@ -300,17 +307,13 @@ class CRqCreationLine(NonRVFILine):
         rt = {
             "mshrRemaining" : self.totalMshr - self.mshrUsed
         }
-        if not self.isPrefetch:
-            rt["demandResponseCycles"] = self.cRqResponseCycles
-            if self.miss:
-                rt["demandResponseCycles"] += self.cRqResponseLine.refillCycles
-            if self.owned:
-                rt["demandResponseCycles"] += self.cRqResponseLine.resolveCycles
-                if self.cRqResponseLine.resolveMiss:
-                    rt["demandResponseCycles"] += self.cRqResponseLine.resolveLine.refillCycles
+        if not self.isPrefetch and self.cRqHitLine is not None:
+            rt["demandHitCycles"] = self.cRqHitLine.timestamp - self.timestamp
         if self.isLatePrefetch:
-            rt["latePrefetchRelativeCycles"] = self.latePrefetchRelativeCycles
-        return rt 
+            rt["latePrefetchWhenWasDemandMissRelativeToPrefetchCreation"] = self.latePrefetchRelativeCycles
+            if self.cRqHitLine is not None: 
+                rt["latePrefetchHowMuchEarlierToHit"] = self.cRqHitLine.timestamp - self.timestamp - self.latePrefetchRelativeCycles
+        return rt
 
 
 
@@ -318,19 +321,21 @@ class CRqCreationLine(NonRVFILine):
 class CRqHitLine(NonRVFILine):
 
     _TEST_REGEX = r"^\d+ L1D cRq hit"
-    _DATA_REGEX = r"^\d+ L1D cRq hit: mshr: (\d+), addr: (0x[0-9a-f]+), cRq is prefetch: ([01]), wasMiss: ([01]), pipeCs: ([ITSEM]), reqCs: ([ITSEM]), saveCs: ([ITSEM]), op: (Ld|St|Lr|Sc|Amo)"
+    _DATA_REGEX = r"^\d+ L1D cRq hit: mshr: (\d+), addr: (0x[0-9a-f]+), cRq is prefetch: ([01]), wasMiss: ([01]), pipeCs: ([ITSEM]), reqCs: ([ITSEM]), saveCs: ([ITSEM]), op: (Ld|St|Lr|Sc|Amo), nCap: (\d)"
 
     def __init__(self, line: str) -> None:
         super().__init__(line)
         reData = CRqHitLine.dataRegex(line)
         self.mshr          = int(reData[0])
         self.addr          = int(reData[1], 0)
+        self.lineAddr      = self.addr >> 6
         self.cRqIsPrefetch = bool(reData[2] == "1")
         self.wasMiss       = bool(reData[3] == "1")
         self.pipeCs        = str(reData[4])
         self.reqCs         = str(reData[5])
         self.saveCs        = str(reData[6])
         self.op            = str(reData[7])
+        self.nCap          = int(reData[8])
         # Will be set by a prior CRqCreationLine is this is an immediate hit,
         # or a CRqMissLine/CRqDependencyLine otherwise.
         self.cRqCreationLine = None
@@ -346,6 +351,8 @@ class CRqHitLine(NonRVFILine):
 
         # Produce a warning if there was no creation of this cRq
         self.warnIf(self.cRqCreationLine is None, "no creation of cRq")
+        if self.cRqCreationLine is not None:
+            self.cRqCreationLine.cRqHitLine   = self
 
         # If this is the refill of a miss, then look for the eventual eviction.
         # Also look for cache disruption during its lifetime.
@@ -353,7 +360,7 @@ class CRqHitLine(NonRVFILine):
             self.warnIf(self.cRqMissEvictionLine is None, "no cRq eviction for miss")
             for ll in after:
                 # There is a cRq miss that is replacing this line
-                if isinstance(ll, CRqMissLine) and ll.oldAddr == self.addr:
+                if isinstance(ll, CRqMissLine) and ll.oldLineAddr == self.lineAddr:
                     # Maybe tell the creation log line that it was never accessed
                     if not ll.accessed and self.cRqCreationLine is not None and not self.cRqCreationLine.isNeverAccessed:
                         self.cRqCreationLine.isNeverAccessed = True
@@ -363,18 +370,16 @@ class CRqHitLine(NonRVFILine):
                         continue
                     else:
                         self.evictionLine   = ll
-                        self.evictionCycles = ll.timestamp - self.timestamp
                         break
                 # Being evicted by a pRq request
-                if isinstance(ll, PRqLine) and ll.addr == self.addr and ll.reqCs == "I":
+                if isinstance(ll, PRqLine) and ll.lineAddr == self.lineAddr and ll.reqCs == "I":
                     if not ll.accessed and self.cRqCreationLine is not None:
                         self.cRqCreationLine.isNeverAccessed = True
                     self.evictionLine   = ll
-                    self.evictionCycles = ll.timestamp - self.timestamp
                     break       
                 # The evicted line is being brought back into the cache.
                 # This constitutes cache disruption.
-                if isinstance(ll, CRqMissLine) and self.cRqMissEvictionLine is not None and ll.newAddr == self.cRqMissEvictionLine.oldAddr and self.cRqMissEvictionLine.ramCs != "I":
+                if isinstance(ll, CRqMissLine) and self.cRqMissEvictionLine is not None and ll.newLineAddr == self.cRqMissEvictionLine.oldLineAddr and self.cRqMissEvictionLine.ramCs != "I":
                     if self.cRqCreationLine is not None:
                         self.cRqCreationLine.disruptedCache   = True
                         self.cRqCreationLine.disruptionCycles = ll.timestamp - self.timestamp
@@ -382,12 +387,30 @@ class CRqHitLine(NonRVFILine):
     def getDistributions(self):
         if self.discard:
             return {}
-        rt = {
-            "demandAddr" : self.addr << 6
-        }
+        rt = {}
+        if not self.cRqIsPrefetch:
+            rt["demandAddr"] = self.addr
+            if self.wasMiss:
+                rt["demandMissNCap"] = self.nCap
         if self.wasMiss and self.evictionLine is not None:
-            rt["evictionCycles"] = self.evictionCycles
+            rt["evictionCycles"] = self.evictionLine.timestamp - self.timestamp
         return rt
+    
+
+
+@NonRVFILine.createSubLineType
+class LLCRqHitLine(NonRVFILine):
+
+    _TEST_REGEX = r"^\d+ LL cRq hit"
+    _DATA_REGEX = r"^\d+ LL cRq hit: addr: (0x[0-9a-f]+), cRq is prefetch: ([01]), wasMiss: ([01])"
+
+    def __init__(self, line: str):
+        super().__init__(line)
+        reData = LLCRqHitLine.dataRegex(line)
+        self.addr          = int(reData[0], 0)
+        self.lineAddr      = self.addr >> 6
+        self.cRqIsPrefetch = bool(reData[1] == "1")
+        self.wasMiss       = bool(reData[2] == "1")
 
 
 
@@ -395,7 +418,7 @@ class CRqHitLine(NonRVFILine):
 class CRqMissLine(NonRVFILine):
 
     _TEST_REGEX = r"^\d+ L1D cRq miss"
-    _DATA_REGEX = r"^\d+ L1D cRq miss \(([\w ]+)\): mshr: (\d+), old addr: (0x[0-9a-f]+), new addr: (0x[0-9a-f]+), wasPrefetch: ([01]), accessed: ([01]), cRq is prefetch: ([01]), ramCs: ([ITSEM]), reqCs: ([ITSEM]), op: (Ld|St|Lr|Sc|Amo)"
+    _DATA_REGEX = r"^\d+ L1D cRq miss \(([\w ]+)\): mshr: (\d+), addr: (0x[0-9a-f]+), old line addr: (0x[0-9a-f]+), wasPrefetch: ([01]), accessed: ([01]), cRq is prefetch: ([01]), ramCs: ([ITSEM]), reqCs: ([ITSEM]), op: (Ld|St|Lr|Sc|Amo)"
 
     # How many cycles after a cRq miss to expect the corresponding cache refill
     MAX_PRS_CYCLES = 200
@@ -405,18 +428,19 @@ class CRqMissLine(NonRVFILine):
         reData = CRqMissLine.dataRegex(line)
         self.repType       = str(reData[0])
         self.mshr          = int(reData[1])
-        self.oldAddr       = int(reData[2], 0)
-        self.newAddr       = int(reData[3], 0)
+        self.addr          = int(reData[2], 0)
+        self.newLineAddr   = self.addr >> 6
+        self.oldLineAddr   = int(reData[3], 0)
         self.wasPrefetch   = bool(reData[4] == "1")
         self.accessed      = bool(reData[5] == "1")
         self.cRqIsPrefetch = bool(reData[6] == "1")
         self.ramCs         = str(reData[7])
         self.reqCs         = str(reData[8])
         self.op            = str(reData[9])
-        self.permsOnly     = self.oldAddr == self.newAddr and self.ramCs != "I"
+        self.permsOnly     = self.oldLineAddr == self.newLineAddr and self.ramCs != "I"
         # Set in self.postProcess
-        self.refillCycles     = None
-        self.refillHitLine    = None
+        self.hitInLL       = None
+        self.cRqHitLine    = None
         # Will be set by a prior CRqCreationLine
         self.cRqCreationLine = None
 
@@ -427,45 +451,56 @@ class CRqMissLine(NonRVFILine):
         # Produce a warning if there was no creation of this cRq
         self.warnIf(self.cRqCreationLine is None, f"no creation of cRq ({self.repType})")
 
+        # Discard self and creation line
+        def discardWithCreationIf(cond: bool, reason: str):
+            if self.discardIf(cond, reason):
+                if self.cRqCreationLine is not None:
+                    self.cRqCreationLine.discardIf(True, reason)
+            return cond
+
         # Look for the cache refill. When a pRs is received for the refill data, the cRqHit rule fires.
+        # Also look for the LL hit line (which will tell us if the LL hit or missed).
         # If this cRq is for a prefetch, also see if this prefetch was late, or whether there is a prefetch-under-prefetch.
+        foundLLHit  = False
         foundRefill = False
         for ll in after:
             if(isinstance(ll, TimestampedLine)):
                 if ll.timestamp > self.timestamp + self.MAX_PRS_CYCLES:
                     break
+                # The LL hit line. Assume only one core.
+                if isinstance(ll, LLCRqHitLine) and ll.addr == self.addr:
+                    if discardWithCreationIf(foundLLHit, "multiple LL hits"): return
+                    foundLLHit   = True
+                    self.hitInLL = not ll.wasMiss
                 # The refill for the miss
                 if isinstance(ll, CRqHitLine) and ll.mshr == self.mshr:
-                    if self.discardIf(ll.addr != self.newAddr or ll.cRqIsPrefetch != self.cRqIsPrefetch or not ll.wasMiss, "strange refill"): return
+                    if discardWithCreationIf(ll.addr != self.addr or ll.cRqIsPrefetch != self.cRqIsPrefetch or not ll.wasMiss, "strange refill"): return
                     foundRefill = True
-                    self.refillCycles = ll.timestamp - self.timestamp
                     ll.cRqMissEvictionLine = self
                     ll.cRqCreationLine     = self.cRqCreationLine
-                    self.refillHitLine     = ll
+                    self.cRqHitLine        = ll
                     break
                 # This is a prefetch and another prefetch occurred for the same address during refill.
                 # Tell that prefetch that it's a duplicate.
-                if isinstance(ll, CRqCreationLine) and self.cRqIsPrefetch and ll.isPrefetch and ll.addr == self.newAddr:
+                if isinstance(ll, CRqCreationLine) and self.cRqIsPrefetch and ll.isPrefetch and ll.lineAddr == self.newLineAddr:
                     ll.isPrefetchUnderPrefetch = True
                 # Look for a demand miss for the address currently being refilled.
                 # If the current refill is due to a prefetch, then consider the prefetch as late.
-                if isinstance(ll, CRqDependencyLine) and self.cRqIsPrefetch and not ll.cRqIsPrefetch and ll.addr == self.newAddr:
+                if isinstance(ll, CRqDependencyLine) and self.cRqIsPrefetch and not ll.cRqIsPrefetch and ll.lineAddr == self.newLineAddr:
                     # It's possible that, if some log was skipped, the cRq is a prefetch but the creation was missed.
                     if self.cRqCreationLine is not None and not self.cRqCreationLine.isLatePrefetch:
                         self.cRqCreationLine.isLatePrefetch = True
                         self.cRqCreationLine.latePrefetchRelativeCycles = ll.timestamp - self.cRqCreationLine.timestamp
 
-        # If we didn't find a refill, discard this log line and the cRq creator.
-        if self.discardIf(not foundRefill, "no pRs"):
-            if self.cRqCreationLine is not None:
-                self.cRqCreationLine.discardIf(True, "no pRs")
-            return
+        # If we didn't find an L1 or LL hit line, discard this log line and the cRq creator.
+        if discardWithCreationIf(not foundRefill, "no pRs"): return
+        if discardWithCreationIf(not foundLLHit, "pRs with no LL hit"): return 
 
     def getTotals(self) -> dict[str, int]:
         rt = super().getTotals()
         if self.discard:
             return rt
-        if self.ramCs == "I" or self.oldAddr == self.newAddr:
+        if self.ramCs == "I" or self.oldLineAddr == self.newLineAddr:
             rt[f"{self.ramCs} --({'Pr' if self.cRqIsPrefetch else self.op})--> {self.reqCs}"] = 1
         else:
             rt[f"{self.ramCs} --/{'Pr' if self.cRqIsPrefetch else self.op}/--> {self.reqCs}"] = 1
@@ -474,11 +509,7 @@ class CRqMissLine(NonRVFILine):
     def getDistributions(self) -> dict[str, int]:
         if self.discard:
             return {}
-        rt = {"refillCycles" : self.refillCycles}
-        if self.permsOnly:
-            rt["permsOnlyRefillCycles"] = self.refillCycles
-        else:
-            rt["newLineRefillCycles"] = self.refillCycles
+        rt = {"refillCycles" : self.cRqHitLine.timestamp - self.timestamp}
         return rt
 
 
@@ -498,14 +529,14 @@ class CRqDependencyLine(NonRVFILine):
         self.mshr          = int(reData[0])
         self.depMshr       = int(reData[1])
         self.addr          = int(reData[2], 0)
+        self.lineAddr      = self.addr >> 6
         self.cRqIsPrefetch = bool(reData[3] == "1")
         self.reqCs         = str(reData[4])
         self.op            = str(reData[5])
         # Set in self.postProcess
-        self.resolveHit    = False
-        self.resolveMiss   = False
-        self.resolveCycles = None
-        self.resolveLine   = None
+        self.resolveHit     = False
+        self.resolveMiss    = False
+        self.cRqResolveLine = None
         # Will be set by a prior CRqCreationLine
         self.cRqCreationLine = None
 
@@ -516,42 +547,47 @@ class CRqDependencyLine(NonRVFILine):
         # Produce a warning if there was no creation of this cRq
         self.warnIf(self.cRqCreationLine is None, "no creation of cRq")
 
-        # Look for the dependency to resolve. Will probably be cache hit, but might
-        # be a miss without replacement if c-state is not enough to hit.
-        for ll in after:
-            if(isinstance(ll, TimestampedLine)):
-                if ll.timestamp > self.timestamp + self.MAX_PRS_CYCLES:
-                    break
-                # Dependency resolved and hit
-                if isinstance(ll, CRqHitLine) and ll.mshr == self.mshr:
-                    if self.discardIf(ll.addr != self.addr or ll.cRqIsPrefetch != self.cRqIsPrefetch, "strange resolution"): return
-                    self.resolveHit    = True
-                    self.resolveCycles = ll.timestamp - self.timestamp
-                    self.resolveLine   = ll
-                    ll.cRqCreationLine = self.cRqCreationLine
-                    break
-                # Dependency resolved but permissions missed
-                if isinstance(ll, CRqMissLine) and ll.mshr == self.mshr:
-                    if self.discardIf(ll.oldAddr != self.addr or ll.newAddr != self.addr or ll.cRqIsPrefetch != self.cRqIsPrefetch, "strange resolution"): return
-                    self.resolveMiss   = True
-                    self.resolveCycles = ll.timestamp - self.timestamp
-                    self.resolveLine   = ll
-                    ll.cRqCreationLine = self.cRqCreationLine
-                    break 
-                # This is a prefetch and another prefetch occurred for the same address during resolution.
-                # Tell that prefetch that it's a duplicate.
-                if isinstance(ll, CRqCreationLine) and self.cRqIsPrefetch and ll.isPrefetch and ll.addr == self.addr:
-                    ll.isPrefetchUnderPrefetch = True
-        
-        # If we didn't find a resolution, discard this log line and the cRq creator.
-        if self.discardIf(not self.resolveHit and not self.resolveMiss, "no resolution"):
-            if self.cRqCreationLine is not None:
-                self.cRqCreationLine.discardIf(True, "no resolution")
-            return
+        # Discard self and creation line
+        def discardWithCreationIf(cond: bool, reason: str):
+            if self.discardIf(cond, reason):
+                if self.cRqCreationLine is not None:
+                    self.cRqCreationLine.discardIf(True, reason)
+            return cond
+
+        # If this is not a prefetch, look for the dependency to resolve. 
+        # Will probably be cache hit, but might be a miss without replacement if c-state is not enough to hit.
+        # If this is a prefetch, then it will be dropped here.
+        if not self.cRqIsPrefetch:
+            for ll in after:
+                if(isinstance(ll, TimestampedLine)):
+                    if ll.timestamp > self.timestamp + self.MAX_PRS_CYCLES:
+                        break
+                    # Dependency resolved and hit
+                    if isinstance(ll, CRqHitLine) and ll.mshr == self.mshr:
+                        if discardWithCreationIf(ll.addr != self.addr or ll.cRqIsPrefetch != self.cRqIsPrefetch, "strange resolution"): return
+                        self.resolveHit     = True
+                        self.cRqResolveLine = ll
+                        ll.cRqCreationLine  = self.cRqCreationLine
+                        break
+                    # Dependency resolved but permissions missed
+                    if isinstance(ll, CRqMissLine) and ll.mshr == self.mshr:
+                        if discardWithCreationIf(ll.oldLineAddr != self.lineAddr or ll.addr != self.addr or ll.cRqIsPrefetch != self.cRqIsPrefetch, "strange resolution"): return
+                        self.resolveMiss    = True
+                        self.cRqResolveLine = ll
+                        ll.cRqCreationLine  = self.cRqCreationLine
+                        break 
+                    # This is a prefetch and another prefetch occurred for the same address during resolution.
+                    # Tell that prefetch that it's a duplicate.
+                    if isinstance(ll, CRqCreationLine) and self.cRqIsPrefetch and ll.isPrefetch and ll.lineAddr == self.lineAddr:
+                        ll.isPrefetchUnderPrefetch = True
+            
+            # If we didn't find a resolution, discard this log line and the cRq creator.
+            if discardWithCreationIf(not self.resolveHit and not self.resolveMiss, "no resolution"): return
         
     def getTotals(self):
         rt = super().getTotals()
         return rt if self.discard else rt | {
+            "demand"      : int(not self.cRqIsPrefetch),
             "resolveHit"  : int(self.resolveHit),
             "resolveMiss" : int(self.resolveMiss),
         }
@@ -559,7 +595,10 @@ class CRqDependencyLine(NonRVFILine):
     def getDistributions(self):
         if self.discard:
             return {}
-        return {"resolveCycles" : self.resolveCycles}
+        rt = {}
+        if not self.cRqIsPrefetch:
+            rt["resolveCycles"] = self.cRqResolveLine.timestamp - self.timestamp
+        return rt
 
 
 
@@ -567,12 +606,12 @@ class CRqDependencyLine(NonRVFILine):
 class PRqLine(NonRVFILine):
 
     _TEST_REGEX = r"^\d+ L1D pRq"
-    _DATA_REGEX = r"^\d+ L1D pRq: addr: (0x[0-9a-f]+), wasPrefetch: ([01]), accessed: ([01]), overtakeCRq: ([01]), ramCs: ([ITSEM]), reqCs: ([ITSEM])"
+    _DATA_REGEX = r"^\d+ L1D pRq: line addr: (0x[0-9a-f]+), wasPrefetch: ([01]), accessed: ([01]), overtakeCRq: ([01]), ramCs: ([ITSEM]), reqCs: ([ITSEM])"
 
     def __init__(self, line: str) -> None:
         super().__init__(line)
         reData = PRqLine.dataRegex(line)
-        self.addr        = int(reData[0], 0)
+        self.lineAddr    = int(reData[0], 0)
         self.wasPrefetch = bool(reData[1] == "1")
         self.accessed    = bool(reData[2] == "1")
         self.overtakeCRq = bool(reData[3] == "1")
