@@ -294,11 +294,14 @@ class CRqCreationLine(NonRVFILine):
             "prefetchMissLL" : int(self.isPrefetch and self.miss and not self.cRqResponseLine.hitInLL),
             "prefetchOwned"  : int(self.isPrefetch and self.owned),
 
-            "latePrefetch"    : int(self.isLatePrefetch),
+            "latePrefetch" : int(self.isLatePrefetch),
+            "latePrefetchCreation" : int(self.isLatePrefetch and (self.hit or self.owned)),
+            "latePrefetchIssue"    : int(self.isLatePrefetch and self.miss),
             "prefUnderPref"   : int(self.isPrefetchUnderPrefetch),
             "uselessPrefetch" : int(self.isPrefetch and self.isNeverAccessed),
             "uselessPrefetchBecausePerms" : int(self.isPrefetch and self.isNeverAccessed and self.isNeverAccessedBecausePerms),
             "uselessPrefetchDisruption"   : int(self.isPrefetch and self.isNeverAccessed and self.disruptedCache),
+            "prefetchDisruption"          : int(self.isPrefetch and self.disruptedCache),
         }
         
     def getDistributions(self) -> dict[str, int]:
@@ -313,6 +316,8 @@ class CRqCreationLine(NonRVFILine):
             rt["latePrefetchWhenWasDemandMissRelativeToPrefetchCreation"] = self.latePrefetchRelativeCycles
             if self.cRqHitLine is not None: 
                 rt["latePrefetchHowMuchEarlierToHit"] = self.cRqHitLine.timestamp - self.timestamp - self.latePrefetchRelativeCycles
+        if not self.isPrefetch:
+            rt["demandCapSize"] = self.boundsLength
         return rt
 
 
@@ -362,7 +367,7 @@ class CRqHitLine(NonRVFILine):
                 # There is a cRq miss that is replacing this line
                 if isinstance(ll, CRqMissLine) and ll.oldLineAddr == self.lineAddr:
                     # Maybe tell the creation log line that it was never accessed
-                    if not ll.accessed and self.cRqCreationLine is not None and not self.cRqCreationLine.isNeverAccessed:
+                    if ll.wasPrefetch and self.cRqCreationLine is not None and not self.cRqCreationLine.isNeverAccessed:
                         self.cRqCreationLine.isNeverAccessed = True
                         self.cRqCreationLine.isNeverAccessedBecausePerms = ll.permsOnly
                     # The miss could actually be a permissions upgrade: don't count this as eviction
@@ -373,7 +378,7 @@ class CRqHitLine(NonRVFILine):
                         break
                 # Being evicted by a pRq request
                 if isinstance(ll, PRqLine) and ll.lineAddr == self.lineAddr and ll.reqCs == "I":
-                    if not ll.accessed and self.cRqCreationLine is not None:
+                    if ll.wasPrefetch and self.cRqCreationLine is not None:
                         self.cRqCreationLine.isNeverAccessed = True
                     self.evictionLine   = ll
                     break       
@@ -390,8 +395,8 @@ class CRqHitLine(NonRVFILine):
         rt = {}
         if not self.cRqIsPrefetch:
             rt["demandAddr"] = self.addr
-            if self.wasMiss:
-                rt["demandMissNCap"] = self.nCap
+        if self.wasMiss:
+            rt["missNCap"] = self.nCap
         if self.wasMiss and self.evictionLine is not None:
             rt["evictionCycles"] = self.evictionLine.timestamp - self.timestamp
         return rt
@@ -418,7 +423,7 @@ class LLCRqHitLine(NonRVFILine):
 class CRqMissLine(NonRVFILine):
 
     _TEST_REGEX = r"^\d+ L1D cRq miss"
-    _DATA_REGEX = r"^\d+ L1D cRq miss \(([\w ]+)\): mshr: (\d+), addr: (0x[0-9a-f]+), old line addr: (0x[0-9a-f]+), wasPrefetch: ([01]), accessed: ([01]), cRq is prefetch: ([01]), ramCs: ([ITSEM]), reqCs: ([ITSEM]), op: (Ld|St|Lr|Sc|Amo)"
+    _DATA_REGEX = r"^\d+ L1D cRq miss \(([\w ]+)\): mshr: (\d+), addr: (0x[0-9a-f]+), old line addr: (0x[0-9a-f]+), wasPrefetch: ([01]), cRq is prefetch: ([01]), ramCs: ([ITSEM]), reqCs: ([ITSEM]), op: (Ld|St|Lr|Sc|Amo)"
 
     # How many cycles after a cRq miss to expect the corresponding cache refill
     MAX_PRS_CYCLES = 200
@@ -432,11 +437,10 @@ class CRqMissLine(NonRVFILine):
         self.newLineAddr   = self.addr >> 6
         self.oldLineAddr   = int(reData[3], 0)
         self.wasPrefetch   = bool(reData[4] == "1")
-        self.accessed      = bool(reData[5] == "1")
-        self.cRqIsPrefetch = bool(reData[6] == "1")
-        self.ramCs         = str(reData[7])
-        self.reqCs         = str(reData[8])
-        self.op            = str(reData[9])
+        self.cRqIsPrefetch = bool(reData[5] == "1")
+        self.ramCs         = str(reData[6])
+        self.reqCs         = str(reData[7])
+        self.op            = str(reData[8])
         self.permsOnly     = self.oldLineAddr == self.newLineAddr and self.ramCs != "I"
         # Set in self.postProcess
         self.hitInLL       = None
@@ -606,17 +610,16 @@ class CRqDependencyLine(NonRVFILine):
 class PRqLine(NonRVFILine):
 
     _TEST_REGEX = r"^\d+ L1D pRq"
-    _DATA_REGEX = r"^\d+ L1D pRq: line addr: (0x[0-9a-f]+), wasPrefetch: ([01]), accessed: ([01]), overtakeCRq: ([01]), ramCs: ([ITSEM]), reqCs: ([ITSEM])"
+    _DATA_REGEX = r"^\d+ L1D pRq: line addr: (0x[0-9a-f]+), wasPrefetch: ([01]), overtakeCRq: ([01]), ramCs: ([ITSEM]), reqCs: ([ITSEM])"
 
     def __init__(self, line: str) -> None:
         super().__init__(line)
         reData = PRqLine.dataRegex(line)
         self.lineAddr    = int(reData[0], 0)
         self.wasPrefetch = bool(reData[1] == "1")
-        self.accessed    = bool(reData[2] == "1")
-        self.overtakeCRq = bool(reData[3] == "1")
-        self.ramCs       = str(reData[4])
-        self.reqCs       = str(reData[5])
+        self.overtakeCRq = bool(reData[2] == "1")
+        self.ramCs       = str(reData[3])
+        self.reqCs       = str(reData[4])
         
 
 
@@ -635,8 +638,7 @@ class LogParser:
             self.fp.close()
 
     @staticmethod
-    def niceReadLines(fp, chunksize=512*1024*1024) -> Iterable[str]:
-        gc.disable()
+    def niceReadLines(fp, chunksize=128*1024*1024) -> Iterable[str]:
         leftovers = ""
         while (chunk := fp.read(chunksize).decode("utf-8")):
             lines = (leftovers + chunk).split('\n')
@@ -645,8 +647,6 @@ class LogParser:
             leftovers = lines[-1]
             del lines
             del chunk
-            gc.collect()
-        gc.enable()
 
     def __init__(
         self, 
@@ -740,45 +740,56 @@ class LogParser:
                     print(f"\t{k}: {v}")
                 print()
 
+    def plotDist(
+        self,
+        LineType: type[LogLine],
+        distName: str,
+        figax = None
+    ):
+        fig, ax = figax if figax is not None else plt.subplots(figsize=(8, 6))
+        data = self.dists[LineType][distName]
+        xsAreAddresses = min(data) >= 0xc0000000
+        xsAddressGranuality = None
+        if xsAreAddresses: # Assume addresses
+            xsAddressGranuality = min((x & -x).bit_length()-1 for x in data)
+            xsAddressGranuality = max(xsAddressGranuality, 2)
+            data = [x>>xsAddressGranuality for x in data]
+        counts = Counter(data)
+        xs = list(counts.keys())
+        ys = list(counts.values())
+        minxs = min(xs)
+        maxxs = max(xs)
+        xtickIntervalOpts  = [100000,50000,20000,10000,5000,2000,1000,100,50,25,20,10,5,2,1] if not xsAreAddresses else [2**x for x in range(32,-1,-1)]
+        xtickIdealCount    = 6 if not xsAreAddresses else 12
+        xtickExactInterval = max(1, (maxxs-minxs)//xtickIdealCount)
+        xtickNiceInterval  = next(i for i in xtickIntervalOpts if i <= xtickExactInterval)
+        xtickMin = minxs-(minxs%xtickNiceInterval)
+        xtickMax = maxxs+xtickNiceInterval
+        ax.bar(xs, ys, color='skyblue', width=1)
+        ax.set_title(f"{LineType.__name__}: {distName}")
+        ax.set_xlabel("Attribute value")
+        ax.set_ylabel("Count")
+        if xsAreAddresses:
+            ysAvg   = int(statistics.mean(ys))
+            ysStdev = int(statistics.stdev(ys))
+            ax.set_ylim(0,ysAvg+3*ysStdev)
+            ax.set_xticks(
+                range(xtickMin, xtickMax, xtickNiceInterval),
+                [hex(x << xsAddressGranuality) for x in range(xtickMin, xtickMax, xtickNiceInterval)],
+                rotation=90
+            )
+        else:
+            ax.set_xticks(range(xtickMin, xtickMax, xtickNiceInterval))
+        if minxs < 0 and maxxs > 0:
+            ax.axvline(x=0, linestyle="--", color="black", alpha=0.5)
+        ax.grid(axis='y', alpha=0.75)
+        return fig,ax
+
+        
+
     def plotDists(self) -> List:
         figaxs = []
         for LineType, dists in self.dists.items():
-            for dataName, data in dists.items():
-                xsAreAddresses = min(data) >= 0xc0000000
-                xsAddressGranuality = None
-                if xsAreAddresses: # Assume addresses
-                    xsAddressGranuality = min((x & -x).bit_length()-1 for x in data)
-                    xsAddressGranuality = max(xsAddressGranuality, 2)
-                    data = [x>>xsAddressGranuality for x in data]
-                counts = Counter(data)
-                xs = list(counts.keys())
-                ys = list(counts.values())
-                minxs = min(xs)
-                maxxs = max(xs)
-                xtickIntervalOpts  = [100000,50000,20000,10000,5000,2000,1000,100,50,25,20,10,5,2,1] if not xsAreAddresses else [2**x for x in range(32,-1,-1)]
-                xtickIdealCount    = 6 if not xsAreAddresses else 12
-                xtickExactInterval = max(1, (maxxs-minxs)//xtickIdealCount)
-                xtickNiceInterval  = next(i for i in xtickIntervalOpts if i <= xtickExactInterval)
-                xtickMin = minxs-(minxs%xtickNiceInterval)
-                xtickMax = maxxs+xtickNiceInterval
-                fig, ax = plt.subplots(figsize=(8, 6))
-                ax.bar(xs, ys, color='skyblue', width=1)
-                ax.set_title(f"{LineType.__name__}: {dataName}")
-                ax.set_xlabel("Attribute value")
-                ax.set_ylabel("Count")
-                if xsAreAddresses:
-                    ysAvg   = int(statistics.mean(ys))
-                    ysStdev = int(statistics.stdev(ys))
-                    ax.set_ylim(0,ysAvg+3*ysStdev)
-                    ax.set_xticks(
-                        range(xtickMin, xtickMax, xtickNiceInterval),
-                        [hex(x << xsAddressGranuality) for x in range(xtickMin, xtickMax, xtickNiceInterval)],
-                        rotation=90
-                    )
-                else:
-                    ax.set_xticks(range(xtickMin, xtickMax, xtickNiceInterval))
-                if minxs < 0 and maxxs > 0:
-                    ax.axvline(x=0, linestyle="--", color="black", alpha=0.5)
-                ax.grid(axis='y', alpha=0.75)
-                figaxs.append((fig, ax))
+            for dataName in dists:
+                figaxs.append(self.plotDist(LineType, dataName))
         return figaxs

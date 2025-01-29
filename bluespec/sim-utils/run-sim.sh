@@ -58,19 +58,6 @@ if [[ ! -e "$SIM_SCPT" ]]; then
     exit 5
 fi
 
-# Take out a temporary lock to stop spam starting simulations
-LOCK_FD=3
-eval "exec $LOCK_FD> /tmp/ldh35-sims.lock"
-flock $LOCK_FD
-{ sleep 3s && flock -uo $LOCK_FD; } &
-
-# Create the sim and output directories
-mkdir -p $CTX_DIR
-
-# Create the stdout fifo
-rm -f $CTX_DIR/sim_stdout
-mkfifo $CTX_DIR/sim_stdout 
-
 # Wait with a timeout
 # $1: the PID
 # $2: the timeout
@@ -112,43 +99,82 @@ handle_signal () {
     trap - SIGTERM
     echo "Received interrupt for $RUN_NAME/$SIM_NAME simulation!"
     termination_sequence
+    OUT_DIR=$(mktemp -dp "$OUT_ROOT/$RUN_NAME" $SIM_NAME.intXXXXXX)
     copy_logs
     echo "Done with $RUN_NAME/$SIM_NAME"
     exit 0
 }
-trap handle_signal SIGINT
-trap handle_signal SIGTERM
 
-# Start reading output
-gzip > $CTX_DIR/sim_stdout.gz < $CTX_DIR/sim_stdout & STDOUT_PID=$!
+# Actually do simulation
+# Take out a temporary lock to stop spam starting simulations
+LOCK_FD=3
+eval "exec $LOCK_FD> /tmp/ldh35-sims.lock"
+do_simulation () {
+    # Try to lock
+    flock $LOCK_FD
+    { sleep 3s && flock -u $LOCK_FD; } &
 
-# Start CHERI-BGAS
-CHERI_BGAS_PC_RESET_VALUE=c0000000 CHERI_BGAS_DDRB_HEX_INIT="$HEX_FILE" ./cheri-bgas-sim.py -s "$SIM_SCPT" -r $SIM_DIR -t 1 1 > $SIM_DIR/server.log & SIM_PID=$!
-echo "Started $RUN_NAME/$SIM_NAME simulator"
-date | tee $SIM_DIR/time.log
-echo "Sim directory is $SIM_DIR"
+    # Create the sim and output directories
+    mkdir -p $CTX_DIR
+    mkdir -p $OUT_ROOT/$RUN_NAME
 
-# Time how long simulation runs for
-{ time tail -s 1 -f --pid $SIM_PID /dev/null; } 2>> $SIM_DIR/time.log &
+    # Create the stdout fifo
+    rm -f $CTX_DIR/sim_stdout
+    mkfifo $CTX_DIR/sim_stdout 
 
-# Wait for simulation termination (or a signal)
-START_TIME=$(date +%s)
-wait_timeout $STDOUT_PID 1h
-END_TIME=$(date +%s)
+    # Set up traps
+    trap handle_signal SIGINT
+    trap handle_signal SIGTERM
 
-# Simulation stopped, so terminate the server
-echo "Simulation stopped for $RUN_NAME/$SIM_NAME!"
-termination_sequence
+    # Start reading output
+    gzip > $CTX_DIR/sim_stdout.gz < $CTX_DIR/sim_stdout & STDOUT_PID=$!
 
-# Did we run for more than a minute? If not, something probably broke
-if (( $END_TIME - $START_TIME < 60 )); then
-    mkdir -p "$OUT_ROOT/$RUN_NAME"
-    OUT_DIR=$(mktemp -dp "$OUT_ROOT/$RUN_NAME" $SIM_NAME.errXXXXXX)
-    echo "Simulation failure: redirecting logs to '$OUT_DIR'"
-fi
+    # Start CHERI-BGAS
+    CHERI_BGAS_PC_RESET_VALUE=c0000000 CHERI_BGAS_DDRB_HEX_INIT="$HEX_FILE" ./cheri-bgas-sim.py -s "$SIM_SCPT" -r $SIM_DIR -t 1 1 > $SIM_DIR/server.log & SIM_PID=$!
+    echo "Started $RUN_NAME/$SIM_NAME simulator"
+    date | tee $SIM_DIR/time.log
+    echo "Sim directory is $SIM_DIR"
 
-# Copy logs and exit
-copy_logs
-echo "Done with $RUN_NAME/$SIM_NAME"
-exit 0
+    # Time how long simulation runs for
+    { time tail -s 1 -f --pid $SIM_PID /dev/null; } 2>> $SIM_DIR/time.log &
 
+    # Wait for simulation termination (or a signal)
+    START_TIME=$(date +%s)
+    wait_timeout $STDOUT_PID 1h
+    END_TIME=$(date +%s)
+
+    # Simulation stopped
+    echo "Simulation stopped for $RUN_NAME/$SIM_NAME!"
+}
+
+FAILED=0
+while true; do
+    # Do simulation
+    do_simulation
+    termination_sequence
+
+    # Did we run for more than 20 seconds? If not, something probably broke
+    if (( $END_TIME - $START_TIME < 20 )); then
+        # Copy logs to an error directory
+        OUT_DIR_SAVE=$OUT_DIR
+        OUT_DIR=$(mktemp -dp "$OUT_ROOT/$RUN_NAME" $SIM_NAME.failXXXXXX)
+        echo "Simulation failure: redirecting logs to '$OUT_DIR'"
+        copy_logs
+
+        # Retry only once
+        if (( $FAILED )); then
+            echo "Giving up on $RUN_NAME/$SIM_NAME :("
+            break
+        else
+            echo "Retrying $RUN_NAME/$SIM_NAME..."
+            FAILED=1
+            OUT_DIR=$OUT_DIR_SAVE
+            continue
+        fi
+    fi
+
+    # Copy logs and exit
+    copy_logs
+    echo "Done with $RUN_NAME/$SIM_NAME"
+    break
+done
