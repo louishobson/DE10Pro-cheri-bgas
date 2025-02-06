@@ -23,3 +23,9 @@ Therefore record information about the specific capability (i.e. via the bounds 
         - Contain a single capability, so will all be the same size!
         - The offset in the capability accessed will change for each use case
         - Maybe need to incorporate PC in this case
+    - Loading pointers from the stack pointer
+        - Will be the same size within a function
+        - Could we use the stack pointer to create different contexts for the prefetcher??
+            - Recognise different functions?
+
+- Pointer prefetcher only triggering when the cache line contianing the pointer misses. Could be more aggressive here?
