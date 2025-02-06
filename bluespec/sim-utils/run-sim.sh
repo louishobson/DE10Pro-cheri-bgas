@@ -6,12 +6,14 @@
 # $3: hex file
 # $4: permanent output folder - results are saved in $3/$1
 # $5: optional simulator script
+# $6: optional max simulation run time
 
 RUN_NAME="$1"
 SIM_NAME="$2"
 HEX_FILE="$3"
 OUT_ROOT="$4"
 SIM_SCPT="$5"
+MAX_TIME="$6"
 
 SIM_DIR="/tmp/ldh35-sims/$RUN_NAME/$SIM_NAME"
 OUT_DIR="$OUT_ROOT/$RUN_NAME/$SIM_NAME"
@@ -56,6 +58,11 @@ fi
 if [[ ! -e "$SIM_SCPT" ]]; then
     echo "$1: Error: non-existent simulation script '$SIM_SCPT'"
     exit 5
+fi
+
+# Set the maximum run time to a day if not specified
+if [[ -z "$MAX_TIME" ]]; then
+    MAX_TIME="1d"
 fi
 
 # Wait with a timeout
@@ -133,6 +140,7 @@ do_simulation () {
     CHERI_BGAS_PC_RESET_VALUE=c0000000 CHERI_BGAS_DDRB_HEX_INIT="$HEX_FILE" ./cheri-bgas-sim.py -s "$SIM_SCPT" -r $SIM_DIR -t 1 1 > $SIM_DIR/server.log & SIM_PID=$!
     echo "Started $RUN_NAME/$SIM_NAME simulator"
     date | tee $SIM_DIR/time.log
+    echo "Maximum execution time set to $MAX_TIME"
     echo "Sim directory is $SIM_DIR"
 
     # Time how long simulation runs for
@@ -140,7 +148,7 @@ do_simulation () {
 
     # Wait for simulation termination (or a signal)
     START_TIME=$(date +%s)
-    wait_timeout $STDOUT_PID 1h
+    wait_timeout $STDOUT_PID $MAX_TIME
     END_TIME=$(date +%s)
 
     # Simulation stopped

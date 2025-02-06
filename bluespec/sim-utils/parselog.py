@@ -75,6 +75,9 @@ class LogLine:
             self.warningReason = reason
         return pred
 
+    def preProcess(self, before: Iterable["LogLine"], after: Iterable["LogLine"]) -> None:
+        pass
+
     def postProcess(self, before: Iterable["LogLine"], after: Iterable["LogLine"]) -> None:
         pass
 
@@ -106,10 +109,20 @@ class TimestampedLine(LogLine):
         reData = TimestampedLine.dataRegex(line)
         self.timestamp = int(reData[0])
 
+    def preProcess(self, before: Iterable[LogLine], after: Iterable[LogLine]) -> None:
+        super().preProcess(before, after)
+        
+        # Fix any timestamps that appear to have used $time instead of cur_cycles
+        for ll in reversed(before):
+            if isinstance(ll, TimestampedLine):
+                if self.timestamp >= ll.timestamp * 10 and self.timestamp % 10 == 0:
+                    self.timestamp = self.timestamp // 10
+                break
+
     def postProcess(self, before: Iterable[LogLine], after: Iterable[LogLine]) -> None:
         super().postProcess(before, after)
         if self.discard: return
-    
+
         # Check that timestamps are monotonically increasing.
         # It is a pretty fundamental problem if this is not the case, so raise an error.
         for ll in reversed(before):
@@ -134,11 +147,23 @@ class RVFILine(TimestampedLine):
         self.instr     = int(reData[2], 0)
         self.pcwd      = int(reData[3], 0)
         self.trap      = bool(reData[4] == "1")
+        self.prevRvfiLine = None
+        self.nextRvfiLine = None
 
     def getDistributions(self):
         return {} if self.discard else {
             "pc": self.pc
         }
+    
+    def postProcess(self, before: Iterable[LogLine], after: Iterable[LogLine]) -> None:
+        super().postProcess(before, after)
+        if self.discard: return
+
+        for ll in after:
+            if isinstance(ll, RVFILine):
+                self.nextRvfiLine = ll
+                ll.prevRvfiLine = self
+                break
 
 
 
@@ -153,16 +178,21 @@ class NonRVFILine(TimestampedLine):
 
         # Find the previous RVFI by searching backwards
         # Failing that, search forwards
-        self.prev_rvfi = None
+        self.prevRvfiLine = None
+        self.nextRvfiLine = None
+        self.rvfi = None
         for ll in reversed(before):
             if isinstance(ll, RVFILine):
-                self.prev_rvfi = ll.rvfi
-                return
+                self.prevRvfiLine = ll
+                self.rvfi = ll.rvfi
+                break
         for ll in after:
             if isinstance(ll, RVFILine):
-                self.prev_rvfi = ll.rvfi - 1
-                return
-        self.discardIf(self.prev_rvfi is None, "no previous RVFI")
+                self.nextRvfiLine = ll
+                if self.rvfi is None:
+                    self.rvfi = ll.rvfi - 1
+                break
+        self.discardIf(self.rvfi is None, "no previous RVFI")
 
         
 
@@ -191,6 +221,7 @@ class CRqCreationLine(NonRVFILine):
         self.mshrUsed     = int(reData[6])
         self.totalMshr    = int(reData[7])
         self.isPrefetch   = int(reData[8] == "1")
+        self.isDemand     = not self.isPrefetch
         self.isRetry      = int(reData[9] == "1")
         self.reqCs        = str(reData[10])
         self.op           = str(reData[11])
@@ -318,6 +349,8 @@ class CRqCreationLine(NonRVFILine):
                 rt["latePrefetchHowMuchEarlierToHit"] = self.cRqHitLine.timestamp - self.timestamp - self.latePrefetchRelativeCycles
         if not self.isPrefetch:
             rt["demandCapSize"] = self.boundsLength
+        if not self.isPrefetch and self.cRqHitLine is not None and self.cRqHitLine.nCap > 0:
+            rt["demandHasPtrsCapSize"] = self.boundsLength
         return rt
 
 
@@ -326,7 +359,7 @@ class CRqCreationLine(NonRVFILine):
 class CRqHitLine(NonRVFILine):
 
     _TEST_REGEX = r"^\d+ L1D cRq hit"
-    _DATA_REGEX = r"^\d+ L1D cRq hit: mshr: (\d+), addr: (0x[0-9a-f]+), cRq is prefetch: ([01]), wasMiss: ([01]), pipeCs: ([ITSEM]), reqCs: ([ITSEM]), saveCs: ([ITSEM]), op: (Ld|St|Lr|Sc|Amo), nCap: (\d)"
+    _DATA_REGEX = r"^\d+ L1D cRq hit: mshr: (\d+), addr: (0x[0-9a-f]+), cRq is prefetch: ([01]), wasMiss: ([01]), pipeCs: ([ITSEM]), reqCs: ([ITSEM]), saveCs: ([ITSEM]), op: (Ld|St|Lr|Sc|Amo), nCap: (\d), data: (.*)"
 
     def __init__(self, line: str) -> None:
         super().__init__(line)
@@ -341,6 +374,7 @@ class CRqHitLine(NonRVFILine):
         self.saveCs        = str(reData[6])
         self.op            = str(reData[7])
         self.nCap          = int(reData[8])
+        self.lineData      = str(reData[9])
         # Will be set by a prior CRqCreationLine is this is an immediate hit,
         # or a CRqMissLine/CRqDependencyLine otherwise.
         self.cRqCreationLine = None
@@ -395,6 +429,8 @@ class CRqHitLine(NonRVFILine):
         rt = {}
         if not self.cRqIsPrefetch:
             rt["demandAddr"] = self.addr
+        if self.cRqCreationLine is not None and not self.cRqCreationLine.isPrefetch:
+            rt["demandNCap"] = self.nCap
         if self.wasMiss:
             rt["missNCap"] = self.nCap
         if self.wasMiss and self.evictionLine is not None:
@@ -544,7 +580,7 @@ class CRqDependencyLine(NonRVFILine):
         # Will be set by a prior CRqCreationLine
         self.cRqCreationLine = None
 
-    def postProcess(self, before, after):
+    def postProcess(self, before: Iterable[LogLine], after: Iterable[LogLine]) -> None:
         super().postProcess(before, after)
         if self.discard: return
 
@@ -620,7 +656,116 @@ class PRqLine(NonRVFILine):
         self.overtakeCRq = bool(reData[2] == "1")
         self.ramCs       = str(reData[3])
         self.reqCs       = str(reData[4])
+
+
+
+@NonRVFILine.createSubLineType
+class CapPtrCacheDataArrivalLine(NonRVFILine):
+    
+    _TEST_REGEX = r"^\d+ Prefetcher reportCacheDataArrival wasMiss"
+    _DATA_REGEX = r"^\d+ Prefetcher reportCacheDataArrival wasMiss ([01]) wasPrefetch ([01]) (.*)" 
         
+    def __init__(self, line):
+        super().__init__(line)
+        reData = CapPtrCacheDataArrivalLine.dataRegex(line)
+        self.wasMiss     = bool(reData[0] == "1")
+        self.wasPrefetch = bool(reData[1] == "1")
+        self.lineData    = str(reData[2])
+
+
+
+@NonRVFILine.createSubLineType
+class CapPtrDataLookupPTableLine(NonRVFILine):
+    
+    _TEST_REGEX = r"^\d+ Prefetcher reportDataArrival.*caps for prefetch lookups"
+    _DATA_REGEX = r"^\d+ Prefetcher reportDataArrival addr ([0-9a-f]+) prefetech ([01]) adding (\d+) caps for prefetch lookups \(clinestartoffset ([0-9a-f]+)\)(.*)" 
+        
+    def __init__(self, line):
+        super().__init__(line)
+        reData = CapPtrDataLookupPTableLine.dataRegex(line)
+        self.addr             = int(reData[0], 16)
+        self.lineAddr         = self.addr >> 6
+        self.prefetch         = bool(reData[1] == "1")
+        self.nCap             = int(reData[2])
+        self.clineStartOffset = int(reData[3], 16)
+        self.capData          = str(reData[4])
+
+
+
+@NonRVFILine.createSubLineType
+class CapPtrDataAddTTableEntryLine(NonRVFILine):
+    
+    _TEST_REGEX = r"^\d+ Prefetcher reportDataArrival adding training table entry!"
+    _DATA_REGEX = r"^\d+ Prefetcher reportDataArrival adding training table entry! access addr ([0-9a-f]+) boundslen \s*(\d+) offset ([0-9a-f]+) prefetch ([01]) pcHash ([0-9a-f]+) ptraddress ([0-9a-f]+) ptrbase ([0-9a-f]+) ptrlength \s*(\d+) tit ([0-9a-f]+) pit ([0-9a-f]+)" 
+        
+    STACK_SIZE = 0xc0400000
+    MAX_TIME_TO_LOOK_FOR_ACCESSES = 2000
+
+    def __init__(self, line):
+        super().__init__(line)
+        reData = CapPtrDataAddTTableEntryLine.dataRegex(line)
+        self.addr         = int(reData[0], 16)
+        self.lineAddr     = self.addr >> 6
+        self.boundsLength = int(reData[1])
+        self.boundsOffset = int(reData[2], 16)
+        self.pcHash       = int(reData[3], 16)
+        self.prefetch     = bool(reData[4] == "1")
+        self.ptrAddress   = int(reData[5], 16)
+        self.ptrBase      = int(reData[6], 16)
+        self.ptrLength    = int(reData[7])
+        self.tit          = int(reData[8], 16)
+        self.pit          = int(reData[9], 16)
+        # Set by self.postProcess
+        self.offsetsAccessed = set()
+        self.cacheAlignedOffsetsAccessed = set()
+        self.ptrToStackOrAlmighty = self.ptrLength >= self.STACK_SIZE and self.ptrBase == 0
+
+    def postProcess(self, before: Iterable[LogLine], after: Iterable[LogLine]) -> None:
+        super().postProcess(before, after)
+        if self.discard: return
+
+        for ll in after:
+            if isinstance(ll, TimestampedLine):
+                if isinstance(ll, CRqCreationLine) and ll.isDemand and ll.boundsBase == self.ptrBase:
+                    self.offsetsAccessed.add(ll.boundsOffset)
+                    self.cacheAlignedOffsetsAccessed.add(ll.boundsOffset >> 6)
+                if ll.timestamp >= self.timestamp + self.MAX_TIME_TO_LOOK_FOR_ACCESSES:
+                    break
+
+    def getTotals(self):
+        rt = super().getTotals()
+        return rt if self.discard else rt | {
+            "numNonStack"                : int(not self.ptrToStackOrAlmighty),
+        }
+
+    def getDistributions(self):
+        rt = super().getDistributions()
+        return rt if self.discard else rt | {
+            "boundsLength"               : self.boundsLength,
+            "ptrLength"                  : self.boundsLength,
+            "numOffsetsAccessed"         : len(self.offsetsAccessed),
+            "numNonStackOffsetsAccessed" : len(self.offsetsAccessed) if not self.ptrToStackOrAlmighty else 0,
+            "numNonStackCacheAlignedOffsetsAccessed" : len(self.cacheAlignedOffsetsAccessed) if not self.ptrToStackOrAlmighty else 0,
+        }
+
+
+
+@NonRVFILine.createSubLineType
+class CapPtrPTUpgradeLine(NonRVFILine):
+    
+    _TEST_REGEX = r"^\d+ Prefetcher processPtReadUpgrade"
+    _DATA_REGEX = r"^\d+ Prefetcher processPtReadUpgrade (hit|miss) pit ([0-9a-f]+) set lastUsedOffset \s*(\d+) to \s*(\d+), changed state to (.*)" 
+        
+    def __init__(self, line):
+        super().__init__(line)
+        reData = CapPtrPTUpgradeLine.dataRegex(line)
+        self.hit        = reData[0] == "hit"
+        self.miss       = reData[0] == "miss"
+        self.pit        = int(reData[1], 16)
+        self.lastOffset = int(reData[2])
+        self.newOffset  = int(reData[3])
+        self.state      = reData[4]
+
 
 
 class LogParser:
@@ -670,7 +815,7 @@ class LogParser:
             for line in self.niceReadLines(fp):
                 # Remove whitespace from start end end of the log line before decucing its type
                 line = line.strip()
-                LineType = RootLogLine.deduceLineType(line)
+                LineType = RootLogLine.deduceLineType(line)              
                 # Check lineTypesToPrune (continue on match)
                 if LineType in lineTypesToPrune:
                     continue
@@ -682,7 +827,10 @@ class LogParser:
                     skipLines -= 1
                     continue
                 # Instantiate the line type
-                logLine = LineType(line)
+                try:
+                    logLine = LineType(line)
+                except Exception as e:
+                    raise type(e)(f"Failed to load '{log}': {e}")
                 # Check if we need to skip this line because we haven't started
                 started = started or startWhen(logLine)
                 if not started: continue
@@ -703,18 +851,28 @@ class LogParser:
             print(f"\t{(LineType.__name__+':').ljust(maxLineNameLength+1)} {count} instances")
 
         # Post-process lines
-        before = deque()
-        after  = self.logLines
-        while len(after) != 0:
-            current = after.popleft()
-            current.postProcess(before, after)
-            before.append(current)
-            if(len(before) % 10000 == 0):
-                print(f"\rPost-processed {len(before)} log lines", end="")
-        del after
-        self.logLines = before
-        print(f"\rPost-processed {len(self.logLines)} log lines")
+        for process in ["Pre", "Post"]:
+            before = deque()
+            after  = self.logLines
+            while len(after) != 0:
+                current = after.popleft()
+                if process == "Pre":
+                    current.preProcess(before, after)
+                else:
+                    current.postProcess(before, after)
+                before.append(current)
+                if(len(before) % 10000 == 0):
+                    print(f"\r{process}-processed {len(before)} log lines", end="")
+            del after
+            self.logLines = before
+            print(f"\r{process}-processed {len(self.logLines)} log lines")
 
+        # Calculate totals and dists
+        self.recalculateTotalsAndDists()
+
+
+
+    def recalculateTotalsAndDists(self):
         # Calculate totals and distributions
         self.totals = {}
         self.dists  = {}
@@ -732,6 +890,7 @@ class LogParser:
         print(f"\rAccumulated totals and dists for {len(self.logLines)} log lines")
             
         
+
     def printTotals(self) -> None:
         for LineType, totals in self.totals.items():
             if len(totals) != 0:
@@ -740,15 +899,19 @@ class LogParser:
                     print(f"\t{k}: {v}")
                 print()
 
+
+
     def plotDist(
         self,
         LineType: type[LogLine],
         distName: str,
-        figax = None
+        figax = None,
+        xsAreAddresses = None
     ):
         fig, ax = figax if figax is not None else plt.subplots(figsize=(8, 6))
         data = self.dists[LineType][distName]
-        xsAreAddresses = min(data) >= 0xc0000000
+        if xsAreAddresses is None:
+            xsAreAddresses = min(data) >= 0xc0000000
         xsAddressGranuality = None
         if xsAreAddresses: # Assume addresses
             xsAddressGranuality = min((x & -x).bit_length()-1 for x in data)
@@ -759,7 +922,7 @@ class LogParser:
         ys = list(counts.values())
         minxs = min(xs)
         maxxs = max(xs)
-        xtickIntervalOpts  = [100000,50000,20000,10000,5000,2000,1000,100,50,25,20,10,5,2,1] if not xsAreAddresses else [2**x for x in range(32,-1,-1)]
+        xtickIntervalOpts  = [10**i for i in range(14, 4, -1)] + [50000,20000,10000,5000,2000,1000,100,50,25,20,10,5,2,1] if not xsAreAddresses else [2**x for x in range(32,-1,-1)]
         xtickIdealCount    = 6 if not xsAreAddresses else 12
         xtickExactInterval = max(1, (maxxs-minxs)//xtickIdealCount)
         xtickNiceInterval  = next(i for i in xtickIntervalOpts if i <= xtickExactInterval)

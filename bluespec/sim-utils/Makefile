@@ -4,47 +4,46 @@ mrproper: mrproper-cheri-bgas-fuse-devfs mrproper-forever-splice mrproper-jtagvp
 
 ####
 
+BIN ?= default
 RUN ?= $(shell basename $(shell mktemp -udp $(CURDIR)/results run.XXXXXX))
+TOUT ?= 
 
 MIBENCH_DIR := /local/scratch/ldh35/mibench2
 #MIBENCH_NAMES := $(notdir $(wildcard $(MIBENCH_DIR)/*))
 # These ones actually work
 MIBENCH_NAMES := adpcm_decode adpcm_encode aes basicmath crc blowfish dijkstra fft picojpeg qsort rc4
 
-gen-mibench-hex: $(MIBENCH_NAMES:%=gen-mibench-hex-%) ;
+genhex: $(MIBENCH_NAMES:%=gen-mibench-hex-%) ;
 
-gen-mibench-hex-%:
+genhex.mibench.%:
 	elfmanip.py -o $(MIBENCH_DIR)/$*/mem.hex -s 0xc0000000 -i 0x40000000 $(MIBENCH_DIR)/$*/$*.elf to-hex
-
-run-mibench: $(MIBENCH_NAMES:%=run-mibench-%) ;
-
-run-mibench-%:
-	./run-sim.sh $(RUN) $* "$(MIBENCH_DIR)/$*/mem.hex" $(CURDIR)/results
 
 ####
 
 PREFETCHER_NAMES := stride stride_adaptive all_in_cap cheri_stride cap_spatial cap_ptr cap_spatial_ptr
-PREFETCHER_LOCS  := l1 l1ll
+PREFETCHER_LOCS  := l1 # l1ll
 
-compile-prefetcher-location: 
-	$(MAKE) compile-prefetcher-location-none-none $(foreach pref, $(PREFETCHER_NAMES), $(addprefix compile-prefetcher-location-${pref}-, $(PREFETCHER_LOCS)))
+compile.prefetcher-location: 
+	$(MAKE) compile-prefetcher-location-none-none $(foreach pref, $(PREFETCHER_NAMES), $(addprefix compile.prefetcher-location.${pref}-, $(PREFETCHER_LOCS)))
 
-compile-prefetcher-location-%: $(CURDIR)/bin/%/sim_CHERI_BGAS ;
+compile.prefetcher-location.%: $(CURDIR)/bin/$(BIN)/%/sim_CHERI_BGAS ;
 
-.PRECIOUS: $(CURDIR)/bin/%/sim_CHERI_BGAS
-$(CURDIR)/bin/%/sim_CHERI_BGAS:
+.PRECIOUS: $(CURDIR)/bin/$(BIN)/%/sim_CHERI_BGAS
+$(CURDIR)/bin/$(BIN)/%/sim_CHERI_BGAS:
 	touch $(CURDIR)/../Toooba/src_Core/RISCY_OOO/coherence/src/prefetcher/Prefetcher_top.bsv
 	DATA_PREFETCHER_TYPE=$(shell echo $(word 1,$(subst -, ,$*)) | tr '[:lower:]' '[:upper:]') \
 	DATA_PREFETCHER_LOCATION=$(shell echo $(word 2,$(subst -, ,$*)) | tr '[:lower:]' '[:upper:]') \
 		$(MAKE) -j12 -C ../ bluesim
-	mkdir -p $(CURDIR)/bin/$*
-	cp $(CURDIR)/../build/simdir/sim_CHERI_BGAS* $(CURDIR)/bin/$*/
+	mkdir -p $(CURDIR)/bin/$(BIN)/$*
+	cp $(CURDIR)/../build/simdir/sim_CHERI_BGAS* $(CURDIR)/bin/$(BIN)/$*/
 
-run-prefetcher-mibench: $(addprefix run-prefetcher-mibench-none-none-, $(MIBENCH_NAMES)) $(foreach pref_type, $(PREFETCHER_NAMES), $(foreach pref_loc, $(PREFETCHER_LOCS), $(addprefix run-prefetcher-mibench-${pref_type}-${pref_loc}-, $(MIBENCH_NAMES)))) ;
+run: $(addprefix run.prefetcher-location-mibench.none-none-, $(MIBENCH_NAMES)) $(foreach pref_type, $(PREFETCHER_NAMES), $(foreach pref_loc, $(PREFETCHER_LOCS), $(addprefix run.prefetcher-location-mibench.${pref_type}-${pref_loc}-, $(MIBENCH_NAMES)))) ;
 
-run-prefetcher-mibench-%:
+run.prefetcher-location.%: $(addprefix run.prefetcher-location-mibench.%-, $(MIBENCH_NAMES)) ;
+
+run.prefetcher-location-mibench.%:
 	PREFETCHER_TYPE=$(word 1,$(subst -, ,$*)) PREFETCHER_LOCATION=$(word 2,$(subst -, ,$*)) BENCHMARK=$(word 3,$(subst -, ,$*)) ;\
-	./run-sim.sh $(RUN)-$$PREFETCHER_TYPE-$$PREFETCHER_LOCATION $$BENCHMARK $(MIBENCH_DIR)/$$BENCHMARK/mem.hex $(CURDIR)/results $(CURDIR)/bin/$$PREFETCHER_TYPE-$$PREFETCHER_LOCATION/sim_CHERI_BGAS
+	./run-sim.sh $(RUN)-$$PREFETCHER_TYPE-$$PREFETCHER_LOCATION $$BENCHMARK $(MIBENCH_DIR)/$$BENCHMARK/mem.hex $(CURDIR)/results $(CURDIR)/bin/$(BIN)/$$PREFETCHER_TYPE-$$PREFETCHER_LOCATION/sim_CHERI_BGAS $(TOUT)
 
 ####
 
