@@ -137,7 +137,7 @@ class TimestampedLine(LogLine):
 class RVFILine(TimestampedLine):
     
     _TEST_REGEX = r"^\d+: RVFI Order"
-    _DATA_REGEX = r"^\d+: RVFI Order: \s*(\d+), PC: (0x[0-9a-f]+), I: (0x[0-9a-f]+), PCWD: (0x[0-9a-f]+), Trap: ([01])"
+    _DATA_REGEX = r"^\d+: RVFI Order: \s*(\d+), PC: (0x[0-9a-f]+), I: (0x[0-9a-f]+), PCWD: (0x[0-9a-f]+), Trap: ([01]), RD: \s*(\d+)((?:, RWD: 0x[0-9a-f]+)?)((?:, MA: 0x[0-9a-f]+)?)((?:, MWD: 0x[0-9a-f]+)?)((?:, MRM: 0b[01]+)?)((?:, MWM: 0b[01]+)?)"
 
     def __init__(self, line: str) -> None:
         super().__init__(line)
@@ -147,6 +147,13 @@ class RVFILine(TimestampedLine):
         self.instr     = int(reData[2], 0)
         self.pcwd      = int(reData[3], 0)
         self.trap      = bool(reData[4] == "1")
+        self.rd        = int(reData[5])
+        self.rwd       = int(reData[6].split(' ')[-1], 0) if reData[6] else None
+        self.ma        = int(reData[7].split(' ')[-1], 0) if reData[7] else None
+        self.mwd       = int(reData[8].split(' ')[-1], 0) if reData[8] else None
+        self.mrm       = int(reData[9].split(' ')[-1], 0) if reData[9] else None
+        self.mwm       = int(reData[10].split(' ')[-1], 0) if reData[10] else None
+
         self.prevRvfiLine = None
         self.nextRvfiLine = None
 
@@ -349,6 +356,8 @@ class CRqCreationLine(NonRVFILine):
                 rt["latePrefetchHowMuchEarlierToHit"] = self.cRqHitLine.timestamp - self.timestamp - self.latePrefetchRelativeCycles
         if not self.isPrefetch:
             rt["demandCapSize"] = self.boundsLength
+        if self.isPrefetch:
+            rt["prefetchCapSize"] = self.boundsLength
         if not self.isPrefetch and self.cRqHitLine is not None and self.cRqHitLine.nCap > 0:
             rt["demandHasPtrsCapSize"] = self.boundsLength
         return rt
@@ -383,6 +392,8 @@ class CRqHitLine(NonRVFILine):
         # Set in self.postProcess
         self.evictionLine   = None
         self.evictionCycles = None
+        # The data being loaded (if a load)
+        self.hitDataLine = None
 
     def postProcess(self, before, after):
         super().postProcess(before, after)
@@ -423,6 +434,20 @@ class CRqHitLine(NonRVFILine):
                         self.cRqCreationLine.disruptedCache   = True
                         self.cRqCreationLine.disruptionCycles = ll.timestamp - self.timestamp
 
+        # Find the data being loaded. Discard if not found.
+        if self.op == "Ld":
+            for ll in after:
+                if isinstance(ll, CRqHitDataLine):
+                    self.hitDataLine = ll
+                    break
+        if self.discardIf(self.hitDataLine == None, "no data for load hit"): return
+        
+    def getTotals(self):
+        rt = super().getTotals()
+        return rt if self.discard else rt | {
+            "demandAccessedCap": (self.cRqCreationLine is not None and not self.cRqCreationLine.isPrefetch and self.addr % 16 == 0 and self.hitDataLine.tag and self.cRqCreationLine.boundsLength >= 16)
+        }
+
     def getDistributions(self):
         if self.discard:
             return {}
@@ -433,9 +458,28 @@ class CRqHitLine(NonRVFILine):
             rt["demandNCap"] = self.nCap
         if self.wasMiss:
             rt["missNCap"] = self.nCap
+        if self.cRqCreationLine is not None and not self.cRqCreationLine.isPrefetch and self.addr % 16 == 0 and self.hitDataLine.tag:
+            rt["demandCapSizeForCapLoad"] = self.cRqCreationLine.boundsLength
+        if self.cRqCreationLine is not None and not self.cRqCreationLine.isPrefetch and self.addr % 16 == 0 and self.hitDataLine.tag and self.cRqCreationLine.boundsLength >= 16:
+            rt["demandCapSizeForSensibleCapLoad"] = self.cRqCreationLine.boundsLength
         if self.wasMiss and self.evictionLine is not None:
             rt["evictionCycles"] = self.evictionLine.timestamp - self.timestamp
         return rt
+
+
+
+@NonRVFILine.createSubLineType
+class CRqHitDataLine(NonRVFILine):
+
+    _TEST_REGEX = r"^\d+ L1Bank hit data:"
+    _DATA_REGEX = r"^\d+ L1Bank hit data: TaggedData { tag: (True|False), data: <V 'h([0-9a-f]+) 'h([0-9a-f]+)  > }"
+
+    def __init__(self, line: str):
+        super().__init__(line)
+        reData = CRqHitDataLine.dataRegex(line)
+        self.tag           = bool(reData[0] == "True")
+        self.data0         = int(reData[1], 16)
+        self.data1         = int(reData[2], 16)
     
 
 
@@ -540,7 +584,7 @@ class CRqMissLine(NonRVFILine):
         rt = super().getTotals()
         if self.discard:
             return rt
-        if self.ramCs == "I" or self.oldLineAddr == self.newLineAddr:
+        if self.oldLineAddr == self.newLineAddr:
             rt[f"{self.ramCs} --({'Pr' if self.cRqIsPrefetch else self.op})--> {self.reqCs}"] = 1
         else:
             rt[f"{self.ramCs} --/{'Pr' if self.cRqIsPrefetch else self.op}/--> {self.reqCs}"] = 1
@@ -663,14 +707,82 @@ class PRqLine(NonRVFILine):
 class CapPtrCacheDataArrivalLine(NonRVFILine):
     
     _TEST_REGEX = r"^\d+ Prefetcher reportCacheDataArrival wasMiss"
-    _DATA_REGEX = r"^\d+ Prefetcher reportCacheDataArrival wasMiss ([01]) wasPrefetch ([01]) (.*)" 
+    _DATA_REGEX = r"^\d+ Prefetcher reportCacheDataArrival wasMiss ([01]) wasPrefetch ([01]) access addr ([0-9a-f]+) boundslen \s*(\d+) offset ([0-9a-f]+) pcHash ([0-9a-f]+) (.*)" 
         
+    # We expect that after 10 cycles (probably way less), CapPtr should have sent all prefetches to the TLB
+    MAX_CAN_PREFETCH_TIME = 10
+
     def __init__(self, line):
         super().__init__(line)
         reData = CapPtrCacheDataArrivalLine.dataRegex(line)
-        self.wasMiss     = bool(reData[0] == "1")
-        self.wasPrefetch = bool(reData[1] == "1")
-        self.lineData    = str(reData[2])
+        self.wasMiss      = bool(reData[0] == "1")
+        self.wasPrefetch  = bool(reData[1] == "1")
+        self.addr         = int(reData[2], 16)
+        self.lineAddr     = self.addr >> 6
+        self.boundsLength = int(reData[3])
+        self.boundsOffset = int(reData[4], 16)
+        self.pcHash       = int(reData[5], 16)
+        self.lineData     = str(reData[6])
+        # How many actual prefetches it caused and how long that took
+        self.nPrefetches = 0
+        self.tlbRespLatency    = []
+        self.prefetchLatencies = []
+
+    def postProcess(self, before: Iterable[LogLine], after: Iterable[LogLine]) -> None:
+        super().postProcess(before, after)
+        if self.discard: return
+
+        possiblePrefetches = False
+        stopFindingNew = False
+        tlbRespToFind = 0
+        cRqReqToFind  = 0
+        for ll in after:
+            if isinstance(ll, TimestampedLine):
+                # If there is prefetching opportunity, then we will see CapPtrDataLookupPTableLine
+                # in the same cycle.
+                if ll.timestamp > self.timestamp and not possiblePrefetches:
+                    break
+                # We have found the last prefetch creation
+                if (stopFindingNew or ll.timestamp > self.timestamp + self.MAX_CAN_PREFETCH_TIME) and tlbRespToFind == 0 and cRqReqToFind == 0:
+                    break
+                # When we see a CapPtrDataLookupPTableLine, we know to look out for CapPtrCanPrefetchLine.
+                if isinstance(ll, CapPtrDataLookupPTableLine):
+                    if possiblePrefetches:
+                        stopFindingNew = True
+                    else:
+                        possiblePrefetches = True
+                        if self.discardIf(ll.addr != self.addr, "Malformed PTable lookup"): return
+                        if ll.nCap == 0:
+                            break
+                # There _should_ be a TLB response to find after seeing this.
+                if isinstance(ll, CapPtrCanPrefetchLine) and possiblePrefetches and not stopFindingNew:
+                    tlbRespToFind += 1
+                # Give up if there is incorrect TLB speculation, as it might cause some requests to be lost.
+                # This case happens but is uncommon.
+                if isinstance(ll, DTLBIncorrectSpeculationLine) and possiblePrefetches:
+                    tlbRespToFind = 0
+                    stopFindingNew = True
+                # We have found a TLB response we are looking for
+                if isinstance(ll, CapPtrTLBResponse) and tlbRespToFind and not hasattr(ll, "_attributedToCacheDataArrival"):
+                    ll._attributedToCacheDataArrival = True
+                    cRqReqToFind += 1
+                    tlbRespToFind -= 1
+                    self.tlbRespLatency.append(ll.timestamp - self.timestamp)
+                # We have found a prefetch (that we haven't attributed to previous data arrival)
+                if isinstance(ll, CRqCreationLine) and ll.isPrefetch and cRqReqToFind and not hasattr(ll, "_attributedToCacheDataArrival"):
+                    ll._attributedToCacheDataArrival = True
+                    self.nPrefetches += 1
+                    cRqReqToFind -= 1
+                    self.prefetchLatencies.append(ll.timestamp - self.timestamp)
+
+    def getDistributions(self):
+        rt = super().getDistributions()
+        if self.discard:
+            return rt
+        rt["triggerCapSize"] = ([self.boundsLength]*self.nPrefetches)
+        rt["tlbRespLatency"] = self.tlbRespLatency
+        rt["prefetchLatency"] = self.prefetchLatencies
+        return rt
 
 
 
@@ -693,12 +805,52 @@ class CapPtrDataLookupPTableLine(NonRVFILine):
 
 
 @NonRVFILine.createSubLineType
+class CapPtrCanPrefetchLine(NonRVFILine):
+    
+    _TEST_REGEX = r"^\d+ Prefetcher processPtReadForLookup canprefetch"
+
+
+
+@NonRVFILine.createSubLineType
+class CapPtrOutOfBoundsLine(NonRVFILine):
+    
+    _TEST_REGEX = r"^\d+ Prefetcher processPtReadForLookup [0-9a-f]+ out of bounds"
+
+
+
+@NonRVFILine.createSubLineType
+class DTLBIncorrectSpeculationLine(NonRVFILine):
+    
+    _TEST_REGEX = r"^\d+ Dtlb incorrectSpeculation killall"
+
+
+
+@NonRVFILine.createSubLineType
+class CapPtrTLBResponse(NonRVFILine):
+    
+    _TEST_REGEX = r"^\d+ Prefetcher got TLB response"
+    _DATA_REGEX = r"^\d+ Prefetcher got TLB response: DTlbRespToPrefetcher { paddr: 'h([0-9a-f]+), haveException: (True|False)"
+
+    def __init__(self, line):
+        super().__init__(line)
+        reData = CapPtrTLBResponse.dataRegex(line)
+        self.pAddr        = int(reData[0], 16)
+        self.tlbException = bool(reData[1] == "True")
+
+    def getTotals(self):
+        rt = super().getTotals()
+        return rt if self.discard else rt | {
+            "badResp": self.tlbException or self.pAddr == 0
+        }
+
+
+
+@NonRVFILine.createSubLineType
 class CapPtrDataAddTTableEntryLine(NonRVFILine):
     
     _TEST_REGEX = r"^\d+ Prefetcher reportDataArrival adding training table entry!"
     _DATA_REGEX = r"^\d+ Prefetcher reportDataArrival adding training table entry! access addr ([0-9a-f]+) boundslen \s*(\d+) offset ([0-9a-f]+) prefetch ([01]) pcHash ([0-9a-f]+) ptraddress ([0-9a-f]+) ptrbase ([0-9a-f]+) ptrlength \s*(\d+) tit ([0-9a-f]+) pit ([0-9a-f]+)" 
         
-    STACK_SIZE = 0xc0400000
     MAX_TIME_TO_LOOK_FOR_ACCESSES = 2000
 
     def __init__(self, line):
@@ -715,10 +867,19 @@ class CapPtrDataAddTTableEntryLine(NonRVFILine):
         self.ptrLength    = int(reData[7])
         self.tit          = int(reData[8], 16)
         self.pit          = int(reData[9], 16)
+
+        # Recognise bad pointers to train on
+        self.ptrToStackOrAlmighty = self.ptrBase == 0
+        self.ptrTooSmall = self.ptrLength < 16
+        self.badPtr = self.ptrToStackOrAlmighty or self.ptrTooSmall
+
         # Set by self.postProcess
-        self.offsetsAccessed = set()
-        self.cacheAlignedOffsetsAccessed = set()
-        self.ptrToStackOrAlmighty = self.ptrLength >= self.STACK_SIZE and self.ptrBase == 0
+        self.offsetsAccessedLd = set()
+        self.cacheOffsetsAccessedLd = set()
+        self.offsetsAccessedSt = set()
+        self.cacheOffsetsAccessedSt = set()
+        self.timeBeforeFirstAccess = None
+        
 
     def postProcess(self, before: Iterable[LogLine], after: Iterable[LogLine]) -> None:
         super().postProcess(before, after)
@@ -726,27 +887,43 @@ class CapPtrDataAddTTableEntryLine(NonRVFILine):
 
         for ll in after:
             if isinstance(ll, TimestampedLine):
-                if isinstance(ll, CRqCreationLine) and ll.isDemand and ll.boundsBase == self.ptrBase:
-                    self.offsetsAccessed.add(ll.boundsOffset)
-                    self.cacheAlignedOffsetsAccessed.add(ll.boundsOffset >> 6)
+                if isinstance(ll, CRqCreationLine) and ll.isDemand and ll.boundsBase == self.ptrBase and ll.boundsLength == self.ptrLength:
+                    if ll.op == "Ld":
+                        self.offsetsAccessedLd.add(ll.boundsOffset)
+                        self.cacheOffsetsAccessedLd.add(ll.boundsOffset >> 6)
+                    if ll.op == "St":
+                        self.offsetsAccessedSt.add(ll.boundsOffset)
+                        self.cacheOffsetsAccessedSt.add(ll.boundsOffset >> 6)
+                    if not self.timeBeforeFirstAccess:
+                        self.timeBeforeFirstAccess = ll.timestamp - self.timestamp
                 if ll.timestamp >= self.timestamp + self.MAX_TIME_TO_LOOK_FOR_ACCESSES:
                     break
 
     def getTotals(self):
         rt = super().getTotals()
         return rt if self.discard else rt | {
-            "numNonStack"                : int(not self.ptrToStackOrAlmighty),
+            "badPtr"      : int(self.badPtr),
+            "goodPtr"     : int(not self.badPtr),
+            "ptrToStack"  : int(self.ptrToStackOrAlmighty),
+            "ptrTooSmall" : int(self.ptrTooSmall)
         }
 
     def getDistributions(self):
         rt = super().getDistributions()
-        return rt if self.discard else rt | {
-            "boundsLength"               : self.boundsLength,
-            "ptrLength"                  : self.boundsLength,
-            "numOffsetsAccessed"         : len(self.offsetsAccessed),
-            "numNonStackOffsetsAccessed" : len(self.offsetsAccessed) if not self.ptrToStackOrAlmighty else 0,
-            "numNonStackCacheAlignedOffsetsAccessed" : len(self.cacheAlignedOffsetsAccessed) if not self.ptrToStackOrAlmighty else 0,
-        }
+        if self.discard:
+            return rt
+        rt["boundsLength"] = self.boundsLength
+        rt["ptrLength"] = self.ptrLength
+        if not self.badPtr:
+            rt["goodOffsetsAccessedLd"]      = len(self.offsetsAccessedLd)
+            rt["goodOffsetsAccessedSt"]      = len(self.offsetsAccessedSt)
+            rt["goodOffsetsAccessed"]      = len(self.offsetsAccessedLd | self.offsetsAccessedSt)
+            rt["goodCacheOffsetsAccessedLd"] = len(self.cacheOffsetsAccessedLd)
+            rt["goodCacheOffsetsAccessedSt"] = len(self.cacheOffsetsAccessedSt)
+            rt["goodCacheOffsetsAccessed"] = len(self.cacheOffsetsAccessedLd | self.cacheOffsetsAccessedSt)
+            if self.timeBeforeFirstAccess:
+                rt["goodTimeBeforeAccess"] = self.timeBeforeFirstAccess
+        return rt
 
 
 
@@ -801,7 +978,8 @@ class LogParser:
         lineTypesToPrune: List[type[LogLine]] = [],
         lineTypesToError: List[type[LogLine]] = [],
         RootLogLine: type[LogLine] = LogLine,
-        startWhen: Callable[[LogLine], bool] | None = None
+        startWhen: Callable[[LogLine], bool] | None = None,
+        stopWhen: Callable[[LogLine], bool] | None = None,
     ) -> None:
 
         self.logLines: deque[LogLine] = deque()
@@ -839,6 +1017,9 @@ class LogParser:
                 self.lineTypeCounts[LineType] = self.lineTypeCounts.get(LineType, 0) + 1
                 # Check we haven't recorded maxLines log lines
                 if maxLines is not None and len(self.logLines) >= maxLines:
+                    break
+                # Check if we should stop
+                if stopWhen is not None and stopWhen(logLine):
                     break
                 # Print a status update
                 if len(self.logLines) % 10000 == 0:
@@ -884,7 +1065,10 @@ class LogParser:
             for k, v in ll.getDistributions().items():
                 if k not in dists:
                     dists[k] = []
-                dists[k].append(v)
+                if isinstance(v, list):
+                    dists[k].extend(v)
+                else:
+                    dists[k].append(v)
             if i % 10000 == 0:
                 print(f"\rAccumulated totals and dists for {i} log lines", end="")
         print(f"\rAccumulated totals and dists for {len(self.logLines)} log lines")

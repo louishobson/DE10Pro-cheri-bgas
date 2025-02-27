@@ -8,19 +8,20 @@ BIN ?= default
 RUN ?= $(shell basename $(shell mktemp -udp $(CURDIR)/results run.XXXXXX))
 TOUT ?= 
 
-MIBENCH_DIR := /local/scratch/ldh35/mibench2
+MIBENCH_DIR := /local/scratch/ldh35/mibench2-workspace
 #MIBENCH_NAMES := $(notdir $(wildcard $(MIBENCH_DIR)/*))
 # These ones actually work
-MIBENCH_NAMES := adpcm_decode adpcm_encode aes basicmath crc blowfish dijkstra fft picojpeg qsort rc4
+#MIBENCH_NAMES := adpcm_decode adpcm_encode aes basicmath crc blowfish dijkstra dijkstra_capchain fft patricia picojpeg qsort rc4
+MIBENCH_NAMES := dijkstra_capchain patricia
 
-genhex: $(MIBENCH_NAMES:%=gen-mibench-hex-%) ;
+genhex: $(MIBENCH_NAMES:%=genhex.mibench.%) ;
 
 genhex.mibench.%:
-	elfmanip.py -o $(MIBENCH_DIR)/$*/mem.hex -s 0xc0000000 -i 0x40000000 $(MIBENCH_DIR)/$*/$*.elf to-hex
+	elfmanip.py -o $(MIBENCH_DIR)/$*/mem.hex -s 0xc0000000 -i 0x40000000 $(MIBENCH_DIR)/$*/main.elf to-hex
 
 ####
 
-PREFETCHER_NAMES := stride stride_adaptive all_in_cap cheri_stride cap_spatial cap_ptr cap_spatial_ptr
+PREFETCHER_NAMES := stride stride_adaptive all_in_cap cheri_stride cap_spatial cap_ptr cap_spatial_ptr cap_ptr_new
 PREFETCHER_LOCS  := l1 # l1ll
 
 compile.prefetcher-location: 
