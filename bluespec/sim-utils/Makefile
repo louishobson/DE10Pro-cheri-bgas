@@ -9,42 +9,64 @@ RUN ?= $(shell basename $(shell mktemp -udp $(CURDIR)/results run.XXXXXX))
 TOUT ?= 
 
 MIBENCH_DIR := /local/scratch/ldh35/mibench2-workspace
+OLDEN_DIR := /local/scratch/ldh35/olden-baremetal-cheri-riscv
 #MIBENCH_NAMES := $(notdir $(wildcard $(MIBENCH_DIR)/*))
 # These ones actually work
-#MIBENCH_NAMES := adpcm_decode adpcm_encode aes basicmath crc blowfish dijkstra dijkstra_capchain fft patricia picojpeg qsort rc4
-MIBENCH_NAMES := dijkstra_capchain patricia
+MIBENCH_NAMES := adpcm_decode adpcm_encode aes basicmath blowfish dijkstra fft patricia picojpeg qsort rc4
+#MIBENCH_NAMES := dijkstra_capchain patricia
+#MIBENCH_NAMES := patricia
+OLDEN_NAMES := tsp treeadd treeadd_frag power perimeter health em3d bisort bh
 
-genhex: $(MIBENCH_NAMES:%=genhex.mibench.%) ;
+genhex: $(MIBENCH_NAMES:%=genhex.mibench.%) $(OLDEN_NAMES:%=genhex.olden.%) ;
 
 genhex.mibench.%:
 	elfmanip.py -o $(MIBENCH_DIR)/$*/mem.hex -s 0xc0000000 -i 0x40000000 $(MIBENCH_DIR)/$*/main.elf to-hex
 
+genhex.olden.%:
+	elfmanip.py -o $(OLDEN_DIR)/$*/mem.hex -s 0xc0000000 -i 0x40000000 $(OLDEN_DIR)/$*/main.elf to-hex
+
 ####
 
-PREFETCHER_NAMES := stride stride_adaptive all_in_cap cheri_stride cap_spatial cap_ptr cap_spatial_ptr cap_ptr_new
-PREFETCHER_LOCS  := l1 # l1ll
+PREFETCHER_CONFIGS := cap_spatial_ptr-l1 none-none cap_chaser-l1ll cap_chaser_split-l1ll cap_ptr-l1 stride_adaptive-l1 cap_chaser_split_stride-l1ll
+#PREFETCHER_CONFIGS := \
+#	cap_chaser_allin_h_always_m_always-l1ll \
+#	cap_chaser_allin_h_50_m_50-l1ll \
+#	cap_chaser_allin_h_50_m_always-l1ll \
+#	cap_chaser_allin_h_75_m_75-l1ll \
+#	cap_chaser_allin_h_75_m_50-l1ll \
+#	cap_chaser_allin_h_75_m_always-l1ll \
+#	cap_chaser_allin_h_never_m_never-l1ll \
+#	cap_chaser_allin_h_never_m_75-l1ll \
+#	cap_chaser_allin_h_never_m_50-l1ll \
+#	cap_chaser_allin_h_never_m_always-l1ll
 
-compile.prefetcher-location: 
-	$(MAKE) compile-prefetcher-location-none-none $(foreach pref, $(PREFETCHER_NAMES), $(addprefix compile.prefetcher-location.${pref}-, $(PREFETCHER_LOCS)))
+CACHE_SIZE := STUMPY
 
+compile: $(foreach pref_type, $(PREFETCHER_CONFIGS), compile.prefetcher-location.${pref_type}) ;
+	
 compile.prefetcher-location.%: $(CURDIR)/bin/$(BIN)/%/sim_CHERI_BGAS ;
 
 .PRECIOUS: $(CURDIR)/bin/$(BIN)/%/sim_CHERI_BGAS
 $(CURDIR)/bin/$(BIN)/%/sim_CHERI_BGAS:
-	touch $(CURDIR)/../Toooba/src_Core/RISCY_OOO/coherence/src/prefetcher/Prefetcher_top.bsv
+	-touch $(CURDIR)/../Toooba/src_Core/RISCY_OOO/coherence/src/prefetcher/*
+	CACHE_SIZE=$(CACHE_SIZE) \
 	DATA_PREFETCHER_TYPE=$(shell echo $(word 1,$(subst -, ,$*)) | tr '[:lower:]' '[:upper:]') \
 	DATA_PREFETCHER_LOCATION=$(shell echo $(word 2,$(subst -, ,$*)) | tr '[:lower:]' '[:upper:]') \
 		$(MAKE) -j12 -C ../ bluesim
 	mkdir -p $(CURDIR)/bin/$(BIN)/$*
 	cp $(CURDIR)/../build/simdir/sim_CHERI_BGAS* $(CURDIR)/bin/$(BIN)/$*/
 
-run: $(addprefix run.prefetcher-location-mibench.none-none-, $(MIBENCH_NAMES)) $(foreach pref_type, $(PREFETCHER_NAMES), $(foreach pref_loc, $(PREFETCHER_LOCS), $(addprefix run.prefetcher-location-mibench.${pref_type}-${pref_loc}-, $(MIBENCH_NAMES)))) ;
+run: $(foreach pref_type, $(PREFETCHER_CONFIGS), run.prefetcher-location.${pref_type}) ;
 
-run.prefetcher-location.%: $(addprefix run.prefetcher-location-mibench.%-, $(MIBENCH_NAMES)) ;
+run.prefetcher-location.%: $(addprefix run.prefetcher-location-mibench.%-, $(MIBENCH_NAMES)) $(addprefix run.prefetcher-location-olden.%-, $(OLDEN_NAMES)) ;
 
 run.prefetcher-location-mibench.%:
 	PREFETCHER_TYPE=$(word 1,$(subst -, ,$*)) PREFETCHER_LOCATION=$(word 2,$(subst -, ,$*)) BENCHMARK=$(word 3,$(subst -, ,$*)) ;\
 	./run-sim.sh $(RUN)-$$PREFETCHER_TYPE-$$PREFETCHER_LOCATION $$BENCHMARK $(MIBENCH_DIR)/$$BENCHMARK/mem.hex $(CURDIR)/results $(CURDIR)/bin/$(BIN)/$$PREFETCHER_TYPE-$$PREFETCHER_LOCATION/sim_CHERI_BGAS $(TOUT)
+
+run.prefetcher-location-olden.%:
+	PREFETCHER_TYPE=$(word 1,$(subst -, ,$*)) PREFETCHER_LOCATION=$(word 2,$(subst -, ,$*)) BENCHMARK=$(word 3,$(subst -, ,$*)) ;\
+	./run-sim.sh $(RUN)-$$PREFETCHER_TYPE-$$PREFETCHER_LOCATION $$BENCHMARK $(OLDEN_DIR)/$$BENCHMARK/mem.hex $(CURDIR)/results $(CURDIR)/bin/$(BIN)/$$PREFETCHER_TYPE-$$PREFETCHER_LOCATION/sim_CHERI_BGAS $(TOUT)
 
 ####
 

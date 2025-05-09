@@ -107,6 +107,7 @@ handle_signal () {
     echo "Received interrupt for $RUN_NAME/$SIM_NAME simulation!"
     termination_sequence
     OUT_DIR=$(mktemp -dp "$OUT_ROOT/$RUN_NAME" $SIM_NAME.intXXXXXX)
+    echo "Redirecting $RUN_NAME/$SIM_NAME logs to '$OUT_DIR'"
     copy_logs
     echo "Done with $RUN_NAME/$SIM_NAME"
     exit 0
@@ -168,10 +169,11 @@ while true; do
 
     # Did we time out or run for more than 30 minutes? If not, something probably broke
     if (( !$SIM_TIMEOUT && ($END_TIME - $START_TIME < 1800) )); then
+        echo "Simulation failure for $RUN_NAME/$SIM_NAME!"
         # Copy logs to an error directory
         OUT_DIR_SAVE=$OUT_DIR
         OUT_DIR=$(mktemp -dp "$OUT_ROOT/$RUN_NAME" $SIM_NAME.failXXXXXX)
-        echo "Simulation failure: redirecting logs to '$OUT_DIR'"
+        echo "Redirecting $RUN_NAME/$SIM_NAME logs to '$OUT_DIR'"
         copy_logs
 
         # Retry some number of times
