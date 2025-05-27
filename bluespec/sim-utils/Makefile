@@ -12,9 +12,9 @@ MIBENCH_DIR := /local/scratch/ldh35/mibench2-workspace
 OLDEN_DIR := /local/scratch/ldh35/olden-baremetal-cheri-riscv
 #MIBENCH_NAMES := $(notdir $(wildcard $(MIBENCH_DIR)/*))
 # These ones actually work
-MIBENCH_NAMES := adpcm_decode adpcm_encode aes basicmath blowfish dijkstra fft patricia picojpeg qsort rc4
+#MIBENCH_NAMES := adpcm_decode adpcm_encode aes basicmath blowfish dijkstra fft patricia picojpeg qsort rc4
 #MIBENCH_NAMES := dijkstra_capchain patricia
-#MIBENCH_NAMES := patricia
+MIBENCH_NAMES := patricia
 OLDEN_NAMES := tsp treeadd treeadd_frag power perimeter health em3d bisort bh
 
 genhex: $(MIBENCH_NAMES:%=genhex.mibench.%) $(OLDEN_NAMES:%=genhex.olden.%) ;
@@ -40,7 +40,7 @@ PREFETCHER_CONFIGS := cap_spatial_ptr-l1 none-none cap_chaser-l1ll cap_chaser_sp
 #	cap_chaser_allin_h_never_m_50-l1ll \
 #	cap_chaser_allin_h_never_m_always-l1ll
 
-CACHE_SIZE := STUMPY
+CACHE_SIZE ?= LOUIS
 
 compile: $(foreach pref_type, $(PREFETCHER_CONFIGS), compile.prefetcher-location.${pref_type}) ;
 	
