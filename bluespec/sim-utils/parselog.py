@@ -381,6 +381,11 @@ class CRqCreationLine(NonRVFILine):
             "demandOwned"  : int(not self.isPrefetch and self.owned),
             "demandQueued" : int(not self.isPrefetch and self.queued),
 
+            "demandMissToLDS"   : int(not self.isPrefetch and self.miss and self.boundsLength <= 1024),
+            "demandMissLoadToLDS" : int(not self.isPrefetch and self.miss and self.op == "Ld" and self.boundsLength <= 1024),
+            "demandMissLLToLDS"   : int(not self.isPrefetch and self.miss and not self.cRqResponseLine.hitInLL and self.boundsLength <= 1024),
+            "demandMissLLLoadToLDS"   : int(not self.isPrefetch and self.miss and not self.cRqResponseLine.hitInLL and self.op == "Ld" and self.boundsLength <= 1024),
+
             "prefetch"       : int(self.isPrefetch),
             "prefetchHit"    : int(self.isPrefetch and self.hit),
             "prefetchMiss"   : int(self.isPrefetch and self.miss),
@@ -609,16 +614,17 @@ class CRqHitLine(NonRVFILine):
             if self.discardIf(self.hitDataLine == None, "no data for load hit (could be loading tags)"): return
         
         # If this is a prefetch, add it as a lookout
-        if self.cRqIsPrefetch and self.cRqCreationLine is not None and self.wasMiss and not self.cRqCreationLine.isLatePrefetch:
+        if self.cRqIsPrefetch and self.cRqCreationLine is not None and self.wasMiss:
             self.PREFETCH_LOOKOUTS[self.lineAddr] = self.cRqCreationLine
         
         # If this was a demand hit, check whether there was a previous prefetch for this line
         # If so, set its lead time
         if not self.cRqIsPrefetch and self.lineAddr in self.PREFETCH_LOOKOUTS:
-            self.warnIf(self.wasMiss, "CRqHitLine.PREFETCH_LOOKOUTS hit on a cRq miss")
-            ll = self.PREFETCH_LOOKOUTS[self.lineAddr]
-            ll.prefetchLeadTime = self.timestamp - ll.timestamp
-            self.PREFETCH_LOOKOUTS.pop(self.lineAddr)
+            if not self.warnIf(self.wasMiss, "CRqHitLine.PREFETCH_LOOKOUTS hit on a cRq miss"):
+                ll = self.PREFETCH_LOOKOUTS[self.lineAddr]
+                if ll.prefetchLeadTime is None:
+                    ll.prefetchLeadTime = self.timestamp - ll.timestamp
+                self.PREFETCH_LOOKOUTS.pop(self.lineAddr)
 
         # Check whether this line is being demanded back into the cache after it was removed by a prefetch
         if not self.cRqIsPrefetch:
@@ -681,8 +687,11 @@ class LLCRqHitLine(NonRVFILine):
     _TEST_REGEX = r"^\d+ LL cRq hit"
     _DATA_REGEX = r"^\d+ LL cRq hit mshr: \s*(\d+), addr: (0x[0-9a-f]+), cRq is prefetch: ([01]), wasMiss: ([01])"
 
+    # Lookout for the eviction of this cache line
+    # Means we can know prefetch accuracy and the lifetime of cache lines
     EVICTION_LOOKOUTS = defaultdict(set)
 
+    # So that we can calculate prefetch lead time
     PREFETCH_LOOKOUTS = dict()
 
     def __init__(self, line: str):
@@ -705,17 +714,22 @@ class LLCRqHitLine(NonRVFILine):
         # Warn that there is no creation
         self.warnIf(self.cRqCreationLine is None, "no creation of LL cRq")
 
+        # If this is the refill of a miss, then look for the eventual eviction.
+        if self.wasMiss:
+            self.EVICTION_LOOKOUTS[self.lineAddr].add(self)
+
         # If this is a prefetch, add it as a lookout
-        if self.cRqIsPrefetch and self.cRqCreationLine is not None and self.wasMiss and not self.cRqCreationLine.isLatePrefetch:
+        if self.cRqIsPrefetch and self.cRqCreationLine is not None and self.wasMiss:
             self.PREFETCH_LOOKOUTS[self.lineAddr] = self.cRqCreationLine
 
         # If this was a demand hit, check whether there was a previous prefetch for this line
         # If so, set its lead time
         if not self.cRqIsPrefetch and self.lineAddr in self.PREFETCH_LOOKOUTS:
-            self.warnIf(self.wasMiss, "CRqHitLine.PREFETCH_LOOKOUTS hit on a cRq miss")
-            ll = self.PREFETCH_LOOKOUTS[self.lineAddr]
-            ll.prefetchLeadTime = self.timestamp - ll.timestamp
-            self.PREFETCH_LOOKOUTS.pop(self.lineAddr)
+            if not self.warnIf(self.wasMiss, "LLCRqHitLine.PREFETCH_LOOKOUTS hit on a cRq miss"):
+                ll = self.PREFETCH_LOOKOUTS[self.lineAddr]
+                if ll.prefetchLeadTime is None:
+                    ll.prefetchLeadTime = self.timestamp - ll.timestamp
+                self.PREFETCH_LOOKOUTS.pop(self.lineAddr)
     
     def getDistributions(self):
         if self.discard:
@@ -820,7 +834,7 @@ class CRqMissLine(NonRVFILine):
                 # Note that wasPrefetch is unset when the line is accessed
                 if self.wasPrefetch and ll.cRqCreationLine is not None and not ll.cRqCreationLine.isNeverAccessed:
                     ll.cRqCreationLine.isNeverAccessed = True
-                    ll.cRqCreationLine.isNeverAccessedBecausePerms = self.permsOnly
+                    ll.cRqCreationLine.isNeverAccessedBecausePerms |= self.permsOnly
                 if not self.permsOnly:
                     ll.evictionLine = self
             # The miss could actually be a permissions upgrade: don't count this as eviction
@@ -1412,6 +1426,7 @@ class LogParser:
         silent: bool = False
     ) -> None:
 
+        self.log = log
         self.logLines: deque[LogLine] = deque()
         self.lineTypeCounts: dict[type[LogLine], int] = {}
         started = startWhen == None

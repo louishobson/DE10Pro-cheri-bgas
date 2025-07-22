@@ -14,8 +14,10 @@ OLDEN_DIR := /local/scratch/ldh35/olden-baremetal-cheri-riscv
 # These ones actually work
 #MIBENCH_NAMES := adpcm_decode adpcm_encode aes basicmath blowfish dijkstra fft patricia picojpeg qsort rc4
 #MIBENCH_NAMES := dijkstra_capchain patricia
-MIBENCH_NAMES := patricia
-OLDEN_NAMES := tsp treeadd treeadd_frag power perimeter health em3d bisort bh
+#MIBENCH_NAMES := patricia
+#OLDEN_NAMES := tsp treeadd treeadd_frag power perimeter health em3d bisort bh
+MIBENCH_NAMES :=
+OLDEN_NAMES := bh em3d perimeter power health tsp 
 
 genhex: $(MIBENCH_NAMES:%=genhex.mibench.%) $(OLDEN_NAMES:%=genhex.olden.%) ;
 
@@ -27,7 +29,8 @@ genhex.olden.%:
 
 ####
 
-PREFETCHER_CONFIGS := cap_spatial_ptr-l1 none-none cap_chaser-l1ll cap_chaser_split-l1ll cap_ptr-l1 stride_adaptive-l1 cap_chaser_split_stride-l1ll
+PREFETCHER_CONFIGS := none-none cap_chaser-l1ll cap_chaser_split-l1ll cap_ptr-l1 stride_adaptive-l1 cap_chaser_split_stride-l1ll
+#PREFETCHER_CONFIGS := cap_ptr-l1 none-none
 #PREFETCHER_CONFIGS := \
 #	cap_chaser_allin_h_always_m_always-l1ll \
 #	cap_chaser_allin_h_50_m_50-l1ll \
@@ -40,10 +43,10 @@ PREFETCHER_CONFIGS := cap_spatial_ptr-l1 none-none cap_chaser-l1ll cap_chaser_sp
 #	cap_chaser_allin_h_never_m_50-l1ll \
 #	cap_chaser_allin_h_never_m_always-l1ll
 
-CACHE_SIZE ?= LOUIS
+CACHE_SIZE ?= STUMPY
 
 compile: $(foreach pref_type, $(PREFETCHER_CONFIGS), compile.prefetcher-location.${pref_type}) ;
-	
+
 compile.prefetcher-location.%: $(CURDIR)/bin/$(BIN)/%/sim_CHERI_BGAS ;
 
 .PRECIOUS: $(CURDIR)/bin/$(BIN)/%/sim_CHERI_BGAS
@@ -57,6 +60,8 @@ $(CURDIR)/bin/$(BIN)/%/sim_CHERI_BGAS:
 	cp $(CURDIR)/../build/simdir/sim_CHERI_BGAS* $(CURDIR)/bin/$(BIN)/$*/
 
 run: $(foreach pref_type, $(PREFETCHER_CONFIGS), run.prefetcher-location.${pref_type}) ;
+
+run.olden.%: $(foreach pref_type, $(PREFETCHER_CONFIGS), run.prefetcher-location-olden.${pref_type}-%) ;
 
 run.prefetcher-location.%: $(addprefix run.prefetcher-location-mibench.%-, $(MIBENCH_NAMES)) $(addprefix run.prefetcher-location-olden.%-, $(OLDEN_NAMES)) ;
 

@@ -376,7 +376,8 @@ def main(ctxt):
   time.sleep(0.25)
   print('spawning jtagvpi_to_fmemdmis')
   for idx, node_dir, vpi_port, dbg_port in ctxts:
-    proc_handles[idx]["jtagvpi_to_fmemdmi"] = spawn_jtagvpi_to_fmemdmi(node_dir, vpi_port)
+    #proc_handles[idx]["jtagvpi_to_fmemdmi"] = spawn_jtagvpi_to_fmemdmi(node_dir, vpi_port)
+    pass
   time.sleep(0.25)
   print('spawning openocds')
   for idx, node_dir, vpi_port, dbg_port in ctxts:
@@ -401,7 +402,7 @@ def main(ctxt):
       sim_info.write(f'      - simulator: {proc_handles[idx]["simulator"].pid}\n')
       sim_info.write(f'      - devfs: {proc_handles[idx]["devfs"].pid}\n')
       sim_info.write(f'      - fmem-uart: {proc_handles[idx]["fmem-uart"].pid}\n')
-      sim_info.write(f'      - jtagvpi_to_fmemdmi: {proc_handles[idx]["jtagvpi_to_fmemdmi"].pid}\n')
+      #sim_info.write(f'      - jtagvpi_to_fmemdmi: {proc_handles[idx]["jtagvpi_to_fmemdmi"].pid}\n')
       sim_info.write(f'      - openocd: {proc_handles[idx]["openocd"].pid}\n')
     sim_info.write(f'- connection_pids:\n')
     for p in ctxt.conn_procs:
