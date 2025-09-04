@@ -458,6 +458,7 @@ class LLCRqCreationLine(NonRVFILine):
         self.isRetry      = bool(reData[8] == "1")
         self.reqCs        = str(reData[9])
         # Will be set in self.postProcess
+        self.cRqResponseLine = None
         self.owned = False
         self.miss  = False
         self.hit   = False
@@ -479,6 +480,7 @@ class LLCRqCreationLine(NonRVFILine):
                 break
             if isinstance(ll, LLCRqDependencyLine) and ll.mshr == self.mshr:
                 if self.discardIf(ll.addr != self.addr, "strange LL cRq response (owned)"): return
+                self.cRqResponseLine = ll
                 ll.cRqCreationLine = self
                 # Prefetches are dropped at this point
                 self.owned = True
@@ -486,10 +488,12 @@ class LLCRqCreationLine(NonRVFILine):
                     break
             if isinstance(ll, LLCRqMissLine) and ll.mshr == self.mshr:
                 if self.discardIf(ll.addr != self.addr, "strange LL cRq response (miss)"): return
+                self.cRqResponseLine = ll
                 ll.cRqCreationLine = self
                 self.miss = True
             if isinstance(ll, LLCRqHitLine) and ll.mshr == self.mshr:
                 if self.discardIf(ll.addr != self.addr, "strange LL cRq response (hit)"): return
+                self.cRqResponseLine = ll
                 self.cRqHitLine = ll
                 ll.cRqCreationLine = self
                 if not self.miss and not self.owned:
@@ -531,6 +535,9 @@ class LLCRqCreationLine(NonRVFILine):
             "prefetchHit"   : int(self.isPrefetch and self.hit),
             "prefetchMiss"  : int(self.isPrefetch and self.miss),
             "prefetchOwned" : int(self.isPrefetch and self.owned),
+            "prefetchOwnedAddr" : int(self.isPrefetch and self.owned and self.cRqResponseLine.addrSucc),
+            "prefetchOwnedDemandAddr" : int(self.isPrefetch and self.owned and self.cRqResponseLine.addrSucc and not self.cRqResponseLine.ownerIsPrefetch),
+            "prefetchOwnedRep"  : int(self.isPrefetch and self.owned and not self.cRqResponseLine.addrSucc),
 
             "usefulPrefetch"  : int(self.isPrefetch and self.miss and not self.isNeverAccessed),
             "uselessPrefetch" : int(self.isPrefetch and self.miss and self.isNeverAccessed),
@@ -1013,17 +1020,19 @@ class CRqDependencyLine(NonRVFILine):
 class LLCRqDependencyLine(NonRVFILine):
 
     _TEST_REGEX = r"^\d+ LL cRq dependency"
-    _DATA_REGEX = r"^\d+ LL cRq dependency: mshr: \s*(\d+), depMshr: \s*(\d+), addr: (0x[0-9a-f]+), cRq is prefetch: ([01]), reqCs: ([ITSEM])"
+    _DATA_REGEX = r"^\d+ LL cRq dependency \((rep|addr) succ\): mshr: \s*(\d+), depMshr: \s*(\d+), addr: (0x[0-9a-f]+), cRq is prefetch: ([01]), other is prefetch: ([01]), reqCs: ([ITSEM])"
 
     def __init__(self, line: str) -> None:
         super().__init__(line)
         reData = LLCRqDependencyLine.dataRegex(line)
-        self.mshr          = int(reData[0])
-        self.depMshr       = int(reData[1])
-        self.addr          = int(reData[2], 0)
-        self.lineAddr      = self.addr >> 6
-        self.cRqIsPrefetch = bool(reData[3] == "1")
-        self.reqCs         = str(reData[4])
+        self.addrSucc        = bool(reData[0] == "addr")
+        self.mshr            = int(reData[1])
+        self.depMshr         = int(reData[2])
+        self.addr            = int(reData[3], 0)
+        self.lineAddr        = self.addr >> 6
+        self.cRqIsPrefetch   = bool(reData[4] == "1")
+        self.ownerIsPrefetch = bool(reData[5] == "1")
+        self.reqCs           = str(reData[6])
         # Will be set by a prior LLCRqCreationLine
         self.cRqCreationLine = None
 

@@ -6,10 +6,10 @@ mrproper: mrproper-cheri-bgas-fuse-devfs mrproper-forever-splice mrproper-jtagvp
 
 BIN ?= default
 RUN ?= $(shell basename $(shell mktemp -udp $(CURDIR)/results run.XXXXXX))
-TOUT ?= 
+TOUT ?= 1h
 
-MIBENCH_DIR := /local/scratch/ldh35/mibench2-workspace
-OLDEN_DIR := /local/scratch/ldh35/olden-baremetal-cheri-riscv
+MIBENCH_DIR := /home/louis/Documents/CHERI/mibench2-workspace
+OLDEN_DIR := /home/louis/Documents/CHERI/olden-baremetal-cheri-riscv
 #MIBENCH_NAMES := $(notdir $(wildcard $(MIBENCH_DIR)/*))
 # These ones actually work
 #MIBENCH_NAMES := adpcm_decode adpcm_encode aes basicmath blowfish dijkstra fft patricia picojpeg qsort rc4
@@ -55,7 +55,7 @@ $(CURDIR)/bin/$(BIN)/%/sim_CHERI_BGAS:
 	CACHE_SIZE=$(CACHE_SIZE) \
 	DATA_PREFETCHER_TYPE=$(shell echo $(word 1,$(subst -, ,$*)) | tr '[:lower:]' '[:upper:]') \
 	DATA_PREFETCHER_LOCATION=$(shell echo $(word 2,$(subst -, ,$*)) | tr '[:lower:]' '[:upper:]') \
-		$(MAKE) -j12 -C ../ bluesim
+		$(MAKE) -j4 -C ../ bluesim
 	mkdir -p $(CURDIR)/bin/$(BIN)/$*
 	cp $(CURDIR)/../build/simdir/sim_CHERI_BGAS* $(CURDIR)/bin/$(BIN)/$*/
 
@@ -67,11 +67,13 @@ run.prefetcher-location.%: $(addprefix run.prefetcher-location-mibench.%-, $(MIB
 
 run.prefetcher-location-mibench.%:
 	PREFETCHER_TYPE=$(word 1,$(subst -, ,$*)) PREFETCHER_LOCATION=$(word 2,$(subst -, ,$*)) BENCHMARK=$(word 3,$(subst -, ,$*)) ;\
-	./run-sim.sh $(RUN)-$$PREFETCHER_TYPE-$$PREFETCHER_LOCATION $$BENCHMARK $(MIBENCH_DIR)/$$BENCHMARK/mem.hex $(CURDIR)/results $(CURDIR)/bin/$(BIN)/$$PREFETCHER_TYPE-$$PREFETCHER_LOCATION/sim_CHERI_BGAS $(TOUT)
+	UART=$(if $(findstring --jobserver-auth,$(MAKEFLAGS)),no-uart,show-uart) ;\
+	./run-sim.sh $(RUN)-$$PREFETCHER_TYPE-$$PREFETCHER_LOCATION $$BENCHMARK $(MIBENCH_DIR)/$$BENCHMARK/mem.hex $(CURDIR)/results $(CURDIR)/bin/$(BIN)/$$PREFETCHER_TYPE-$$PREFETCHER_LOCATION/sim_CHERI_BGAS $(TOUT) $$UART
 
 run.prefetcher-location-olden.%:
 	PREFETCHER_TYPE=$(word 1,$(subst -, ,$*)) PREFETCHER_LOCATION=$(word 2,$(subst -, ,$*)) BENCHMARK=$(word 3,$(subst -, ,$*)) ;\
-	./run-sim.sh $(RUN)-$$PREFETCHER_TYPE-$$PREFETCHER_LOCATION $$BENCHMARK $(OLDEN_DIR)/$$BENCHMARK/mem.hex $(CURDIR)/results $(CURDIR)/bin/$(BIN)/$$PREFETCHER_TYPE-$$PREFETCHER_LOCATION/sim_CHERI_BGAS $(TOUT)
+	UART=$(if $(findstring --jobserver-auth,$(MAKEFLAGS)),no-uart,show-uart) ;\
+	./run-sim.sh $(RUN)-$$PREFETCHER_TYPE-$$PREFETCHER_LOCATION $$BENCHMARK $(OLDEN_DIR)/$$BENCHMARK/mem.hex $(CURDIR)/results $(CURDIR)/bin/$(BIN)/$$PREFETCHER_TYPE-$$PREFETCHER_LOCATION/sim_CHERI_BGAS $(TOUT) $$UART
 
 ####
 
@@ -140,9 +142,10 @@ $(CURDIR)/tools/openocd: /tmp/openocd/src/openocd
 
 /tmp/openocd/src/openocd:
 	rm -rf /tmp/openocd
-	git clone --depth=1 --branch latest https://github.com/openocd-org/openocd.git /tmp/openocd
+	git clone https://github.com/openocd-org/openocd.git /tmp/openocd
+	#git clone --depth=1 --commit 8a37230 https://github.com/openocd-org/openocd.git /tmp/openocd
 	# last tested with commit 8a37230
-	cd /tmp/openocd && git submodule update --init --recursive && \
+	cd /tmp/openocd && git reset --hard 8a37230 && git submodule update --init --recursive && \
 	./bootstrap && ./configure --enable-jtag_vpi
 	$(MAKE) -C /tmp/openocd
 
